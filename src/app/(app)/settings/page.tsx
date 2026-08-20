@@ -245,11 +245,27 @@ export default async function SettingsPage() {
               <code>vercel.json</code>; anywhere else, point a scheduler at the same URLs.
             </p>
             <dl className="space-y-2">
-              <Entry name="sync" schedule="every 30 minutes" detail="Pulls fills and balances from every enabled broker connection, then rebuilds trades." />
-              <Entry name="daily" schedule="once a day" detail="Logs subscription charges that have fallen due, refreshes rollups, and regenerates insights." />
-              <Entry name="fx" schedule="once a day" detail="Refreshes the USD/ILS rate used by the tax estimate." />
-              <Entry name="insights" schedule="every 6 hours" detail="Re-runs the analysis so warnings appear without waiting for a page visit." />
+              <Entry
+                name="daily"
+                schedule="once a day"
+                detail="Logs subscription charges that have fallen due, refreshes the USD/ILS rate, rebuilds trades and regenerates insights."
+              />
+              <Entry
+                name="sync"
+                schedule="once a day"
+                detail="Pulls fills and balances from every enabled broker connection, then rebuilds trades."
+              />
             </dl>
+            <p>
+              Two jobs, both daily, because Vercel&apos;s Hobby plan rejects any cron that fires more than
+              once a day. On Pro you can raise the sync to <code>*/30 * * * *</code> in{' '}
+              <code>vercel.json</code> for near-live data. Either way, <strong>Sync brokers</strong> at the top
+              of the dashboard runs it on demand.
+            </p>
+            <p>
+              <code>/api/cron/fx</code> and <code>/api/cron/insights</code> still exist and can be called
+              directly; the daily job just does their work too.
+            </p>
             <p>
               A TradingView alert can post to <code>/api/webhook/tradingview</code> with the same token to record
               intended stops and targets as they are placed.

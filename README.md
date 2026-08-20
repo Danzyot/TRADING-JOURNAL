@@ -105,11 +105,11 @@ touch the database.
 
 | | |
 |---|---|
-| Tradovate fills and balances | ✅ Every 30 minutes |
+| Tradovate fills and balances | ✅ Daily, plus a button for on demand |
 | Trade matching from fills | ✅ Automatic |
 | Subscription charges | ✅ Logged as they fall due |
 | USD/ILS rate | ✅ Daily |
-| Insights regeneration | ✅ Every 6 hours |
+| Insights regeneration | ✅ Daily, plus a button for on demand |
 | Tax reserve per payout | ✅ On entry |
 | Rithmic fills | ❌ CSV — no retail API exists |
 | Tradecopia | ❌ CSV from the broker it copies into |
