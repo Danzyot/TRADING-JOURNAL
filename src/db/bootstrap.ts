@@ -1,11 +1,9 @@
 import 'server-only'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { db } from './index'
-import { propFirms } from './schema'
-import { FIRM_PRESETS } from '../lib/propfirm/rules'
 
 /**
  * Brings an empty database up to date on its own.
@@ -40,7 +38,6 @@ let started: Promise<BootstrapResult> | null = null
 export type BootstrapResult = {
   ok: boolean
   migrated: boolean
-  seededFirms: number
   message: string
 }
 
@@ -55,7 +52,6 @@ async function run(): Promise<BootstrapResult> {
     return {
       ok: false,
       migrated: false,
-      seededFirms: 0,
       message: 'DATABASE_URL is not set — skipping database bootstrap.',
     }
   }
@@ -65,9 +61,18 @@ async function run(): Promise<BootstrapResult> {
     return {
       ok: false,
       migrated: false,
-      seededFirms: 0,
       message: `No migrations folder at ${folder}. Run "npm run db:generate" and redeploy.`,
     }
+  }
+
+  // Fast path, taken on every cold start after the first: when the journal
+  // already records every local migration there is nothing to do, so skip the
+  // advisory lock entirely. This keeps the per-cold-start cost at one indexed
+  // read instead of four round trips — which matters when the database is a
+  // network hop away.
+  const expected = localMigrationCount(folder)
+  if (expected > 0 && (await appliedCount()) >= expected) {
+    return { ok: true, migrated: false, message: 'Database already up to date.' }
   }
 
   let locked = false
@@ -78,16 +83,13 @@ async function run(): Promise<BootstrapResult> {
     const before = await appliedCount()
     await migrate(db, { migrationsFolder: folder })
     const after = await appliedCount()
-
-    const seededFirms = await seedFirmPresets()
     const migrated = after > before
 
     return {
       ok: true,
       migrated,
-      seededFirms,
       message: migrated
-        ? `Database ready — applied ${after - before} migration(s)${seededFirms > 0 ? `, added ${seededFirms} prop firm presets` : ''}.`
+        ? `Database ready — applied ${after - before} migration(s).`
         : 'Database already up to date.',
     }
   } catch (error) {
@@ -100,12 +102,11 @@ async function run(): Promise<BootstrapResult> {
       return {
         ok: true,
         migrated: false,
-        seededFirms: 0,
         message: 'Schema already present (created outside the migration history). Continuing.',
       }
     }
 
-    return { ok: false, migrated: false, seededFirms: 0, message: `Database bootstrap failed: ${message}` }
+    return { ok: false, migrated: false, message: `Database bootstrap failed: ${message}` }
   } finally {
     if (locked) {
       await db.execute(sql`select pg_advisory_unlock(${LOCK_KEY})`).catch(() => {})
@@ -125,27 +126,16 @@ async function appliedCount(): Promise<number> {
   }
 }
 
-/**
- * Puts the common prop firms in the database so the account form has something
- * to pick from on day one. Idempotent: only inserts when the table is empty, so
- * a firm the user has deleted does not reappear on the next deploy.
- */
-async function seedFirmPresets(): Promise<number> {
-  const [existing] = await db.select({ count: sql<number>`count(*)::int` }).from(propFirms)
-  if ((existing?.count ?? 0) > 0) return 0
-
-  const inserted = await db
-    .insert(propFirms)
-    .values(
-      FIRM_PRESETS.map((preset) => ({
-        name: preset.name,
-        platform: preset.platform,
-        profitSplit: preset.profitSplit,
-        payoutPolicy: preset.note,
-      })),
-    )
-    .onConflictDoNothing()
-    .returning({ id: propFirms.id })
-
-  return inserted.length
+function localMigrationCount(folder: string): number {
+  try {
+    return readdirSync(folder).filter((file) => file.endsWith('.sql')).length
+  } catch {
+    return 0
+  }
 }
+
+// Note on what this deliberately does NOT do any more: it used to seed a list
+// of well-known prop firms on first run. Pre-creating rows the user never asked
+// for is presumptuous, and worse, "seed while empty" meant deleting every firm
+// brought all of them back on the next cold start. Firm presets now live only
+// in the add-firm form, as optional templates the user chooses to apply.

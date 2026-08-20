@@ -1,7 +1,7 @@
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
+import { FirmForm } from './firm-form'
 import { Badge, Card, EmptyState, KeyValue, Meter, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { money, percent, titleCase } from '@/lib/format'
-import { FIRM_PRESETS } from '@/lib/propfirm/rules'
 import { deleteAccount, deleteFirm, rebuildAccountTrades, saveAccount, saveFirm } from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
 import { firmEconomics, listFirms } from '@/server/money'
@@ -50,7 +50,8 @@ export default async function AccountsPage() {
       </StatGrid>
 
       {/* --- Firm economics ------------------------------------------------- */}
-      {economics.length > 0 && (
+      {/* A table of zeros teaches nothing; it appears once there is money in it. */}
+      {economics.some((row) => row.accountsTotal > 0 || row.spend > 0 || row.payouts > 0) && (
         <div className="mt-6">
           <Card
             title="Firm economics"
@@ -229,14 +230,17 @@ export default async function AccountsPage() {
       <div className="mt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-[var(--ink)]">Prop firms</h2>
-          <Disclosure label="Add firm">
-            <FirmForm />
+          <Disclosure label="+ Add firm">
+            <FirmEditor />
           </Disclosure>
         </div>
 
         {firms.length === 0 ? (
           <Card>
-            <EmptyState title="No firms yet" body="Add the firms you trade with so payouts and costs can be attributed." />
+            <EmptyState
+              title="No firms yet"
+              body="Add the firms you actually trade with — nothing is created for you. The add form offers templates for common firms, and every value stays yours to edit."
+            />
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -252,8 +256,8 @@ export default async function AccountsPage() {
                   <p className="mt-3 text-xs leading-relaxed text-[var(--ink-secondary)]">{firm.payoutPolicy}</p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Disclosure label="Edit">
-                    <FirmForm firm={firm} />
+                  <Disclosure label="Edit firm">
+                    <FirmEditor firm={firm} />
                   </Disclosure>
                   <ActionButton
                     action={async () => {
@@ -280,7 +284,7 @@ export default async function AccountsPage() {
 type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
 type AccountRow = Awaited<ReturnType<typeof listAccounts>>[number]
 
-function FirmForm({ firm }: { firm?: FirmRow }) {
+function FirmEditor({ firm }: { firm?: FirmRow }) {
   async function submit(formData: FormData) {
     'use server'
     return saveFirm(firm?.id ?? null, formData)
@@ -288,52 +292,23 @@ function FirmForm({ firm }: { firm?: FirmRow }) {
 
   return (
     <Card>
-      <ActionForm action={submit} className="space-y-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Name">
-            <input name="name" defaultValue={firm?.name ?? ''} className="input" required list="firm-presets" />
-            <datalist id="firm-presets">
-              {FIRM_PRESETS.map((preset) => (
-                <option key={preset.name} value={preset.name} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label="Website">
-            <input name="website" defaultValue={firm?.website ?? ''} className="input" />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Platform">
-            <select name="platform" defaultValue={firm?.platform ?? 'tradovate'} className="select">
-              <option value="tradovate">Tradovate</option>
-              <option value="rithmic">Rithmic</option>
-              <option value="projectx">ProjectX / TopstepX</option>
-              <option value="other">Other</option>
-            </select>
-          </Field>
-          <Field label="Profit split" hint="As a fraction, e.g. 0.9 for 90%">
-            <input
-              name="profitSplit"
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
-              defaultValue={firm?.profitSplit ?? 0.9}
-              className="input"
-            />
-          </Field>
-          <Field label="Min days to payout">
-            <input name="minDaysToPayout" type="number" defaultValue={firm?.minDaysToPayout ?? ''} className="input" />
-          </Field>
-        </div>
-
-        <Field label="Payout policy" hint="The rules in your own words — they vary by firm and change often">
-          <textarea name="payoutPolicy" rows={3} defaultValue={firm?.payoutPolicy ?? ''} className="textarea" />
-        </Field>
-
-        <SubmitButton>{firm ? 'Save firm' : 'Add firm'}</SubmitButton>
-      </ActionForm>
+      <FirmForm
+        action={submit}
+        firm={
+          firm
+            ? {
+                id: firm.id,
+                name: firm.name,
+                website: firm.website,
+                platform: firm.platform,
+                profitSplit: firm.profitSplit,
+                minDaysToPayout: firm.minDaysToPayout,
+                payoutPolicy: firm.payoutPolicy,
+                notes: firm.notes,
+              }
+            : undefined
+        }
+      />
     </Card>
   )
 }
