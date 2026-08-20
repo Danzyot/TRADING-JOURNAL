@@ -1,0 +1,217 @@
+import 'server-only'
+import { db } from '@/db'
+import { journalEntries } from '@/db/schema'
+import { desc } from 'drizzle-orm'
+import {
+  bySession,
+  bySymbol,
+  byWeekday,
+  computeMetrics,
+  dailySeries,
+  equityCurve,
+  type CoreMetrics,
+  type DailyPoint,
+} from '@/lib/analytics/metrics'
+import { drawdownState, evaluationProgress, type DrawdownState } from '@/lib/propfirm/rules'
+import { deploymentAdvice, type DeploymentSuggestion } from '@/lib/allocation'
+import { calculateIsraeliTax, reservePercentFor } from '@/lib/tax/israel'
+import { today } from '@/lib/time'
+import type { Account, Insight } from '@/db/schema'
+import { getSettings } from './settings'
+import { equityHistory, listAccounts, listTradesForStats } from './trades'
+import { deductibleExpensesForYear, moneySummary, revenueForYear, upcomingRenewals } from './money'
+import { listInsights } from './insights'
+
+export type AccountCard = {
+  account: Account
+  drawdown: DrawdownState
+  equity: number
+  netPnl: number
+  trades: number
+  progress: ReturnType<typeof evaluationProgress>
+}
+
+export type DashboardData = {
+  metrics: CoreMetrics
+  daily: DailyPoint[]
+  equity: ReturnType<typeof equityCurve>
+  todayPnl: number
+  monthPnl: number
+  yearPnl: number
+  openTrades: number
+  accountCards: AccountCard[]
+  insights: Insight[]
+  money: Awaited<ReturnType<typeof moneySummary>>
+  tax: {
+    year: number
+    revenue: number
+    deductible: number
+    reservePercent: number
+    estimatedTax: number
+    reservedSoFar: number
+    shortfall: number
+    currency: string
+  }
+  advice: DeploymentSuggestion[]
+  renewals: Awaited<ReturnType<typeof upcomingRenewals>>
+  bySymbol: ReturnType<typeof bySymbol>
+  bySession: ReturnType<typeof bySession>
+  byWeekday: ReturnType<typeof byWeekday>
+  timezone: string
+  baseCurrency: string
+  journalToday: { plan: string | null; review: string | null } | null
+}
+
+/**
+ * Everything the landing page needs, assembled once.
+ *
+ * The dashboard is the page opened most often, so it is worth one wide read
+ * rather than a dozen round trips — the queries below run in parallel and the
+ * derived numbers are computed in memory.
+ */
+export async function getDashboardData(): Promise<DashboardData> {
+  const settings = await getSettings()
+  const year = new Date().getFullYear()
+  const currentDay = today(settings.timezone)
+  const monthStart = `${currentDay.slice(0, 7)}-01`
+  const yearStart = `${year}-01-01`
+
+  const [trades, accounts, equityByAccount, insights, money, renewals, revenue, deductions] =
+    await Promise.all([
+      listTradesForStats(),
+      listAccounts(),
+      equityHistory(),
+      listInsights(),
+      moneySummary(),
+      upcomingRenewals(30),
+      revenueForYear(year),
+      deductibleExpensesForYear(year),
+    ])
+
+  const metrics = computeMetrics(trades)
+  const daily = dailySeries(trades)
+
+  const sumFrom = (start: string): number =>
+    daily.filter((point) => point.day >= start).reduce((sum, point) => sum + point.netPnl, 0)
+
+  const accountCards: AccountCard[] = accounts
+    .filter((account) => account.status === 'active')
+    .map((account) => {
+      const history = equityByAccount[account.id] ?? []
+      const accountTrades = trades.filter((trade) => trade.accountId === account.id)
+      const netPnl = accountTrades.reduce((sum, trade) => sum + trade.netPnl, 0)
+      const equity = account.currentBalance ?? account.startingBalance + netPnl
+      const tradingDays = new Set(accountTrades.map((trade) => trade.tradingDay)).size
+
+      return {
+        account,
+        drawdown: drawdownState(account, history.length ? history : [{ day: currentDay, equity }]),
+        equity,
+        netPnl,
+        trades: accountTrades.length,
+        progress: evaluationProgress(account, equity, tradingDays),
+      }
+    })
+    .sort((a, b) => a.drawdown.roomPercent - b.drawdown.roomPercent)
+
+  // --- Tax position -------------------------------------------------------
+  const profile = settings.taxProfile!
+  const toIls = (value: number): number => (settings.baseCurrency === 'ILS' ? value : value * settings.usdIls)
+  const fromIls = (value: number): number => (settings.baseCurrency === 'ILS' ? value : value / settings.usdIls)
+
+  const taxInput = {
+    year,
+    revenueIls: toIls(revenue),
+    deductibleExpensesIls: toIls(deductions.deductible),
+    inputVatIls: toIls(deductions.vat),
+    status: profile.status === 'undecided' ? ('osek_murshe' as const) : profile.status,
+    creditPoints: profile.creditPoints,
+    monthsActive: monthsActiveIn(year, profile.businessOpenedOn),
+  }
+  const taxBreakdown = calculateIsraeliTax(taxInput)
+  const reservePercent = revenue > 0 ? reservePercentFor(taxInput) : profile.reservePercent
+  const estimatedTax = fromIls(taxBreakdown.totalTax)
+
+  // --- Deployment advice --------------------------------------------------
+  const fundedAccounts = accounts.filter((a) => a.phase === 'funded' || a.phase === 'live').length
+  const evaluationAccounts = accounts.filter((a) => a.phase === 'eval' || a.status === 'failed' || a.status === 'passed')
+  const passedAccounts = accounts.filter((a) => a.status === 'passed' || a.phase === 'funded' || a.phase === 'live')
+  const buckets = balancesFromPlan(money.taxReserved, money.payoutsPaid, settings)
+
+  const advice = deploymentAdvice({
+    annualPayouts: money.payoutsPaid,
+    annualCosts: money.expensesTotal,
+    emergencyBalance: buckets.emergency,
+    monthlyLiving: buckets.monthlyLiving,
+    operatingBalance: buckets.operating,
+    fundedAccounts,
+    evalCost: evaluationAccounts.length > 0 ? money.evaluationSpend / evaluationAccounts.length : 0,
+    evalPassRate: evaluationAccounts.length > 0 ? passedAccounts.length / evaluationAccounts.length : 0,
+  })
+
+  const [journalRow] = await db
+    .select()
+    .from(journalEntries)
+    .orderBy(desc(journalEntries.entryDate))
+    .limit(1)
+
+  return {
+    metrics,
+    daily,
+    equity: equityCurve(trades),
+    todayPnl: sumFrom(currentDay),
+    monthPnl: sumFrom(monthStart),
+    yearPnl: sumFrom(yearStart),
+    openTrades: trades.filter((trade) => trade.status === 'open').length,
+    accountCards,
+    insights,
+    money,
+    tax: {
+      year,
+      revenue,
+      deductible: deductions.deductible,
+      reservePercent,
+      estimatedTax,
+      reservedSoFar: money.taxReserved,
+      shortfall: Math.max(0, estimatedTax - money.taxReserved),
+      currency: settings.baseCurrency,
+    },
+    advice,
+    renewals,
+    bySymbol: bySymbol(trades).slice(0, 8),
+    bySession: bySession(trades, settings.timezone),
+    byWeekday: byWeekday(trades, settings.timezone),
+    timezone: settings.timezone,
+    baseCurrency: settings.baseCurrency,
+    journalToday: journalRow?.entryDate === currentDay ? { plan: journalRow.plan, review: journalRow.review } : null,
+  }
+}
+
+function monthsActiveIn(year: number, openedOn: string | null): number {
+  if (!openedOn) return 12
+  const opened = new Date(`${openedOn}T00:00:00Z`)
+  if (opened.getUTCFullYear() < year) return 12
+  if (opened.getUTCFullYear() > year) return 0
+  return 12 - opened.getUTCMonth()
+}
+
+/**
+ * Bucket balances are inferred from the allocation plan rather than tracked as
+ * real accounts — the app does not have access to the user's bank. It is an
+ * estimate of where the money *should* be, which is what the advice needs.
+ */
+function balancesFromPlan(
+  taxReserved: number,
+  payoutsPaid: number,
+  settings: { allocationPlan: { buckets: { key: string; percent: number }[] } | null },
+): { emergency: number; operating: number; monthlyLiving: number } {
+  const buckets = settings.allocationPlan?.buckets ?? []
+  const share = (key: string): number => buckets.find((b) => b.key === key)?.percent ?? 0
+
+  return {
+    emergency: payoutsPaid * share('emergency'),
+    operating: payoutsPaid * share('operating'),
+    // Personal share of trailing payouts, spread over a year.
+    monthlyLiving: (payoutsPaid * share('personal')) / 12 || 1,
+  }
+}

@@ -1,0 +1,334 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens.
+ *
+ * Dark-first, because that is how the platforms this sits beside are used and
+ * switching between a bright journal and a dark chart all evening is genuinely
+ * unpleasant. Both themes are *selected* rather than inverted: the chart series
+ * are stepped separately for each surface and validated against it.
+ *
+ * Colour roles are defined once on :root and redefined under both the media
+ * query and the [data-theme] scope, so the toggle wins in either direction and
+ * no role is ever left undefined.
+ */
+
+:root {
+  color-scheme: light;
+
+  --plane: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f2f2ef;
+
+  --ink: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+
+  --line: #e1e0d9;
+  --line-strong: #c3c2b7;
+
+  --accent: #2a78d6;
+  --accent-soft: rgba(42, 120, 214, 0.12);
+
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.06), 0 4px 12px rgba(11, 11, 11, 0.04);
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --plane: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-raised: #232321;
+    --surface-sunken: #131312;
+
+    --ink: #ffffff;
+    --ink-secondary: #c3c2b7;
+    --ink-muted: #898781;
+
+    --line: #2c2c2a;
+    --line-strong: #383835;
+
+    --accent: #3987e5;
+    --accent-soft: rgba(57, 135, 229, 0.16);
+
+    --good: #0ca30c;
+    --good-text: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+
+    --grid: #2c2c2a;
+    --axis: #383835;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --plane: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-raised: #232321;
+  --surface-sunken: #131312;
+
+  --ink: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+
+  --line: #2c2c2a;
+  --line-strong: #383835;
+
+  --accent: #3987e5;
+  --accent-soft: rgba(57, 135, 229, 0.16);
+
+  --good: #0ca30c;
+  --good-text: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --grid: #2c2c2a;
+  --axis: #383835;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+@theme inline {
+  --color-plane: var(--plane);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
+  --color-serious: var(--serious);
+  --color-critical: var(--critical);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body {
+  background: var(--plane);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Columns of figures must align; standalone numbers read better proportional. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.card-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Form controls, styled once so every page inherits them. */
+.input,
+.select,
+.textarea {
+  width: 100%;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  color: var(--ink);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface-sunken);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+  opacity: 0.9;
+  border-color: var(--accent);
+}
+
+.btn-danger {
+  color: var(--critical);
+  border-color: color-mix(in srgb, var(--critical) 40%, transparent);
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+table.data th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-muted);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+table.data td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-secondary);
+}
+
+table.data tbody tr:hover {
+  background: var(--surface-sunken);
+}
+
+table.data tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Wide tables and charts scroll inside their own box; the page never does. */
+.scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.scroll-x::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scroll-x::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+}
+
+/* Recharts paints its own tooltip surface; align it with the theme. */
+.recharts-default-tooltip {
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow);
+}
+
+.recharts-cartesian-axis-tick text {
+  fill: var(--ink-muted);
+  font-size: 11px;
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--grid);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

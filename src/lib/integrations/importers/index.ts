@@ -395,7 +395,7 @@ function parseTradeRows(
     if (entryPrice === null) missing.push('entry price')
     if (!entryAt) missing.push('entry time')
 
-    if (missing.length > 0) {
+    if (missing.length > 0 || entryPrice === null || !entryAt || !contract || !qty) {
       skipped += 1
       if (errors.length < 12) {
         errors.push(`Row ${index + 2}: could not read ${missing.join(', ')} — row skipped.`)
