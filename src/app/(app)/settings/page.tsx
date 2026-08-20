@@ -273,6 +273,48 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
+        <Card
+          title="Trade watcher — track trades automatically all day"
+          description="A small script for your trading computer: it uploads any CSV you export and pumps the broker sync every few minutes, so trades appear in the journal minutes after you take them."
+        >
+          <ol className="list-decimal space-y-2 pl-4 text-xs leading-relaxed text-[var(--ink-secondary)]">
+            <li>
+              Install <a href="https://nodejs.org" target="_blank" rel="noreferrer" className="text-[var(--accent)] hover:underline">Node.js</a> (LTS) if you don&apos;t have it.
+            </li>
+            <li>
+              Make a folder, e.g. <code>C:\trading</code>, and download both files into it:{' '}
+              <a href="/api/watcher/script" className="text-[var(--accent)] hover:underline" download>
+                watcher.mjs
+              </a>{' '}
+              and{' '}
+              <a href="/api/watcher/launcher" className="text-[var(--accent)] hover:underline" download>
+                start-watcher.bat
+              </a>{' '}
+              — the launcher already contains this journal&apos;s URL and token, so there is nothing to configure.
+            </li>
+            <li>
+              Double-click <code>start-watcher.bat</code>. It creates an <code>exports</code> folder and starts
+              watching. Keep the window open while you trade (or add it to Task Scheduler at logon).
+            </li>
+          </ol>
+          <div className="mt-3 space-y-2 text-xs leading-relaxed text-[var(--ink-secondary)]">
+            <p>
+              <strong className="text-[var(--ink)]">Tradovate accounts:</strong> nothing more to do — the watcher
+              triggers the sync every 5 minutes, so fills arrive on their own.
+            </p>
+            <p>
+              <strong className="text-[var(--ink)]">Rithmic / Tradecopia / NinjaTrader:</strong> make a subfolder
+              inside <code>exports</code> named exactly like the account (its label or broker id), and export the
+              platform&apos;s CSV into it whenever you finish trading. The upload, matching and dedupe happen by
+              themselves — re-exporting the same file never double-imports.
+            </p>
+            <p className="text-[var(--ink-muted)]">
+              The launcher contains your machine token; treat the file like a password. Full details in
+              docs/WATCHER.md.
+            </p>
+          </div>
+        </Card>
+
         <Card title="Recent automated runs" bodyClassName="p-0">
           {logs.length === 0 ? (
             <EmptyState title="Nothing has run yet" body="Scheduled jobs will report here once the app is deployed." />

@@ -8,6 +8,9 @@
  * 2026 sources:
  *   - Income tax brackets: Income Tax Ordinance Amendment 288 (published
  *     31.3.2026, effective January 2026) widened the 20% and 31% bands.
+ *     Note: brackets and credit points are frozen (not indexed to inflation)
+ *     for 2025-2027 under the Arrangements Law, so these figures carry
+ *     forward unchanged unless legislation intervenes.
  *   - Surtax (מס יסף): 3% above 721,560, per s.121B.
  *   - National Insurance / health: Bituach Leumi self-employed rates 2026.
  *   - Osek patur ceiling: 122,833 (index-linked, updated annually).

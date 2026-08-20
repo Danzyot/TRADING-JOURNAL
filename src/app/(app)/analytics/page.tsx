@@ -205,6 +205,21 @@ export default async function AnalyticsPage() {
                 label="Sharpe (daily, annualised)"
                 value={metrics.sharpe === null ? '—' : number(metrics.sharpe)}
               />
+              <KeyValue
+                label="SQN"
+                value={metrics.sqn === null ? '—' : number(metrics.sqn)}
+                hint={
+                  metrics.sqn === null
+                    ? 'needs 10+ trades with stops recorded'
+                    : metrics.sqn >= 3
+                      ? 'excellent system quality'
+                      : metrics.sqn >= 2
+                        ? 'average system quality'
+                        : metrics.sqn >= 1.6
+                          ? 'below average — tradeable, thin'
+                          : 'hard to trade — edge unstable'
+                }
+              />
             </div>
           </div>
 

@@ -64,6 +64,13 @@ export type CoreMetrics = {
   expectancy: number
   /** Same, denominated in R. Null when stops were not recorded. */
   expectancyR: number | null
+  /**
+   * Van Tharp's System Quality Number: sqrt(min(n, 100)) x mean(R) / stdev(R),
+   * over trades with a recorded stop. n is capped at 100 as Tharp specifies,
+   * so sheer trade count stops inflating the score. Null below 10 R-trades —
+   * fewer is noise dressed as a number.
+   */
+  sqn: number | null
   avgR: number | null
   totalR: number | null
 
@@ -201,6 +208,10 @@ export function computeMetrics(input: TradeLike[]): CoreMetrics {
 
     expectancy: trades.length ? netPnl / trades.length : 0,
     expectancyR: rValues.length ? mean(rValues) : null,
+    sqn:
+      rValues.length >= 10 && stdev(rValues) > 0
+        ? (mean(rValues) / stdev(rValues)) * Math.sqrt(Math.min(rValues.length, 100))
+        : null,
     avgR: rValues.length ? mean(rValues) : null,
     totalR: rValues.length ? sum(rValues) : null,
 

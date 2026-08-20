@@ -109,6 +109,31 @@ describe('computeMetrics', () => {
     expect(computeMetrics([trade(100), trade(-50)]).avgR).toBeNull()
   })
 
+  it('computes SQN once ten R-trades exist', () => {
+    // Alternating +2R / -1R, 10 trades: mean 0.5, deviations ±1.5,
+    // sample stdev sqrt(10 x 1.5² / 9); SQN = mean / stdev x sqrt(10).
+    const rows = Array.from({ length: 10 }, (_, i) =>
+      trade(i % 2 === 0 ? 200 : -100, { rMultiple: i % 2 === 0 ? 2 : -1 }),
+    )
+    const sampleStdev = Math.sqrt((10 * 1.5 ** 2) / 9)
+    expect(computeMetrics(rows).sqn).toBeCloseTo((0.5 / sampleStdev) * Math.sqrt(10), 4)
+  })
+
+  it('withholds SQN below ten R-trades — small samples are noise', () => {
+    const rows = Array.from({ length: 9 }, (_, i) =>
+      trade(100, { rMultiple: i % 2 === 0 ? 2 : -1 }),
+    )
+    expect(computeMetrics(rows).sqn).toBeNull()
+  })
+
+  it('caps the SQN trade count at 100 per Tharp', () => {
+    const rows = Array.from({ length: 400 }, (_, i) =>
+      trade(i % 2 === 0 ? 200 : -100, { rMultiple: i % 2 === 0 ? 2 : -1 }),
+    )
+    const sampleStdev = Math.sqrt((400 * 1.5 ** 2) / 399)
+    expect(computeMetrics(rows).sqn).toBeCloseTo((0.5 / sampleStdev) * Math.sqrt(100), 4)
+  })
+
   it('separates green from red days', () => {
     const metrics = computeMetrics([
       trade(100, { tradingDay: '2026-03-04' }),

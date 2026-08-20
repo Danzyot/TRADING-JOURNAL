@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   // database never gets created.
   outputFileTracingIncludes: {
     '/**': ['./drizzle/**/*'],
+    // The Settings page serves the local trade watcher for download.
+    '/api/watcher/script': ['./tools/watcher.mjs'],
   },
 
   // `postgres` is a Node driver that imports `net` and `tls`. Middleware runs on
