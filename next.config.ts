@@ -4,18 +4,17 @@ const nextConfig: NextConfig = {
   // `standalone` keeps the Railway/Docker image small; Vercel ignores it.
   output: process.env.BUILD_STANDALONE === '1' ? 'standalone' : undefined,
 
-  // The SQL migrations are read from disk at boot by src/instrumentation.ts.
-  // Next's tracer cannot see a runtime directory read, so the folder has to be
-  // named explicitly or the serverless bundle ships without it and the database
-  // never gets created.
+  // src/db/bootstrap.ts reads the SQL migrations from disk on first use. Next's
+  // tracer cannot see a runtime directory read, so the folder has to be named
+  // explicitly — otherwise the serverless bundle ships without it and the
+  // database never gets created.
   outputFileTracingIncludes: {
     '/**': ['./drizzle/**/*'],
   },
 
-  // `postgres` is a Node driver that imports `net` and `tls`. Next compiles
-  // instrumentation for the edge runtime as well (middleware lives there), and
-  // bundling it there fails. Marking it external keeps it out of every bundle
-  // and lets Node require it directly at runtime.
+  // `postgres` is a Node driver that imports `net` and `tls`. Middleware runs on
+  // the edge runtime, where bundling those fails. Marking it external keeps the
+  // driver out of every bundle and lets Node require it directly at runtime.
   serverExternalPackages: ['postgres'],
 
   experimental: {
