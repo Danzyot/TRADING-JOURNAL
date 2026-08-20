@@ -5,7 +5,15 @@ import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/com
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
 import { DEFAULT_RISK_RULES } from '@/server/settings'
-import { createConnection, deleteConnection, refreshInsights, runSync, saveGeneralSettings, saveRiskRules } from '@/server/actions'
+import {
+  createConnection,
+  deleteConnection,
+  refreshInsights,
+  runSync,
+  saveGeneralSettings,
+  saveRiskRules,
+  syncAllBrokers,
+} from '@/server/actions'
 import { getSettings } from '@/server/settings'
 
 export const dynamic = 'force-dynamic'
@@ -42,7 +50,7 @@ export default async function SettingsPage() {
             <ActionButton action={refreshInsights} pendingLabel="Analysing…">
               Refresh insights
             </ActionButton>
-            <ActionButton action={() => runSync()} className="btn btn-primary" pendingLabel="Syncing…">
+            <ActionButton action={syncAllBrokers} className="btn btn-primary" pendingLabel="Syncing…">
               Sync now
             </ActionButton>
           </>

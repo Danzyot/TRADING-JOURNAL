@@ -253,6 +253,11 @@ export function markToMarket(trade: MatchedTrade, mark: number): number {
  * Currency at risk between entry and stop. This is what makes R-multiples
  * possible, and R is the only way to compare a 1-lot MNQ scalp against a 5-lot
  * ES swing on equal terms.
+ *
+ * Returns null — not zero — when the stop sits on the wrong side of the entry.
+ * A long stopped *above* its entry is a typo or a mis-mapped column, and
+ * recording it as "risked nothing" would quietly corrupt every R-multiple that
+ * followed. Null means "unknown", which is what it actually is.
  */
 export function riskFromStop(
   contract: string,
@@ -260,9 +265,9 @@ export function riskFromStop(
   entry: number,
   stop: number,
   qty: number,
-): number {
+): number | null {
   const distance = direction === 'long' ? entry - stop : stop - entry
-  if (distance <= 0) return 0
+  if (distance <= 0) return null
   return round(distance * qty * pointValue(contract), 4)
 }
 

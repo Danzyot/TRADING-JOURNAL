@@ -112,6 +112,28 @@ describe('deploymentAdvice', () => {
     expect(advice.some((a) => a.title.includes('barely paying'))).toBe(true)
   })
 
+  it('says so plainly before the first payout, rather than inventing ratios', () => {
+    const advice = deploymentAdvice({
+      ...context,
+      annualPayouts: 0,
+      emergencyBalance: 0,
+      operatingBalance: 0,
+      monthlyLiving: 0,
+      fundedAccounts: 0,
+    })
+    expect(advice).toHaveLength(1)
+    expect(advice[0].kind).toBe('hold')
+    expect(advice[0].title).toContain('No payouts yet')
+    // The old behaviour divided by a fabricated $1/month and printed "$6 in cash".
+    expect(advice[0].body).not.toContain('$6')
+    expect(advice[0].body).not.toContain('0.0 months')
+  })
+
+  it('still reports the running cost of the business before any payout', () => {
+    const advice = deploymentAdvice({ ...context, annualPayouts: 0, annualCosts: 6_000 })
+    expect(advice[0].body).toContain('$500')
+  })
+
   it('always returns at least one suggestion', () => {
     const advice = deploymentAdvice({
       ...context,

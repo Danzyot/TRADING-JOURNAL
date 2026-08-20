@@ -46,7 +46,14 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
 
   const breakdown = calculateIsraeliTax(input)
   const comparison = compareStatuses(input)
-  const best = comparison.find((entry) => entry.eligible)
+  const eligible = comparison.filter((entry) => entry.eligible)
+  const best = eligible[0]
+  // With no Israeli VAT logged, osek patur and osek murshe produce identical
+  // arithmetic. Declaring a winner on an exact tie would be false precision —
+  // the real difference is compliance burden, so say that instead.
+  const tied = best
+    ? eligible.filter((entry) => Math.abs(entry.breakdown.netAfterTax - best.breakdown.netAfterTax) < 1)
+    : []
   const suggestedReserve = revenue > 0 ? reservePercentFor(input) : profile.reservePercent
   const ceiling = prorateCeiling(rates.vat.osekPaturCeiling, monthsActive)
   const schedule = advanceSchedule(breakdown.totalTax)
@@ -372,10 +379,30 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
 
           {best && (
             <div className="border-t border-[var(--line)] p-4 text-sm leading-relaxed text-[var(--ink-secondary)]">
-              <strong className="text-[var(--ink)]">On these numbers, {STATUS_LABELS[best.status]} keeps the most</strong>{' '}
-              — {money(best.breakdown.netAfterTax, 'ILS', 0)} of {money(best.breakdown.revenue, 'ILS', 0)} in
-              revenue, an effective rate of {percent(best.breakdown.effectiveRate)}.
-              {best.status === 'osek_murshe' && (
+              {tied.length > 1 ? (
+                <>
+                  <strong className="text-[var(--ink)]">
+                    {tied.map((entry) => STATUS_LABELS[entry.status]).join(' and ')} come out identical here
+                  </strong>{' '}
+                  — {money(best.breakdown.netAfterTax, 'ILS', 0)} kept from{' '}
+                  {money(best.breakdown.revenue, 'ILS', 0)} of revenue either way, an effective rate of{' '}
+                  {percent(best.breakdown.effectiveRate)}. That is because you have logged{' '}
+                  {deductions.vat > 0 ? 'very little' : 'no'} Israeli VAT on your costs, and VAT is the only thing
+                  that separates these two statuses when every customer is foreign. Log the VAT on your
+                  Israeli-invoiced costs — internet, phone, your accountant, locally bought hardware — and the
+                  comparison becomes real: an osek murshe reclaims it, an osek patur does not. Until then the
+                  choice is about compliance burden, not tax.
+                </>
+              ) : (
+                <>
+                  <strong className="text-[var(--ink)]">
+                    On these numbers, {STATUS_LABELS[best.status]} keeps the most
+                  </strong>{' '}
+                  — {money(best.breakdown.netAfterTax, 'ILS', 0)} of {money(best.breakdown.revenue, 'ILS', 0)} in
+                  revenue, an effective rate of {percent(best.breakdown.effectiveRate)}.
+                </>
+              )}
+              {tied.length <= 1 && best.status === 'osek_murshe' && (
                 <>
                   {' '}
                   The reason osek murshe often wins for a funded trader even below the turnover ceiling is
@@ -385,7 +412,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
                   bi-monthly reporting rather than one annual declaration.
                 </>
               )}
-              {best.status === 'osek_zair' && (
+              {tied.length <= 1 && best.status === 'osek_zair' && (
                 <>
                   {' '}
                   Osek zair is new for {year} and suits a trader whose real expenses are below 30% of turnover —

@@ -97,8 +97,9 @@ npm run db:seed          # adds the prop firm presets
 
 Add `-- --demo` to the seed for a synthetic account and 90 days of sample
 trades, so every chart and insight has something to show before your real data
-arrives. The demo account is flagged to be excluded from headline statistics, so
-it cannot contaminate your real numbers even if you forget to delete it.
+arrives. It is counted in the statistics like any other account — that is the
+point of it — so **delete "Demo 50k (sample data)" on the Accounts page before
+you rely on any number in the app.**
 
 ```bash
 npm run db:seed -- --demo

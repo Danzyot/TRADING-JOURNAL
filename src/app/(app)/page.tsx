@@ -15,7 +15,7 @@ import {
 } from '@/components/ui'
 import { money, moneyCompact, number, percent, relativeDays, signed } from '@/lib/format'
 import { secondsToHuman } from '@/lib/time'
-import { refreshInsights, runSync } from '@/server/actions'
+import { refreshInsights, syncAllBrokers } from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
             <ActionButton action={refreshInsights} pendingLabel="Analysing…">
               Refresh insights
             </ActionButton>
-            <ActionButton action={() => runSync()} className="btn btn-primary" pendingLabel="Syncing…">
+            <ActionButton action={syncAllBrokers} className="btn btn-primary" pendingLabel="Syncing…">
               Sync brokers
             </ActionButton>
           </>
@@ -81,7 +81,16 @@ export default async function DashboardPage() {
             label="Profit factor"
             value={metrics.profitFactor === null ? '—' : number(metrics.profitFactor)}
             hint={`${percent(metrics.winRate)} win rate`}
-            tone={metrics.profitFactor === null ? 'neutral' : metrics.profitFactor >= 1.3 ? 'good' : 'critical'}
+            tone={
+              metrics.profitFactor === null
+                ? 'neutral'
+                : metrics.profitFactor >= 1.3
+                  ? 'good'
+                  : // Above 1.0 is profitable, just thin — red would overstate it.
+                    metrics.profitFactor >= 1
+                    ? 'warn'
+                    : 'critical'
+            }
           />
         </Card>
       </StatGrid>

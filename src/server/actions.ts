@@ -654,6 +654,18 @@ export async function runSync(connectionId?: number): Promise<ActionResult> {
   })
 }
 
+/**
+ * Syncs every enabled connection.
+ *
+ * A separate zero-argument action rather than `runSync()` with its optional
+ * parameter: a Server Action reference passed to a Client Component is invoked
+ * with no arguments, and being explicit about that at the call site is clearer
+ * than relying on a default.
+ */
+export async function syncAllBrokers(): Promise<ActionResult> {
+  return runSync()
+}
+
 export async function refreshInsights(): Promise<ActionResult> {
   return guard(async () => {
     const result = await regenerateInsights()

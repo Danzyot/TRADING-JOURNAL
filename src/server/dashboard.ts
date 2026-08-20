@@ -211,7 +211,9 @@ function balancesFromPlan(
   return {
     emergency: payoutsPaid * share('emergency'),
     operating: payoutsPaid * share('operating'),
-    // Personal share of trailing payouts, spread over a year.
-    monthlyLiving: (payoutsPaid * share('personal')) / 12 || 1,
+    // Personal share of trailing payouts, spread over a year. Zero when no
+    // payout has landed yet — the advice engine handles that case directly
+    // rather than dividing by a made-up figure.
+    monthlyLiving: (payoutsPaid * share('personal')) / 12,
   }
 }

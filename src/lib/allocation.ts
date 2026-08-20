@@ -190,8 +190,27 @@ export type DeploymentSuggestion = {
  */
 export function deploymentAdvice(context: DeploymentContext): DeploymentSuggestion[] {
   const out: DeploymentSuggestion[] = []
-  const monthsOfRunway = context.monthlyLiving > 0 ? context.emergencyBalance / context.monthlyLiving : 0
   const monthlyBurn = context.annualCosts / 12
+
+  // Before the first payout there is nothing to allocate, and every ratio below
+  // divides by a number that does not exist yet. Saying so is more useful than
+  // computing advice from a fabricated living cost.
+  if (context.annualPayouts <= 0) {
+    return [
+      {
+        priority: 1,
+        kind: 'hold',
+        title: 'No payouts yet — the plan starts with the first one',
+        body: `Once a payout lands it is split automatically across your buckets: tax reserve first, then the operating float, then the emergency fund, then investing. ${
+          monthlyBurn > 0
+            ? `You are currently spending about ${fmt(monthlyBurn)} a month on evaluations, data and platforms, so that is the running cost the first payouts have to cover before anything is genuinely profit.`
+            : 'Log your evaluation fees and subscriptions so the running cost of the business is visible against the first payout.'
+        }`,
+      },
+    ]
+  }
+
+  const monthsOfRunway = context.monthlyLiving > 0 ? context.emergencyBalance / context.monthlyLiving : 0
 
   if (monthsOfRunway < 6) {
     out.push({

@@ -180,8 +180,18 @@ describe('risk and R-multiples', () => {
     expect(riskFromStop('MNQZ5', 'short', 21000, 21020, 2)).toBe(80)
   })
 
-  it('returns zero when the stop is on the wrong side of entry', () => {
-    expect(riskFromStop('MNQZ5', 'long', 21000, 21020, 2)).toBe(0)
+  it('returns null when the stop is on the wrong side of entry', () => {
+    // A long stopped above its entry is a typo, not a zero-risk trade.
+    expect(riskFromStop('MNQZ5', 'long', 21000, 21020, 2)).toBeNull()
+    expect(riskFromStop('MNQZ5', 'short', 21000, 20980, 2)).toBeNull()
+  })
+
+  it('returns null when the stop equals the entry', () => {
+    expect(riskFromStop('MNQZ5', 'long', 21000, 21000, 1)).toBeNull()
+  })
+
+  it('yields no R-multiple from an invalid stop', () => {
+    expect(rMultiple(100, riskFromStop('MNQZ5', 'long', 21000, 21020, 2))).toBeNull()
   })
 
   it('expresses P&L as a multiple of risk', () => {

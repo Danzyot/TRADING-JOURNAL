@@ -97,7 +97,15 @@ export default async function AnalyticsPage() {
           <Stat
             label="Profit factor"
             value={metrics.profitFactor === null ? '—' : number(metrics.profitFactor)}
-            tone={metrics.profitFactor !== null && metrics.profitFactor >= 1.3 ? 'good' : 'warn'}
+            tone={
+              metrics.profitFactor === null
+                ? 'neutral'
+                : metrics.profitFactor >= 1.3
+                  ? 'good'
+                  : metrics.profitFactor >= 1
+                    ? 'warn'
+                    : 'critical'
+            }
           />
         </Card>
         <Card bodyClassName="p-4">
