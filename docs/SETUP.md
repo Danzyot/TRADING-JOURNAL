@@ -1,210 +1,168 @@
 # Setup
 
-About 20 minutes end to end. You need a GitHub account, a Vercel account, and a
-Postgres database. All three have free tiers sufficient for this.
+Two things to create — a database and a deployment — then you sign in. About
+ten minutes, all in the browser. **No terminal, no Node install, no commands.**
+
+The app creates its own database tables the first time you sign in.
 
 ---
 
-## 1. Get a database
+## 1. Create the database (~3 minutes)
 
-Any Postgres works. Easiest options:
+1. Go to **[neon.tech](https://neon.tech)** and sign up (the free tier is plenty
+   — you can sign in with GitHub).
+2. Create a project. Any name; pick the region closest to you (`Europe` if you
+   are in Israel).
+3. On the dashboard you will see **Connection string**. Make sure the toggle
+   says **Pooled connection**, then copy it.
 
-- **[Neon](https://neon.tech)** — free tier, serverless, pairs well with Vercel.
-- **[Supabase](https://supabase.com)** — free tier, includes a table browser.
-- **Vercel Postgres** — one click from the Vercel dashboard.
-- **Railway** — if you are hosting the app there anyway.
+It looks like:
 
-Copy the connection string. **On serverless hosts use the pooled/pooler
-connection string**, not the direct one — a direct connection per invocation
-will exhaust your connection limit.
+```
+postgresql://neondb_owner:AbC123xyz@ep-cool-name-123456-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+```
+
+> **Pooled matters.** The unpooled string opens a new connection per request and
+> will exhaust the connection limit. If you only see one string, look for the
+> "Connection pooling" toggle.
+
+Supabase, Railway and Vercel Postgres all work identically — any Postgres does.
 
 ---
 
-## 2. Generate your secrets
+## 2. Deploy (~5 minutes)
+
+1. Go to **[vercel.com/new](https://vercel.com/new)** and sign in with GitHub.
+2. Find **TRADING-JOURNAL** in the list and click **Import**.
+3. Expand **Environment Variables**. Vercel accepts a whole block at once —
+   paste all five lines from the message where I gave you your secrets, then
+   fill in `DATABASE_URL` with the string from step 1.
+4. Click **Deploy** and wait ~2 minutes.
+
+That is it. The scheduled jobs in `vercel.json` are picked up automatically.
+
+> Nothing else to run. The first time you sign in, the app creates all 14 tables
+> and loads the prop firm presets by itself.
+
+### If the deploy fails
+
+It will not fail for a missing environment variable — the build does not need
+the database. If it does fail, the Vercel build log names the reason.
+
+### Vercel's free plan
+
+Hobby limits cron frequency. If the 30-minute broker sync does not fire, either
+upgrade, or change the schedules in `vercel.json` to once daily and press **Sync
+brokers** on the dashboard when you want fresh data.
+
+---
+
+## 3. First sign-in (~5 minutes)
+
+Open your new URL and sign in with `APP_PASSWORD`. Then, in order:
+
+**Settings** — check the timezone is `Asia/Jerusalem` and the currency is `USD`.
+Leave the trading-day boundary at `00:00` unless you want to follow the CME
+session, where an evening fill belongs to the next trading day.
+
+**Accounts → Add account** — one per account you trade. Four fields decide
+whether every warning in the app is right or wrong:
+
+| Field | Why it matters |
+|---|---|
+| Account size | The base for everything |
+| Max drawdown | e.g. `2500` on a 50k Apex |
+| **Drawdown type** | Intraday trailing is the punishing one, and the most common. Get this wrong and the risk warnings are wrong. |
+| **Round-turn commission** | Roughly `$1.24`–`$4.00`. **Leave it at zero and every strategy looks better than it is.** |
+
+The firms are already there — edit the profit split to match your actual
+agreement.
+
+**Import** — drop in a CSV from Tradovate, Rithmic or NinjaTrader. Or
+**Settings → Broker connections** to connect Tradovate for automatic syncing.
+See [INTEGRATIONS.md](INTEGRATIONS.md).
+
+**Tax** — set your status and credit points. If you have finished army service
+you are entitled to extra credit points for 36 months after release; it is worth
+real money and easy to miss. See [TAX-ISRAEL.md](TAX-ISRAEL.md).
+
+---
+
+## Want to see it populated before your own data arrives?
+
+The demo data needs a terminal, so it is genuinely optional — everything else
+does not:
 
 ```bash
-# Encrypts broker credentials at rest
-openssl rand -base64 48
-
-# Signs the session cookie — generate separately
-openssl rand -base64 48
-
-# Bearer token for cron jobs and the TradingView webhook
-openssl rand -hex 32
+git clone https://github.com/Danzyot/TRADING-JOURNAL.git
+cd TRADING-JOURNAL && npm install
+DATABASE_URL="<your neon string>" npm run db:seed -- --demo
 ```
 
-Generate `ENCRYPTION_KEY` and `SESSION_SECRET` separately rather than reusing
-one value. Rotating your login should not invalidate your stored broker
-credentials, and vice versa.
+That generates 90 days of synthetic trades so every chart and insight has
+something to show. **Delete "Demo 50k (sample data)" on the Accounts page before
+you trust any number** — it is counted in your statistics like any other
+account.
 
 ---
 
-## 3. Deploy
+## Later
 
-### Vercel (recommended)
+### Changing a secret
 
-1. Push this repository to GitHub.
-2. In Vercel, *Add New → Project* and import it.
-3. Add environment variables:
+Vercel → Project → Settings → Environment Variables → edit → **Redeploy**.
 
-   | Name | Value |
-   |---|---|
-   | `DATABASE_URL` | your pooled Postgres connection string |
-   | `APP_PASSWORD` | the password you will sign in with |
-   | `ENCRYPTION_KEY` | first generated secret |
-   | `SESSION_SECRET` | second generated secret |
-   | `CRON_SECRET` | the hex token |
+Changing `ENCRYPTION_KEY` makes stored broker credentials unreadable; you would
+re-enter them in Settings. Changing `SESSION_SECRET` just signs you out.
 
-4. Deploy.
+### Backups
 
-The four scheduled jobs in `vercel.json` are picked up automatically. Vercel
-sends `Authorization: Bearer $CRON_SECRET` with each one.
-
-> Vercel's Hobby plan limits cron frequency. If the 30-minute sync does not
-> fire, either upgrade or change the schedule in `vercel.json` to daily and
-> press *Sync brokers* on the dashboard when you want fresh data.
-
-### Railway / Fly / any Docker host
-
-A `Dockerfile` is included and builds a standalone server.
-
-```bash
-docker build -t trading-journal .
-docker run -p 3000:3000 --env-file .env trading-journal
-```
-
-There is no built-in scheduler outside Vercel. Point any cron service at the
-four endpoints with the token as a query parameter:
-
-```
-https://your-app/api/cron/sync?token=YOUR_CRON_SECRET
-https://your-app/api/cron/daily?token=YOUR_CRON_SECRET
-https://your-app/api/cron/fx?token=YOUR_CRON_SECRET
-https://your-app/api/cron/insights?token=YOUR_CRON_SECRET
-```
-
----
-
-## 4. Create the tables
-
-From your machine, with `DATABASE_URL` set to the same database:
-
-```bash
-npm install
-npm run db:push          # creates every table
-npm run db:seed          # adds the prop firm presets
-```
-
-Add `-- --demo` to the seed for a synthetic account and 90 days of sample
-trades, so every chart and insight has something to show before your real data
-arrives. It is counted in the statistics like any other account — that is the
-point of it — so **delete "Demo 50k (sample data)" on the Accounts page before
-you rely on any number in the app.**
-
-```bash
-npm run db:seed -- --demo
-```
-
----
-
-## 5. First run
-
-Sign in with `APP_PASSWORD`, then:
-
-1. **Settings** — set your timezone (`Asia/Jerusalem`), reporting currency, and
-   the trading-day boundary. Leave the boundary at `00:00` for calendar days,
-   or set `18:00` to follow the CME session, where an evening fill belongs to
-   the next trading day.
-
-2. **Accounts → Add firm** — the presets are seeded; edit the profit split and
-   payout policy to match your actual agreement.
-
-3. **Accounts → Add account** — for each account you trade. Three fields matter
-   most:
-   - **Account size** and **max drawdown**
-   - **Drawdown type** — intraday trailing is the punishing one, and the most
-     common. Get this right or the risk warnings are wrong.
-   - **Round-turn commission per contract** — roughly $1.20–$4.00. **Leaving
-     this at zero makes every strategy look better than it is.**
-
-4. **Import** or **Settings → Broker connections** — get your trades in. See
-   `INTEGRATIONS.md`.
-
-5. **Tax** — set your status, credit points (including the discharged-soldier
-   credit if it applies), and reserve percentage.
-
-6. **Money → allocation plan** — adjust the buckets. Defaults and reasoning are
-   in `PAYOUT-STRATEGY.md`.
-
----
-
-## Local development
-
-```bash
-cp .env.example .env.local     # fill in the values
-npm install
-npm run db:push
-npm run dev                    # http://localhost:3000
-```
-
-```bash
-npm run typecheck    # tsc, no emit
-npm test             # vitest
-npm run check        # both
-npm run db:studio    # Drizzle Studio, a browser table editor
-```
-
----
-
-## Updating for a new tax year
-
-Every Israeli rate lives in `src/lib/tax/rates.ts`. Each January:
-
-1. Copy `RATES_2026` to `RATES_2027`, update the figures.
-2. Add it to `RATE_TABLE`.
-
-Bracket thresholds, the surtax threshold, the credit point value, National
-Insurance bands and the osek patur ceiling all index annually. The tests in
-`src/lib/tax/israel.test.ts` pin the arithmetic, not the rates, so they keep
-working.
-
----
-
-## Backups
-
-Your database is the only thing that matters — the code is in git.
-
-Neon and Supabase both provide point-in-time restore on paid tiers. On a free
-tier, take a periodic dump:
+The database is the only thing that matters — the code is in git. Neon keeps
+point-in-time restore on paid tiers. On the free tier, take a dump occasionally,
+especially before a tax filing:
 
 ```bash
 pg_dump "$DATABASE_URL" > backup-$(date +%F).sql
 ```
 
-Worth doing before any schema change, and worth doing at all — this becomes the
-record behind a tax filing.
+### A new tax year
+
+Every Israeli rate lives in one file, `src/lib/tax/rates.ts`. Each January: copy
+`RATES_2026` to `RATES_2027`, update the figures, add it to `RATE_TABLE`. Never
+edit a past year in place — prior-year estimates must stay reproducible.
+
+The weekly maintenance routine checks this each January and opens the change for
+you.
+
+### Local development
+
+```bash
+cp .env.example .env.local     # fill in the values
+npm install && npm run dev     # http://localhost:3000
+npm run check                  # typecheck + 165 tests
+```
 
 ---
 
 ## Troubleshooting
 
-**"DATABASE_URL is not set"** — the app needs it at runtime, not just build
-time. Check it is present in your host's environment variables, not only in a
-local file.
+**"DATABASE_URL is not set"** — it is missing from the Vercel environment, or
+was added after the last deploy. Add it and redeploy.
+
+**Pages error with "relation … does not exist"** — the schema did not get
+created. Check the Vercel function logs for a bootstrap message; the usual cause
+is an unpooled connection string hitting its limit.
 
 **Cron jobs return 401** — `CRON_SECRET` differs between the environment and the
-request. On Vercel it is sent automatically; elsewhere append
+request. Vercel sends it automatically; elsewhere append
 `?token=YOUR_CRON_SECRET`.
 
-**Tradovate sync asks for a captcha** — sign in through the Tradovate web
-platform once, then retry.
+**Tradovate sync asks for a captcha** — sign in to the Tradovate web platform
+once, then retry.
 
-**Tradovate returns a pending ticket / time penalty** — too many login attempts.
-Wait it out. The app caches its access token specifically to avoid this.
+**Trades look wrong after an import** — open the account and press **Rebuild
+trades**. Matching is a pure function of the fill history, so a rebuild is
+always safe and always gives the same result.
 
-**Trades look wrong after an import** — open the account and press *Rebuild
-trades*. Matching is a pure function of the fill history, so a rebuild is always
-safe and always reproduces the same result.
-
-**P&L is right but everything looks too profitable** — the commission rate on
-the account is probably still zero. The dashboard flags this.
+**Everything looks too profitable** — the commission rate on the account is
+still zero. The dashboard flags this.

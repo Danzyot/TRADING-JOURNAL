@@ -49,17 +49,28 @@ through Tradovate, Rithmic and TradingView, with Tradecopia copying between them
 
 ---
 
-## Quick start
+## Getting it running
 
-```bash
-npm install
-cp .env.example .env.local     # fill in DATABASE_URL and the secrets
-npm run db:push
-npm run db:seed -- --demo      # optional sample data
-npm run dev
-```
+Two things to create, both in the browser. **No terminal, no Node install, no
+commands** — the app creates its own database tables on first sign-in.
 
-Full instructions, including deployment: **[docs/SETUP.md](docs/SETUP.md)**
+1. **Database** — [neon.tech](https://neon.tech), create a project, copy the
+   **pooled** connection string.
+2. **Deploy** — [vercel.com/new](https://vercel.com/new), import this repo,
+   paste five environment variables, click Deploy.
+3. **Sign in** and add your accounts.
+
+Step-by-step, with the exact fields: **[docs/SETUP.md](docs/SETUP.md)**
+
+Environment variables, all set once in Vercel:
+
+| Name | What it is |
+|---|---|
+| `DATABASE_URL` | Your pooled Postgres connection string |
+| `APP_PASSWORD` | What you sign in with |
+| `ENCRYPTION_KEY` | Encrypts broker credentials at rest (32+ chars) |
+| `SESSION_SECRET` | Signs the session cookie (32+ chars) |
+| `CRON_SECRET` | Bearer token for scheduled jobs and the TradingView webhook |
 
 ---
 
@@ -79,6 +90,10 @@ Full instructions, including deployment: **[docs/SETUP.md](docs/SETUP.md)**
 Next.js 15 (App Router) · TypeScript · Tailwind v4 · Postgres via Drizzle ·
 Recharts · Vitest. Deploys to Vercel with cron, or anywhere via the included
 Dockerfile.
+
+Migrations run themselves on the first request after a deploy, guarded by a
+Postgres advisory lock so concurrent cold starts cannot race. The build needs no
+database, so a deploy never fails on a missing environment variable.
 
 Single-user by design: one password, a signed session cookie, everything private
 behind middleware. Broker credentials are AES-256-GCM encrypted before they

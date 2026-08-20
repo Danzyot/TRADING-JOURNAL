@@ -7,6 +7,7 @@ import { authorizeMachineRequest } from '@/lib/auth'
 import { riskFromStop, rMultiple } from '@/lib/analytics/matching'
 import { rootSymbol } from '@/lib/symbols'
 import { log } from '@/server/sync'
+import { bootstrapDatabase } from '@/db/bootstrap'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    // The one request path that does not otherwise touch settings, so it
+    // triggers the schema bootstrap itself. Memoised — free after the first call.
+    await bootstrapDatabase()
+
     const raw = await request.text()
     // TradingView sends whatever is in the alert box: JSON if you wrote JSON,
     // plain text otherwise. Only JSON carries enough structure to act on.

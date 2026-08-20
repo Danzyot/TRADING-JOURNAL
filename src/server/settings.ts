@@ -1,6 +1,7 @@
 import 'server-only'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
+import { bootstrapDatabase } from '@/db/bootstrap'
 import { settings, type Settings } from '@/db/schema'
 import { DEFAULT_ALLOCATION_PLAN } from '@/lib/allocation'
 import { DEFAULT_TAX_PROFILE } from '@/lib/tax/israel'
@@ -24,6 +25,11 @@ export const DEFAULT_RISK_RULES = {
  * handle a null.
  */
 export async function getSettings(): Promise<Settings> {
+  // Creates the schema on the first request after a deploy, then memoised for
+  // the life of the process. Every page and scheduled job reaches this, so no
+  // request can arrive at a database whose tables do not exist yet.
+  await bootstrapDatabase()
+
   const existing = await db.select().from(settings).where(eq(settings.id, 1)).limit(1)
   if (existing.length > 0) return withDefaults(existing[0])
 
