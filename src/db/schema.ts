@@ -162,6 +162,13 @@ export const accounts = pgTable(
     /** Max contracts the firm allows. Used to flag size violations. */
     maxContracts: integer('max_contracts'),
     minTradingDays: integer('min_trading_days'),
+    /**
+     * Payout gate in the form most firms now use: N days that each netted at
+     * least `winningDayMinProfit`. Distinct from minTradingDays, which counts
+     * any day with a trade.
+     */
+    minWinningDays: integer('min_winning_days'),
+    winningDayMinProfit: money('winning_day_min_profit'),
     /** Consistency rule: no single day may exceed this share of total profit. */
     consistencyPercent: ratio('consistency_percent'),
 

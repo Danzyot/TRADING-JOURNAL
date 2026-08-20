@@ -117,6 +117,8 @@ const accountSchema = z.object({
   dailyLossLimit: optionalNum,
   maxContracts: optionalNum,
   minTradingDays: optionalNum,
+  minWinningDays: optionalNum,
+  winningDayMinProfit: optionalNum,
   consistencyPercent: optionalNum,
   costBase: num.default(0),
   commissionPerContract: num.default(0),
@@ -140,6 +142,8 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
       dailyLossLimit: values.dailyLossLimit ?? null,
       maxContracts: values.maxContracts ?? null,
       minTradingDays: values.minTradingDays ?? null,
+      minWinningDays: values.minWinningDays ?? null,
+      winningDayMinProfit: values.winningDayMinProfit ?? null,
       // Entered as a whole percentage; stored as a fraction.
       consistencyPercent: values.consistencyPercent === null ? null : values.consistencyPercent / 100,
       currentBalance: values.currentBalance ?? null,
@@ -664,6 +668,17 @@ export async function runSync(connectionId?: number): Promise<ActionResult> {
  */
 export async function syncAllBrokers(): Promise<ActionResult> {
   return runSync()
+}
+
+/** Hides one insight until its underlying condition changes or returns. */
+export async function dismissInsightAction(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    const { dismissInsight } = await import('./insights')
+    await dismissInsight(id)
+    revalidatePath('/')
+    revalidatePath('/analytics')
+    return 'Dismissed. It comes back only if the condition re-fires after being resolved.'
+  })
 }
 
 export async function refreshInsights(): Promise<ActionResult> {

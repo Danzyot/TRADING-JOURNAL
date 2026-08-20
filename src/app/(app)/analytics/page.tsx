@@ -20,7 +20,7 @@ import {
 } from '@/lib/analytics/metrics'
 import { money, number, percent, signed } from '@/lib/format'
 import { secondsToHuman } from '@/lib/time'
-import { refreshInsights } from '@/server/actions'
+import { dismissInsightAction, refreshInsights } from '@/server/actions'
 import { listInsights } from '@/server/insights'
 import { getSettings } from '@/server/settings'
 import { listTradesForStats } from '@/server/trades'
@@ -137,6 +137,15 @@ export default async function AnalyticsPage() {
                   </div>
                   <p className="mt-1 text-sm leading-relaxed text-[var(--ink-secondary)]">{insight.body}</p>
                 </div>
+                <ActionButton
+                  action={async () => {
+                    'use server'
+                    return dismissInsightAction(insight.id)
+                  }}
+                  className="btn shrink-0 px-2 py-1 text-[var(--ink-muted)]"
+                >
+                  Dismiss
+                </ActionButton>
               </div>
             ))}
           </Card>

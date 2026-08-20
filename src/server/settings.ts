@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { bootstrapDatabase } from '@/db/bootstrap'
@@ -24,10 +25,13 @@ export const DEFAULT_RISK_RULES = {
  * depends on this existing, so it self-heals rather than making every caller
  * handle a null.
  */
-export async function getSettings(): Promise<Settings> {
+export const getSettings = cache(async (): Promise<Settings> => {
   // Creates the schema on the first request after a deploy, then memoised for
   // the life of the process. Every page and scheduled job reaches this, so no
   // request can arrive at a database whose tables do not exist yet.
+  // `cache()` additionally deduplicates within a single request: several data
+  // loaders on one page each call getSettings and only the first hits the
+  // database — which matters when the database is a network hop away.
   await bootstrapDatabase()
 
   const existing = await db.select().from(settings).where(eq(settings.id, 1)).limit(1)
@@ -50,7 +54,7 @@ export async function getSettings(): Promise<Settings> {
   // A concurrent request won the insert; read what it wrote.
   const [row] = await db.select().from(settings).where(eq(settings.id, 1)).limit(1)
   return withDefaults(row)
-}
+})
 
 /** Backfills JSON columns that predate a schema addition. */
 function withDefaults(row: Settings): Settings {

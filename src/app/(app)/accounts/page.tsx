@@ -2,6 +2,8 @@ import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/com
 import { FirmForm } from './firm-form'
 import { Badge, Card, EmptyState, KeyValue, Meter, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { money, percent, titleCase } from '@/lib/format'
+import { dailySeries } from '@/lib/analytics/metrics'
+import { payoutEligibility } from '@/lib/propfirm/rules'
 import { deleteAccount, deleteFirm, rebuildAccountTrades, saveAccount, saveFirm } from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
 import { firmEconomics, listFirms } from '@/server/money'
@@ -187,6 +189,45 @@ export default async function AccountsPage() {
                       <Meter value={room} tone={tone} label={`${percent(room, 0)} of the drawdown allowance remains`} />
                     </div>
                   )}
+
+                  {(account.phase === 'funded' || account.phase === 'live') &&
+                    account.status === 'active' &&
+                    (() => {
+                      const accountTrades = dashboard.trades.filter((t) => t.accountId === account.id)
+                      const eligibility = payoutEligibility(account, {
+                        currentEquity: card?.equity ?? account.startingBalance,
+                        tradingDays: new Set(accountTrades.map((t) => t.tradingDay)).size,
+                        dailyPnls: dailySeries(accountTrades).map((d) => ({ day: d.day, netPnl: d.netPnl })),
+                        profitSplit: firm?.profitSplit ?? 0.9,
+                      })
+
+                      return (
+                        <div className="mt-4 rounded-lg border border-[var(--line)] p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-[var(--ink)]">Payout readiness</span>
+                            <Badge tone={eligibility.eligible ? 'good' : 'warn'}>
+                              {eligibility.eligible ? 'Eligible' : `${eligibility.blockers.length} blocker${eligibility.blockers.length === 1 ? '' : 's'}`}
+                            </Badge>
+                          </div>
+                          {eligibility.eligible ? (
+                            <p className="mt-1.5 text-xs leading-relaxed text-[var(--ink-secondary)]">
+                              About {money(eligibility.withdrawable, ccy, 0)} above starting balance —
+                              roughly {money(eligibility.netToTrader, ccy, 0)} to you after the{' '}
+                              {percent(firm?.profitSplit ?? 0.9, 0)} split. Check the firm's payout window
+                              before requesting.
+                            </p>
+                          ) : (
+                            <ul className="mt-1.5 space-y-1">
+                              {eligibility.blockers.map((blocker) => (
+                                <li key={blocker} className="text-xs leading-relaxed text-[var(--ink-secondary)]">
+                                  · {blocker}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                   {account.commissionPerContract === 0 && (
                     <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] p-2.5 text-xs text-[var(--serious)]">
@@ -421,6 +462,18 @@ function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; a
           </Field>
           <Field label="Min trading days">
             <input name="minTradingDays" type="number" defaultValue={account?.minTradingDays ?? ''} className="input" />
+          </Field>
+          <Field label="Winning days for payout" hint="e.g. 5 — most firms now gate payouts on winning days, not just trading days">
+            <input name="minWinningDays" type="number" defaultValue={account?.minWinningDays ?? ''} className="input" />
+          </Field>
+          <Field label="Min profit per winning day" hint="e.g. 150 — a day must net at least this to count">
+            <input
+              name="winningDayMinProfit"
+              type="number"
+              step="any"
+              defaultValue={account?.winningDayMinProfit ?? ''}
+              className="input"
+            />
           </Field>
           <Field label="Consistency %" hint="Max share of profit one day may be">
             <input

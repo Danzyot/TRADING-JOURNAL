@@ -17,8 +17,10 @@ import { deploymentAdvice, type DeploymentSuggestion } from '@/lib/allocation'
 import { calculateIsraeliTax, reservePercentFor } from '@/lib/tax/israel'
 import { today } from '@/lib/time'
 import type { Account, Insight } from '@/db/schema'
+import { brokerConnections } from '@/db/schema'
 import { getSettings } from './settings'
 import { equityHistory, listAccounts, listTradesForStats } from './trades'
+import { listFirms } from './money'
 import { deductibleExpensesForYear, moneySummary, revenueForYear, upcomingRenewals } from './money'
 import { listInsights } from './insights'
 
@@ -31,8 +33,22 @@ export type AccountCard = {
   progress: ReturnType<typeof evaluationProgress>
 }
 
+export type SetupState = {
+  firms: number
+  accounts: number
+  accountsMissingCommission: number
+  trades: number
+  connections: number
+  taxStatusChosen: boolean
+  payouts: number
+  complete: boolean
+}
+
 export type DashboardData = {
   metrics: CoreMetrics
+  /** Per-trade rows behind the metrics, for pages that need per-account slices. */
+  trades: Awaited<ReturnType<typeof listTradesForStats>>
+  setup: SetupState
   daily: DailyPoint[]
   equity: ReturnType<typeof equityCurve>
   todayPnl: number
@@ -76,7 +92,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const monthStart = `${currentDay.slice(0, 7)}-01`
   const yearStart = `${year}-01-01`
 
-  const [trades, accounts, equityByAccount, insights, money, renewals, revenue, deductions] =
+  const [trades, accounts, equityByAccount, insights, money, renewals, revenue, deductions, firms, connections] =
     await Promise.all([
       listTradesForStats(),
       listAccounts(),
@@ -86,6 +102,8 @@ export async function getDashboardData(): Promise<DashboardData> {
       upcomingRenewals(30),
       revenueForYear(year),
       deductibleExpensesForYear(year),
+      listFirms(),
+      db.select({ id: brokerConnections.id }).from(brokerConnections),
     ])
 
   const metrics = computeMetrics(trades)
@@ -155,8 +173,27 @@ export async function getDashboardData(): Promise<DashboardData> {
     .orderBy(desc(journalEntries.entryDate))
     .limit(1)
 
+  const setup: SetupState = {
+    firms: firms.length,
+    accounts: accounts.length,
+    accountsMissingCommission: accounts.filter(
+      (a) => a.status === 'active' && a.commissionPerContract === 0 && a.platform !== 'manual',
+    ).length,
+    trades: trades.length,
+    connections: connections.length,
+    taxStatusChosen: profile.status !== 'undecided',
+    payouts: money.payoutsPaid > 0 ? 1 : 0,
+    complete:
+      firms.length > 0 &&
+      accounts.length > 0 &&
+      trades.length > 0 &&
+      profile.status !== 'undecided',
+  }
+
   return {
     metrics,
+    trades,
+    setup,
     daily,
     equity: equityCurve(trades),
     todayPnl: sumFrom(currentDay),

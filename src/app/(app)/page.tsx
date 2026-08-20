@@ -15,6 +15,7 @@ import {
 } from '@/components/ui'
 import { money, moneyCompact, number, percent, relativeDays, signed } from '@/lib/format'
 import { secondsToHuman } from '@/lib/time'
+import { SetupChecklist } from '@/components/setup-checklist'
 import { refreshInsights, syncAllBrokers } from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
 
@@ -28,14 +29,11 @@ export default async function DashboardPage() {
   if (metrics.trades === 0 && data.accountCards.length === 0) {
     return (
       <>
-        <PageHeader title="Dashboard" />
-        <Card>
-          <EmptyState
-            title="Nothing here yet"
-            body="Add a prop firm and an account, then import your fills or connect Tradovate. Everything on this page is derived from your trades — once they are in, this fills itself."
-            action={{ href: '/accounts', label: 'Set up an account' }}
-          />
-        </Card>
+        <PageHeader
+          title="Dashboard"
+          subtitle="Everything on this page derives from your trades. The steps below get them in."
+        />
+        <SetupChecklist setup={data.setup} />
       </>
     )
   }
@@ -94,6 +92,10 @@ export default async function DashboardPage() {
           />
         </Card>
       </StatGrid>
+
+      <div className="mt-6">
+        <SetupChecklist setup={data.setup} />
+      </div>
 
       {/* --- What needs attention ------------------------------------------ */}
       {data.insights.length > 0 && (

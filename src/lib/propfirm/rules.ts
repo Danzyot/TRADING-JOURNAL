@@ -180,6 +180,20 @@ export function payoutEligibility(
       `${options.tradingDays} of ${account.minTradingDays} required trading days completed.`,
     )
   }
+
+  // The gate most firms actually use now: N days each netting at least $X.
+  // A day that made $40 counts toward trading days but not toward this.
+  if (account.minWinningDays) {
+    const threshold = account.winningDayMinProfit ?? 0
+    const qualifying = options.dailyPnls.filter((d) => d.netPnl >= Math.max(threshold, 0.01)).length
+    if (qualifying < account.minWinningDays) {
+      blockers.push(
+        threshold > 0
+          ? `${qualifying} of ${account.minWinningDays} required winning days of at least ${threshold.toFixed(0)} completed.`
+          : `${qualifying} of ${account.minWinningDays} required winning days completed.`,
+      )
+    }
+  }
   if (profit <= 0) {
     blockers.push('Account is not above its starting balance.')
   }
@@ -240,46 +254,70 @@ export const FIRM_PRESETS: {
   drawdownType: Account['drawdownType']
   note: string
 }[] = [
+  // Verified against public sources August 2026. Firms change these terms
+  // often and per plan — treat every value as a starting point to edit against
+  // your actual agreement, not as truth.
   {
     name: 'Apex Trader Funding',
     platform: 'rithmic',
-    profitSplit: 0.9,
-    drawdownType: 'trailing_intraday',
-    note: 'Trailing threshold follows intraday equity and locks once it reaches starting balance plus a buffer.',
+    profitSplit: 1.0,
+    drawdownType: 'trailing_eod',
+    note: 'Apex 4.0 (from Mar 2026): 100% of approved payouts to the trader, capped at 6 payouts per performance account. Drawdown type is chosen at purchase — EOD or intraday trailing — and locks at starting balance + drawdown + $100. Consistency: no day ≥50% of profit since last payout; 5 qualifying trading days per request. Routes via Rithmic, Tradovate or WealthCharts.',
   },
   {
-    name: 'TopstepX',
+    name: 'Topstep',
     platform: 'projectx',
     profitSplit: 0.9,
     drawdownType: 'trailing_eod',
-    note: 'End-of-day trailing drawdown; consistency rule applies to payouts.',
+    note: 'Accounts from Jan 2026: flat 90/10 from the first dollar. EOD trailing Maximum Loss Limit that locks permanently at starting balance; note the MLL moves to $0 after the first Express Funded payout. Payouts weekly after 5 winning days of ≥$150 (or 3 days on the 40% consistency path); per-payout caps apply on accounts from Apr 2026.',
   },
   {
     name: 'Take Profit Trader',
     platform: 'rithmic',
     profitSplit: 0.8,
-    drawdownType: 'trailing_eod',
-    note: 'End-of-day drawdown that stops trailing at the starting balance.',
+    drawdownType: 'trailing_intraday',
+    note: 'PRO (sim funded) is 80/20 with INTRADAY trailing drawdown; PRO+ upgrades to 90/10 and reverts to EOD trailing. No consistency rule and no minimum days — withdraw daily once above the buffer (starting balance + max drawdown). Dual routing: Rithmic and Tradovate/CQG.',
   },
   {
     name: 'MyFundedFutures',
     platform: 'tradovate',
     profitSplit: 0.9,
     drawdownType: 'trailing_eod',
-    note: 'Plan-dependent; several account types with different drawdown behaviour.',
+    note: 'Plan lineup replaced in 2025 (Rapid / Builder / Flex / Pro). Rapid: 90/10 since Jan 2026 with daily payouts above the buffer, intraday-trailing sim funded that locks at start + $100. Builder: 80/20, 50% consistency per cycle. EOD drawdown is computed 4:59 PM CT on closed P&L. Check your specific plan — terms differ widely.',
   },
   {
     name: 'Bulenox',
-    platform: 'tradovate',
+    platform: 'rithmic',
     profitSplit: 0.9,
     drawdownType: 'trailing_intraday',
-    note: 'Intraday trailing drawdown on most account types.',
+    note: '100% of the first $10k withdrawn, then 90/10. Drawdown chosen at purchase: real-time intraday trailing, or EOD trailing plus a daily loss limit; locks around starting balance. 40% best-day consistency at payout, 10 trading days minimum, payouts processed Wednesdays. Rithmic platforms only.',
   },
   {
     name: 'Tradeify',
     platform: 'tradovate',
     profitSplit: 0.9,
     drawdownType: 'trailing_eod',
-    note: 'Offers both static and trailing variants depending on the plan.',
+    note: 'Growth and Lightning pay 100% of the first $15k, then 90/10. EOD trailing that locks at start + $100. Consistency by plan: Growth 35% with 5 qualifying days per payout, Select none, Lightning graduated 20/25/30% per payout number. Routes via Tradovate, Rithmic or WealthCharts.',
+  },
+  {
+    name: 'Alpha Futures',
+    platform: 'tradovate',
+    profitSplit: 0.9,
+    drawdownType: 'trailing_eod',
+    note: 'Flat 90/10 on current plans. EOD trailing loss limit. Funded payouts after 5 winning days of ≥$200, up to 4 payouts a month, max 50% of profit per request. Consistency 40% on Zero, none on Advanced/Premium. Tradovate, NinjaTrader/Rithmic, Quantower, TradingView.',
+  },
+  {
+    name: 'Lucid Trading',
+    platform: 'rithmic',
+    profitSplit: 0.9,
+    drawdownType: 'trailing_eod',
+    note: '90/10 with very fast payout processing. EOD trailing that updates only at the 4:45 PM ET close and locks at starting balance + $100. LucidFlex funded has no consistency rule; LucidPro 35%; instant plan 20%. 5 profitable days meeting a minimum profit per cycle. NinjaTrader, Tradovate and Rithmic platforms.',
+  },
+  {
+    name: 'Elite Trader Funding',
+    platform: 'rithmic',
+    profitSplit: 0.9,
+    drawdownType: 'trailing_intraday',
+    note: 'Sim funded: 100% of first $12.5k then 90/10; Live Elite is 80/20 uncapped. Six evaluation models with different drawdowns — 1-Step is intraday trailing locking at profit = drawdown + $100, EOD and Static variants exist. Most plans have no payout consistency rule; Fast Track 30%. Payouts Mondays and Wednesdays.',
   },
 ]
