@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { ActionForm, Field, SubmitButton } from '@/components/form'
 import { Card, EmptyState, PageHeader } from '@/components/ui'
+import { eq } from 'drizzle-orm'
+import { db } from '@/db'
+import { tradingModels } from '@/db/schema'
 import { ALL_SPECS } from '@/lib/symbols'
 import { SymbolField } from './symbol-field'
 import { saveManualTrade } from '@/server/actions'
@@ -10,7 +13,10 @@ export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Log a trade — Trading Journal' }
 
 export default async function NewTradePage() {
-  const accounts = await listAccounts()
+  const [accounts, models] = await Promise.all([
+    listAccounts(),
+    db.select().from(tradingModels).where(eq(tradingModels.active, true)).orderBy(tradingModels.name),
+  ])
 
   if (accounts.length === 0) {
     return (
@@ -105,7 +111,17 @@ export default async function NewTradePage() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Model" hint="Your written setup — the AI reviews the trade against it">
+              <select name="modelId" className="select" defaultValue="">
+                <option value="">No model</option>
+                {models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Setup">
               <input name="setup" className="input" placeholder="ORB, VWAP reclaim…" />
             </Field>

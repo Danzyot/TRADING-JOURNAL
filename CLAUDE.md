@@ -22,7 +22,9 @@ The build needs env vars present but not valid; every page is force-dynamic.
 live: FIFO fill→trade matching (`analytics/matching.ts`), the metrics engine,
 Israeli tax (`tax/israel.ts` with rates isolated in `tax/rates.ts`), prop-firm
 drawdown/payout rules (`propfirm/rules.ts`), the payout allocation waterfall
-(`allocation.ts`), and CSV importers. `src/server` is the data layer (queries,
+(`allocation.ts`), CSV importers, and the AI trade-review prompts/parsing
+(`ai/model-review.ts` — the network half is `src/server/ai.ts`, needs
+ANTHROPIC_API_KEY, degrades to clear "not configured" messages without it). `src/server` is the data layer (queries,
 sync, Server Actions — every mutation is a Server Action in `actions.ts`).
 `src/app` is UI. The database self-migrates on first use via
 `src/db/bootstrap.ts`, called from `getSettings()`, which everything goes
@@ -32,7 +34,9 @@ through.
 
 - **Trades are derived data.** Auto-generated trades are rebuilt from the
   executions table (`rebuildTradesForAccount`); never mutate them in place.
-  User annotations survive rebuilds keyed on (entryAt, symbol).
+  User annotations survive rebuilds keyed on (entryAt, symbol) — that carry
+  includes `modelId`/`modelReview`, and `model_reviews` history deliberately
+  has no trade FK for the same reason.
 - **Money is Postgres numeric surfaced as number.** New money columns use the
   `money`/`price`/`ratio` custom types in `schema.ts`.
 - **The executions unique index is partial** (`WHERE external_id IS NOT

@@ -104,6 +104,8 @@ export async function rebuildTradesForAccount(accountId: number): Promise<number
         riskBase,
         rMultiple: rMultiple(trade.netPnl, riskBase),
         setup: carried?.setup ?? null,
+        modelId: carried?.modelId ?? null,
+        modelReview: carried?.modelReview ?? null,
         tags: carried?.tags ?? [],
         mistakes: carried?.mistakes ?? [],
         execScore: carried?.execScore ?? null,

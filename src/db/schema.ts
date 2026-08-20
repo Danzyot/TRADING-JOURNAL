@@ -337,6 +337,10 @@ export const trades = pgTable(
     status: text('status', { enum: ['open', 'closed'] }).default('closed').notNull(),
 
     setup: text('setup'),
+    /** The trading model this trade claims to be an instance of. */
+    modelId: integer('model_id').references(() => tradingModels.id, { onDelete: 'set null' }),
+    /** Latest AI verdict against that model; history lives in model_reviews. */
+    modelReview: jsonb('model_review').$type<ModelReviewResult>(),
     tags: jsonb('tags').$type<string[]>().default([]).notNull(),
     /** Post-trade honesty box. Feeds the mistake-cost analytics. */
     mistakes: jsonb('mistakes').$type<string[]>().default([]).notNull(),
@@ -509,6 +513,88 @@ export const payouts = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Trading models — named entry setups the AI reviews trades against
+// ---------------------------------------------------------------------------
+
+/**
+ * A trading model is the user's own definition of a setup: when to enter,
+ * when they are wrong, how to manage it. Trades link to a model, and the AI
+ * review judges each trade against these rules — so the rules are data, not
+ * prose in a notebook.
+ */
+export const tradingModels = pgTable('trading_models', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  /** One-paragraph idea: what edge this captures and why it exists. */
+  description: text('description'),
+  timeframe: text('timeframe'),
+  instruments: text('instruments'),
+  entryRules: text('entry_rules'),
+  exitRules: text('exit_rules'),
+  riskRules: text('risk_rules'),
+  /** What makes the setup void — the AI weighs these hardest. */
+  invalidations: text('invalidations'),
+  /**
+   * AI calibration notes, accumulated from the user's agree/disagree feedback
+   * on past reviews. Rewritten by the refine action, included in every future
+   * review prompt — this is how the reviewer gets better over time.
+   */
+  aiGuidance: text('ai_guidance'),
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+/** The latest AI verdict, denormalised onto the trade so lists render cheaply. */
+export type ModelReviewResult = {
+  verdict: 'fits' | 'partial' | 'violation' | 'unclear'
+  /** 0..100 — how cleanly the trade matches the model. */
+  score: number
+  reasoning: string
+  violations: string[]
+  suggestions: string[]
+  /** What the AI read off the chart screenshot, when one was attached. */
+  chartObservations: string | null
+  reviewedAt: string
+  aiModel: string
+}
+
+/**
+ * Review history. Keyed by the trade's natural identity (account, entry
+ * instant, symbol) rather than a trade FK, because auto-generated trades are
+ * deleted and reinserted on every rebuild — a foreign key would wipe the
+ * history the feedback loop learns from.
+ */
+export const modelReviews = pgTable(
+  'model_reviews',
+  {
+    id: serial('id').primaryKey(),
+    modelId: integer('model_id')
+      .references(() => tradingModels.id, { onDelete: 'cascade' })
+      .notNull(),
+    accountId: integer('account_id').notNull(),
+    symbol: text('symbol').notNull(),
+    entryAt: timestamp('entry_at', { withTimezone: true }).notNull(),
+    tradingDay: date('trading_day').notNull(),
+    verdict: text('verdict', { enum: ['fits', 'partial', 'violation', 'unclear'] }).notNull(),
+    score: integer('score').notNull(),
+    reasoning: text('reasoning').notNull(),
+    violations: jsonb('violations').$type<string[]>().default([]).notNull(),
+    suggestions: jsonb('suggestions').$type<string[]>().default([]).notNull(),
+    chartObservations: text('chart_observations'),
+    aiModel: text('ai_model').notNull(),
+    /** The improve-the-AI signal: did the trader agree with the verdict? */
+    feedback: text('feedback', { enum: ['agree', 'disagree'] }),
+    feedbackNote: text('feedback_note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('model_reviews_model_idx').on(t.modelId, t.createdAt),
+    index('model_reviews_trade_idx').on(t.accountId, t.entryAt, t.symbol),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Journal, insights, imports
 // ---------------------------------------------------------------------------
 
@@ -652,3 +738,6 @@ export type Insight = typeof insights.$inferSelect
 export type NewInsight = typeof insights.$inferInsert
 export type BrokerConnection = typeof brokerConnections.$inferSelect
 export type ImportBatch = typeof importBatches.$inferSelect
+export type TradingModel = typeof tradingModels.$inferSelect
+export type NewTradingModel = typeof tradingModels.$inferInsert
+export type ModelReview = typeof modelReviews.$inferSelect

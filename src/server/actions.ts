@@ -19,10 +19,12 @@ import {
   executions,
   expenses,
   journalEntries,
+  modelReviews,
   payouts,
   propFirms,
   subscriptions,
   trades,
+  tradingModels,
   type AllocationPlan,
   type RiskRules,
   type TaxProfile,
@@ -36,8 +38,9 @@ import { materialiseSubscriptions, nextRenewal } from './money'
 import { regenerateInsights } from './insights'
 import { rebuildTradesForAccount, rollupDailyStats } from './trades'
 import { saveTradovateCredentials, syncAllConnections, syncTradovateConnection } from './sync'
+import { autoTagTrades, refineModelGuidance, reviewPendingForModel, reviewTradeAgainstModel } from './ai'
 
-const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics']
+const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
 function revalidateAll() {
   for (const path of REVALIDATE) revalidatePath(path)
@@ -319,6 +322,7 @@ const tradeSchema = z.object({
   stopPrice: optionalNum,
   targetPrice: optionalNum,
   setup: optionalText,
+  modelId: optionalNum,
   emotion: optionalText,
   execScore: optionalNum,
   notes: optionalText,
@@ -362,6 +366,7 @@ export async function saveManualTrade(formData: FormData): Promise<ActionResult>
       durationSeconds: exitAt ? Math.round((exitAt.getTime() - entryAt.getTime()) / 1000) : null,
       status: exitAt ? 'closed' : 'open',
       setup: values.setup,
+      modelId: values.modelId,
       tags,
       mistakes,
       execScore: values.execScore,
@@ -385,6 +390,7 @@ export async function annotateTrade(id: number, formData: FormData): Promise<Act
     if (!existing) throw new Error('Trade not found.')
 
     const stopPrice = optionalNum.parse(formData.get('stopPrice') ?? '')
+    const modelId = optionalNum.parse(formData.get('modelId') ?? '')
     const riskBase =
       stopPrice !== null
         ? riskFromStop(existing.symbol, existing.direction, existing.avgEntry, stopPrice, existing.qty)
@@ -398,6 +404,9 @@ export async function annotateTrade(id: number, formData: FormData): Promise<Act
         riskBase,
         rMultiple: rMultiple(existing.netPnl, riskBase),
         setup: optionalText.parse(formData.get('setup') ?? ''),
+        modelId: modelId,
+        // A verdict is only meaningful against the model it was made for.
+        modelReview: modelId === existing.modelId ? existing.modelReview : null,
         tags: splitList(formData.get('tags')),
         mistakes: splitList(formData.get('mistakes')),
         execScore: optionalNum.parse(formData.get('execScore') ?? ''),
@@ -833,5 +842,111 @@ export async function runSubscriptionCatchUp(): Promise<ActionResult> {
     return created > 0
       ? `Logged ${created} subscription charge(s) that had come due.`
       : 'No subscription charges were outstanding.'
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Trading models + AI review
+// ---------------------------------------------------------------------------
+
+const tradingModelSchema = z.object({
+  name: z.string().min(1, 'Give the model a name'),
+  description: optionalText,
+  timeframe: optionalText,
+  instruments: optionalText,
+  entryRules: optionalText,
+  exitRules: optionalText,
+  riskRules: optionalText,
+  invalidations: optionalText,
+})
+
+export async function saveTradingModel(id: number | null, formData: FormData): Promise<ActionResult> {
+  return guard(async () => {
+    const values = tradingModelSchema.parse(Object.fromEntries(formData))
+    const active = formData.get('active') !== null ? formData.get('active') === 'on' : true
+
+    if (id === null) {
+      await db.insert(tradingModels).values({ ...values, active })
+    } else {
+      await db
+        .update(tradingModels)
+        .set({ ...values, active, updatedAt: new Date() })
+        .where(eq(tradingModels.id, id))
+    }
+    revalidateAll()
+    return id === null ? 'Model saved.' : 'Model updated.'
+  })
+}
+
+export async function deleteTradingModel(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    // trades.model_id is ON DELETE SET NULL; review history cascades away.
+    await db.delete(tradingModels).where(eq(tradingModels.id, id))
+    revalidateAll()
+    return 'Model deleted. Trades that used it keep everything except the link.'
+  })
+}
+
+/** Ask the AI to judge one trade against its assigned model. */
+export async function reviewTradeAction(tradeId: number): Promise<ActionResult> {
+  return guard(async () => {
+    const outcome = await reviewTradeAgainstModel(tradeId)
+    if (!outcome.ok) throw new Error(outcome.error)
+    revalidatePath(`/trades/${tradeId}`)
+    revalidateAll()
+    return `Verdict: ${outcome.review.verdict} (${outcome.review.score}/100).`
+  })
+}
+
+/** Batch-review recent unreviewed trades assigned to a model. */
+export async function reviewPendingAction(modelId: number): Promise<ActionResult> {
+  return guard(async () => {
+    const result = await reviewPendingForModel(modelId)
+    if (result.error) throw new Error(result.error)
+    revalidateAll()
+    return result.reviewed === 0 && result.failed === 0
+      ? 'Nothing to review — every tagged trade already has a verdict.'
+      : `Reviewed ${result.reviewed} trade(s)${result.failed > 0 ? `, ${result.failed} failed` : ''}.`
+  })
+}
+
+/** AI-assign models to recent trades that have none. */
+export async function autoTagAction(): Promise<ActionResult> {
+  return guard(async () => {
+    const result = await autoTagTrades()
+    if (result.error) throw new Error(result.error)
+    revalidateAll()
+    return `Tagged ${result.tagged} trade(s); left ${result.skipped} untagged (no confident match).`
+  })
+}
+
+/** The trader grades a verdict — the signal the AI learns from. */
+export async function reviewFeedbackAction(
+  reviewId: number,
+  feedback: 'agree' | 'disagree',
+  formData: FormData,
+): Promise<ActionResult> {
+  return guard(async () => {
+    const note = optionalText.parse(formData.get('note') ?? '')
+    const [review] = await db
+      .update(modelReviews)
+      .set({ feedback, feedbackNote: note })
+      .where(eq(modelReviews.id, reviewId))
+      .returning({ id: modelReviews.id })
+    if (!review) throw new Error('Review not found.')
+    revalidateAll()
+    return feedback === 'agree'
+      ? 'Noted. Agreements confirm the calibration.'
+      : 'Noted. Disagreements teach the reviewer the most — refine the model to fold them in.'
+  })
+}
+
+/** Compress feedback history into the model's stored AI guidance. */
+export async function refineModelAction(modelId: number): Promise<ActionResult> {
+  return guard(async () => {
+    const result = await refineModelGuidance(modelId)
+    if (!result.ok) throw new Error(result.message)
+    revalidateAll()
+    return result.message
   })
 }

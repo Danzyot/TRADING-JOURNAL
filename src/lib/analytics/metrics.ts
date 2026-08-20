@@ -511,16 +511,18 @@ export function byDuration(trades: TradeLike[]): Bucket[] {
  * actually profitable is one of the most reliably actionable findings in a
  * journal, and it is invisible without this split.
  */
+export function sessionLabel(entryAt: Date, timezone: string): string {
+  const hour = toZonedTime(entryAt, timezone).getHours()
+  if (hour < 6) return 'Overnight'
+  if (hour < 11) return 'Asia / early Europe'
+  if (hour < 16) return 'London'
+  if (hour < 18) return 'NY open'
+  if (hour < 21) return 'NY midday'
+  return 'NY close'
+}
+
 export function bySession(trades: TradeLike[], timezone: string): Bucket[] {
-  return groupBy(trades, (t) => {
-    const hour = toZonedTime(t.entryAt, timezone).getHours()
-    if (hour < 6) return 'Overnight'
-    if (hour < 11) return 'Asia / early Europe'
-    if (hour < 16) return 'London'
-    if (hour < 18) return 'NY open'
-    if (hour < 21) return 'NY midday'
-    return 'NY close'
-  })
+  return groupBy(trades, (t) => sessionLabel(t.entryAt, timezone))
 }
 
 /**
