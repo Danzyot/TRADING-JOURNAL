@@ -86,6 +86,10 @@ export function incomeTaxOn(taxable: number, rates: TaxYearRates): number {
 
 /** Marginal rate at a given taxable income, surtax included. */
 export function marginalRateAt(taxable: number, rates: TaxYearRates): number {
+  // At zero income the next shekel is taxed in the FIRST band. The previous
+  // strict `taxable > b.from` matched nothing at 0 and fell through to the top
+  // band, showing a brand-new business a 47% marginal rate.
+  if (taxable <= 0) return rates.brackets[0].rate
   const band = rates.brackets.find((b) => taxable > b.from && taxable <= b.to) ?? rates.brackets.at(-1)!
   const surtax = taxable > rates.surtax.threshold ? rates.surtax.rate : 0
   return band.rate + surtax

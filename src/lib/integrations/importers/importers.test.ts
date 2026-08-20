@@ -27,6 +27,23 @@ describe('toNumber', () => {
   })
 })
 
+describe('toNumber — locale shapes', () => {
+  it('reads European dot-grouped comma-decimal numbers', () => {
+    // "1.234,56" read as 1.23456 was a 1000x price error with no warning.
+    expect(toNumber('1.234,56')).toBe(1234.56)
+    expect(toNumber('-4.507,75')).toBe(-4507.75)
+  })
+
+  it('reads a lone comma as the decimal point', () => {
+    expect(toNumber('42,5')).toBe(42.5)
+  })
+
+  it('still reads US thousands separators', () => {
+    expect(toNumber('1,234.56')).toBe(1234.56)
+    expect(toNumber('21,000')).toBe(21000)
+  })
+})
+
 describe('toPrice', () => {
   it('reads decimal prices unchanged', () => {
     expect(toPrice('21000.25')).toBe(21000.25)
@@ -193,6 +210,44 @@ describe('parseCsv — round-trip exports', () => {
     const [trade] = parseCsv(csv, options).trades
     expect(trade.maeBase).toBe(-12)
     expect(trade.mfeBase).toBe(34)
+  })
+})
+
+describe('regression: review findings', () => {
+  it('treats a negative quantity as a sell, not a skipped row', () => {
+    const csv = [
+      'Symbol,Qty,Price,Time',
+      'MNQZ5,2,21000,2026-03-04T14:30:00Z',
+      'MNQZ5,-2,21010,2026-03-04T14:35:00Z',
+    ].join('\n')
+
+    const result = parseCsv(csv, options)
+    expect(result.rowsSkipped).toBe(0)
+    expect(result.executions.map((e) => e.side)).toEqual(['buy', 'sell'])
+    expect(result.executions[1].qty).toBe(2)
+  })
+
+  it('treats an explicit Gross P/L column as gross, deriving net', () => {
+    const csv = [
+      'Instrument,Market pos.,Quantity,Entry price,Exit price,Entry time,Exit time,Gross P/L,Commission',
+      'MNQZ5,Long,1,21000,21010,2026-03-04 08:30:00,2026-03-04 08:35:00,20,1.24',
+    ].join('\n')
+
+    const [trade] = parseCsv(csv, options).trades
+    expect(trade.grossPnl).toBe(20)
+    expect(trade.netPnl).toBeCloseTo(18.76, 6)
+  })
+
+  it('honours a forced round-trip format even when headers dodge detection', () => {
+    // Headers vague enough to detect as executions; the user knows better.
+    const csv = [
+      'Symbol,Qty,Entry Price,Exit Price,Entry Time,Exit Time,P/L',
+      'MNQZ5,1,21000,21010,2026-03-04T14:30:00Z,2026-03-04T14:35:00Z,20',
+    ].join('\n')
+
+    const forced = parseCsv(csv, { ...options, source: 'ninjatrader_csv' })
+    expect(forced.shape).toBe('trades')
+    expect(forced.trades).toHaveLength(1)
   })
 })
 

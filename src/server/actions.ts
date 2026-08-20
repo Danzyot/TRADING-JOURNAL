@@ -10,12 +10,13 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { eq } from 'drizzle-orm'
+import { and, eq, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
 import {
   accounts,
   brokerConnections,
+  executions,
   expenses,
   journalEntries,
   payouts,
@@ -31,7 +32,7 @@ import { riskFromStop, rMultiple } from '@/lib/analytics/matching'
 import { defaultDeductibleFor } from '@/lib/tax/israel'
 import { addMonths, tradingDayFor } from '@/lib/time'
 import { getSettings, updateSettings } from './settings'
-import { CADENCE_MONTHS, materialiseSubscriptions } from './money'
+import { materialiseSubscriptions, nextRenewal } from './money'
 import { regenerateInsights } from './insights'
 import { rebuildTradesForAccount, rollupDailyStats } from './trades'
 import { saveTradovateCredentials, syncAllConnections, syncTradovateConnection } from './sync'
@@ -43,6 +44,15 @@ function revalidateAll() {
 }
 
 const num = z.coerce.number()
+/**
+ * For fields where a blank is a mistake, not a zero. `z.coerce.number()('')`
+ * is 0, which quietly stored a $0 trade when the P&L field was left empty and
+ * a 0.0 USD/ILS rate when the FX field was cleared — the latter then divides
+ * by zero downstream.
+ */
+const requiredNum = z
+  .union([z.string().min(1, 'Required'), z.number()])
+  .pipe(z.coerce.number())
 const optionalNum = z
   .union([z.literal(''), z.coerce.number()])
   .transform((value) => (value === '' ? null : value))
@@ -65,6 +75,18 @@ async function guard(run: () => Promise<string>): Promise<ActionResult> {
           : 'Something went wrong.'
     return { ok: false, message }
   }
+}
+
+/**
+ * Conversion factor from `currency` into the reporting currency. Only USD/ILS
+ * is a real pair here; an unknown currency converts 1:1 and the row keeps its
+ * original currency so the gap is visible rather than silently wrong.
+ */
+function fxToBase(currency: string, settings: { baseCurrency: string; usdIls: number }): number {
+  if (currency === settings.baseCurrency) return 1
+  if (currency === 'ILS' && settings.baseCurrency === 'USD') return 1 / settings.usdIls
+  if (currency === 'USD' && settings.baseCurrency === 'ILS') return settings.usdIls
+  return 1
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +131,7 @@ const accountSchema = z.object({
   platform: z.string().default('tradovate'),
   phase: z.enum(['eval', 'funded', 'live', 'personal', 'demo']).default('eval'),
   status: z.enum(['active', 'passed', 'failed', 'closed', 'paused']).default('active'),
-  startingBalance: num.default(50_000),
+  startingBalance: requiredNum.catch(50_000),
   profitTarget: optionalNum,
   maxDrawdown: optionalNum,
   drawdownType: z.enum(['trailing_intraday', 'trailing_eod', 'static', 'none']).default('trailing_eod'),
@@ -151,9 +173,35 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
     }
 
     if (id) {
+      const [before] = await db
+        .select({ rate: accounts.commissionPerContract })
+        .from(accounts)
+        .where(eq(accounts.id, id))
+        .limit(1)
       await db.update(accounts).set(payload).where(eq(accounts.id, id))
-      // Commission changes alter every derived trade, so rebuild.
-      await rollupDailyStats(id)
+
+      // A commission change must reach the fills that were costed from the old
+      // rate, or it changes nothing: rebuilds re-read the stored per-fill
+      // commission. Broker-synced fills are always rate-derived (the API sends
+      // none), and a stored zero means "no commission was known" — both get
+      // repriced at half the round turn per side. Fills that came in with a
+      // real commission from a CSV column are left untouched.
+      if (before && before.rate !== values.commissionPerContract) {
+        await db
+          .update(executions)
+          .set({
+            commission: sql`${executions.qty} * ${values.commissionPerContract} / 2`,
+          })
+          .where(
+            and(
+              eq(executions.accountId, id),
+              or(eq(executions.source, 'tradovate_api'), eq(executions.commission, 0)),
+            ),
+          )
+        await rebuildTradesForAccount(id)
+      } else {
+        await rollupDailyStats(id)
+      }
     } else {
       await db.insert(accounts).values(payload)
     }
@@ -190,9 +238,9 @@ const tradeSchema = z.object({
   qty: num.int().positive(),
   entryAt: z.string().min(1, 'Entry time is required'),
   exitAt: optionalText,
-  avgEntry: num,
+  avgEntry: requiredNum,
   avgExit: optionalNum,
-  netPnl: num,
+  netPnl: requiredNum,
   commission: num.default(0),
   fees: num.default(0),
   stopPrice: optionalNum,
@@ -295,7 +343,15 @@ export async function annotateTrade(id: number, formData: FormData): Promise<Act
 
 export async function deleteTrade(id: number): Promise<ActionResult> {
   return guard(async () => {
+    const [existing] = await db
+      .select({ accountId: trades.accountId })
+      .from(trades)
+      .where(eq(trades.id, id))
+      .limit(1)
     await db.delete(trades).where(eq(trades.id, id))
+    // Without this the deleted trade kept haunting equity, drawdown room and
+    // daily P&L until the next nightly rollup.
+    if (existing) await rollupDailyStats(existing.accountId)
     revalidateAll()
     return 'Trade deleted.'
   })
@@ -317,7 +373,7 @@ const expenseSchema = z.object({
   category: z.string().min(1),
   vendor: z.string().min(1, 'Vendor is required'),
   description: optionalText,
-  amount: num.positive('Amount must be greater than zero'),
+  amount: requiredNum.pipe(z.number().positive('Amount must be greater than zero')),
   currency: z.string().default('USD'),
   accountId: optionalNum,
   firmId: optionalNum,
@@ -332,14 +388,7 @@ export async function saveExpense(id: number | null, formData: FormData): Promis
     const values = expenseSchema.parse(raw)
     const settings = await getSettings()
 
-    const fxRate =
-      values.currency === settings.baseCurrency
-        ? 1
-        : values.currency === 'ILS' && settings.baseCurrency === 'USD'
-          ? 1 / settings.usdIls
-          : values.currency === 'USD' && settings.baseCurrency === 'ILS'
-            ? settings.usdIls
-            : 1
+    const fxRate = fxToBase(values.currency, settings)
 
     const payload = {
       ...values,
@@ -376,7 +425,7 @@ const subscriptionSchema = z.object({
   vendor: z.string().min(1, 'Vendor is required'),
   description: optionalText,
   category: z.string().default('software'),
-  amount: num.positive(),
+  amount: requiredNum.pipe(z.number().positive()),
   currency: z.string().default('USD'),
   cadence: z.enum(['weekly', 'monthly', 'quarterly', 'annual']).default('monthly'),
   startedOn: z.string().min(1),
@@ -395,8 +444,7 @@ export async function saveSubscription(id: number | null, formData: FormData): P
       category: values.category as (typeof subscriptions.$inferInsert)['category'],
       accountId: values.accountId ?? null,
       // Default the first renewal one full period after the start date.
-      nextRenewalOn:
-        values.nextRenewalOn ?? addMonths(values.startedOn, CADENCE_MONTHS[values.cadence] || 1),
+      nextRenewalOn: values.nextRenewalOn ?? nextRenewal(values.startedOn, values.cadence),
       deductiblePercent:
         values.deductiblePercent === null ? defaultDeductibleFor(values.category) : values.deductiblePercent / 100,
       autoLog: raw.autoLog === 'on',
@@ -436,7 +484,7 @@ const payoutSchema = z.object({
   requestedOn: z.string().min(1),
   paidOn: optionalText,
   status: z.enum(['requested', 'approved', 'paid', 'rejected', 'cancelled']).default('requested'),
-  grossAmount: num.positive(),
+  grossAmount: requiredNum.pipe(z.number().positive()),
   profitSplit: num.min(0).max(1).default(0.9),
   processingFee: num.default(0),
   currency: z.string().default('USD'),
@@ -453,11 +501,27 @@ export async function savePayout(id: number | null, formData: FormData): Promise
     // What actually lands: the trader's share, less whatever the firm charges
     // to move it.
     const netAmount = values.grossAmount * values.profitSplit - values.processingFee
-    const fxRate =
-      values.currency === settings.baseCurrency ? 1 : settings.baseCurrency === 'ILS' ? settings.usdIls : 1
+    // Same conversion the expense path uses. The old inline version booked an
+    // ILS payout 1:1 into a USD base — a ₪10,000 payout recorded as $10,000.
+    const fxRate = fxToBase(values.currency, settings)
     const netAmountBase = netAmount * fxRate
 
-    const allocation = allocatePayout(netAmountBase, settings.allocationPlan)
+    // Caps only mean anything against the RUNNING balance of each bucket, so
+    // feed the sum of every previous paid payout's allocation. Without this,
+    // the operating and emergency caps were applied per payout against zero
+    // and never actually capped anything.
+    const previous = await db
+      .select({ allocation: payouts.allocation })
+      .from(payouts)
+      .where(eq(payouts.status, 'paid'))
+    const balances: Record<string, number> = {}
+    for (const row of previous) {
+      for (const [key, amount] of Object.entries(row.allocation ?? {})) {
+        balances[key] = (balances[key] ?? 0) + amount
+      }
+    }
+
+    const allocation = allocatePayout(netAmountBase, settings.allocationPlan, balances)
     const taxLine = allocation.lines.find((line) => line.key === 'tax')
 
     const payload = {
@@ -532,7 +596,7 @@ export async function saveGeneralSettings(formData: FormData): Promise<ActionRes
       baseCurrency: String(formData.get('baseCurrency') ?? 'USD'),
       timezone: String(formData.get('timezone') ?? 'Asia/Jerusalem'),
       dayBoundary: String(formData.get('dayBoundary') ?? '00:00'),
-      usdIls: num.parse(formData.get('usdIls') ?? 3.7),
+      usdIls: requiredNum.pipe(z.number().positive()).parse(formData.get('usdIls') ?? 3.7),
     })
     revalidateAll()
     revalidatePath('/settings')
@@ -547,7 +611,7 @@ export async function saveTaxProfile(formData: FormData): Promise<ActionResult> 
         .enum(['osek_patur', 'osek_zair', 'osek_murshe', 'company', 'undecided'])
         .parse(formData.get('status') ?? 'undecided'),
       israeliResident: formData.get('israeliResident') === 'on',
-      creditPoints: num.parse(formData.get('creditPoints') ?? 2.25),
+      creditPoints: requiredNum.parse(formData.get('creditPoints') ?? 2.25),
       reservePercent: num.parse(formData.get('reservePercent') ?? 30) / 100,
       businessOpenedOn: optionalText.parse(formData.get('businessOpenedOn') ?? ''),
       claimsZeroRatedVat: formData.get('claimsZeroRatedVat') === 'on',

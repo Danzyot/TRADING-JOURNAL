@@ -42,7 +42,7 @@ const SPEC_LIST: ContractSpec[] = [
   s('CL', 'Crude Oil (WTI)', 1000, 0.01, 'energy', 'CRUDE'),
   s('MCL', 'Micro WTI Crude Oil', 100, 0.01, 'energy', 'CRUDE', true),
   s('NG', 'Henry Hub Natural Gas', 10000, 0.001, 'energy', 'NATGAS'),
-  s('MNG', 'Micro Henry Hub Natural Gas', 2500, 0.001, 'energy', 'NATGAS', true),
+  s('MNG', 'Micro Henry Hub Natural Gas', 1000, 0.001, 'energy', 'NATGAS', true),
   s('RB', 'RBOB Gasoline', 42000, 0.0001, 'energy', 'GASOLINE'),
   s('HO', 'NY Harbor ULSD', 42000, 0.0001, 'energy', 'HEATOIL'),
   s('BZ', 'Brent Crude (Last Day)', 1000, 0.01, 'energy', 'BRENT'),
@@ -55,7 +55,7 @@ const SPEC_LIST: ContractSpec[] = [
   s('HG', 'Copper', 25000, 0.0005, 'metal', 'COPPER'),
   s('MHG', 'Micro Copper', 2500, 0.0005, 'metal', 'COPPER', true),
   s('PL', 'Platinum', 50, 0.1, 'metal', 'PLATINUM'),
-  s('PA', 'Palladium', 100, 0.05, 'metal', 'PALLADIUM'),
+  s('PA', 'Palladium', 100, 0.1, 'metal', 'PALLADIUM'),
 
   // --- Interest rates -----------------------------------------------------
   // Quoted in points; a 32nd is 0.03125 and a 64th 0.015625.

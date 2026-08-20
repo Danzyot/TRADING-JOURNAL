@@ -48,6 +48,13 @@ describe('marginalRateAt', () => {
     expect(marginalRateAt(250_000, RATES_2026)).toBeCloseTo(0.31, 6)
   })
 
+  it('reports the first band at zero income, not the top one', () => {
+    // The strict > comparison used to fall through to 47% for a brand-new
+    // business with no revenue.
+    expect(marginalRateAt(0, RATES_2026)).toBeCloseTo(0.1, 6)
+    expect(marginalRateAt(-5_000, RATES_2026)).toBeCloseTo(0.1, 6)
+  })
+
   it('adds the 3% surtax above 721,560', () => {
     expect(marginalRateAt(800_000, RATES_2026)).toBeCloseTo(0.5, 6)
   })

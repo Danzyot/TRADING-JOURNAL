@@ -56,6 +56,9 @@ describe('contract specifications', () => {
   it('prices energies and metals correctly', () => {
     expect(tickValue('CL')).toBeCloseTo(10, 6)
     expect(tickValue('MCL')).toBeCloseTo(1, 6)
+    // Micro Henry Hub is 1,000 MMBtu: a 0.001 tick is $1.00, not the E-mini's $2.50.
+    expect(tickValue('NG')).toBeCloseTo(10, 6)
+    expect(tickValue('MNG')).toBeCloseTo(1, 6)
     expect(tickValue('GC')).toBeCloseTo(10, 6)
     expect(tickValue('MGC')).toBeCloseTo(1, 6)
     expect(tickValue('SI')).toBeCloseTo(25, 6)

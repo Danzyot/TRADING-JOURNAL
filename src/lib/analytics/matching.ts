@@ -238,18 +238,6 @@ function matchOneContract(fills: MatchExecution[]): MatchedTrade[] {
 }
 
 /**
- * Unrealised P&L for an open trade at a given mark.
- * Used by the dashboard when a broker sync reports a live position.
- */
-export function markToMarket(trade: MatchedTrade, mark: number): number {
-  if (trade.status !== 'open') return trade.netPnl
-  const openQty = trade.qty - trade.exitQty
-  const qty = openQty > 0 ? openQty : trade.qty
-  const gross = pnlFromPrices(trade.contract, trade.direction, trade.avgEntry, mark, qty)
-  return round(gross - trade.commission - trade.fees, 4)
-}
-
-/**
  * Currency at risk between entry and stop. This is what makes R-multiples
  * possible, and R is the only way to compare a 1-lot MNQ scalp against a 5-lot
  * ES swing on equal terms.

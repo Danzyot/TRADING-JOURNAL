@@ -11,7 +11,7 @@ import {
   type Payout,
   type Subscription,
 } from '@/db/schema'
-import { addMonths, today } from '@/lib/time'
+import { addDays, addMonths, today } from '@/lib/time'
 import { defaultDeductibleFor } from '@/lib/tax/israel'
 import { getSettings } from './settings'
 
@@ -45,11 +45,25 @@ export async function listFirms() {
   return db.select().from(propFirms).orderBy(asc(propFirms.name))
 }
 
-export const CADENCE_MONTHS: Record<Subscription['cadence'], number> = {
-  weekly: 0.25,
-  monthly: 1,
-  quarterly: 3,
-  annual: 12,
+/**
+ * Advances a renewal date by one billing period.
+ *
+ * Weekly must move by days: `setUTCMonth(month + 0.25)` truncates the fraction,
+ * so a fractional-month "week" never advances at all — which made the
+ * materialiser loop mint its 60-iteration guard limit of duplicate expenses on
+ * every single daily run.
+ */
+export function nextRenewal(day: string, cadence: Subscription['cadence']): string {
+  switch (cadence) {
+    case 'weekly':
+      return addDays(day, 7)
+    case 'monthly':
+      return addMonths(day, 1)
+    case 'quarterly':
+      return addMonths(day, 3)
+    case 'annual':
+      return addMonths(day, 12)
+  }
 }
 
 export function annualisedCost(subscription: Subscription): number {
@@ -99,7 +113,7 @@ export async function materialiseSubscriptions(asOf = today()): Promise<number> 
       })
 
       created += 1
-      renewal = addMonths(renewal, CADENCE_MONTHS[subscription.cadence] || 1)
+      renewal = nextRenewal(renewal, subscription.cadence)
       guard += 1
     }
 
@@ -252,14 +266,18 @@ export function deductibleFor(category: string, override?: number | null): numbe
 }
 
 export async function revenueForYear(year: number): Promise<number> {
+  // Israeli tax follows when the money became available, so a payout requested
+  // in late December but paid in January belongs to the January year. Fall back
+  // to the request date only while no payment date exists.
+  const paidDate = sql`coalesce(${payouts.paidOn}, ${payouts.requestedOn})`
   const [row] = await db
     .select({ total: sql<number>`coalesce(sum(${payouts.netAmountBase}), 0)::float8` })
     .from(payouts)
     .where(
       and(
         eq(payouts.status, 'paid'),
-        gte(payouts.requestedOn, `${year}-01-01`),
-        lte(payouts.requestedOn, `${year}-12-31`),
+        gte(paidDate, `${year}-01-01`),
+        lte(paidDate, `${year}-12-31`),
       ),
     )
   return row?.total ?? 0

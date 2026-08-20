@@ -135,6 +135,12 @@ export function dateRange(from: string, to: string): string[] {
   return out
 }
 
+export function addDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 export function addMonths(day: string, months: number): string {
   const date = new Date(`${day}T00:00:00Z`)
   const targetMonth = date.getUTCMonth() + months

@@ -117,7 +117,8 @@ const ALIASES: Record<string, string[]> = {
   contract: ['contract', 'symbol', 'instrument', 'ticker', 'product', 'market', 'contractname', 'security'],
   commission: ['commission', 'commissions', 'comm', 'fee', 'brokerage'],
   fees: ['fees', 'exchangefees', 'exchange fees', 'nfa', 'clearingfee', 'otherfees', 'totalfees'],
-  pnl: ['pnl', 'p/l', 'profit', 'netprofit', 'net profit', 'realizedpnl', 'realized pnl', 'gross p/l', 'p&l', 'result'],
+  pnl: ['pnl', 'p/l', 'profit', 'netprofit', 'net profit', 'realizedpnl', 'realized pnl', 'p&l', 'result'],
+  grossPnlCol: ['gross p/l', 'gross pnl', 'gross profit', 'grosspnl'],
   netPnl: ['netpnl', 'net pnl', 'net p/l', 'net', 'netprofit'],
   account: ['account', 'accountname', 'account name', 'accountid', 'acct', 'accountspec'],
   id: ['id', 'fillid', 'fill id', 'orderid', 'order id', 'executionid', 'tradeid', 'trade #', 'trade#', 'buyfillid'],
@@ -166,7 +167,22 @@ export function toNumber(value: unknown): number | null {
   if (!raw || raw === '-' || raw === '--') return null
 
   const negative = /^\(.*\)$/.test(raw)
-  raw = raw.replace(/[()]/g, '').replace(/[$₪€£,\s]/g, '').replace(/%$/, '')
+  raw = raw.replace(/[()]/g, '').replace(/[$₪€£\s]/g, '').replace(/%$/, '')
+
+  // European locales write "1.234,56". Stripping commas as thousands
+  // separators unconditionally would read that as 1.23456 — prices off by
+  // three orders of magnitude with no error. Detect the shape instead:
+  // dot-grouped-comma-decimal, or a lone comma acting as the decimal point.
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw)) {
+    raw = raw.replace(/\./g, '').replace(',', '.')
+  } else if (/^-?\d+,\d+$/.test(raw) && !/^-?\d+,\d{3}$/.test(raw)) {
+    // A lone comma with a non-3-digit tail ("42,5", "4507,75") can only be a
+    // decimal. Exactly three digits ("21,000") is ambiguous, and broker
+    // exports are overwhelmingly US-formatted — read it as thousands.
+    raw = raw.replace(',', '.')
+  } else {
+    raw = raw.replace(/,/g, '')
+  }
 
   const parsed = Number(raw)
   if (!Number.isFinite(parsed)) return null
@@ -281,7 +297,17 @@ export function parseCsv(content: string, options: ImportOptions): ImportResult 
 
   const detected = detectSource(headers)
   const source = options.source ?? detected.source
-  const shape = options.source ? detected.shape : detected.shape
+  // A user forcing a known round-trip format overrides the header heuristics;
+  // feeding paired trade rows to the FIFO matcher as single fills produces
+  // garbage. Generic stays with whatever the headers suggested.
+  const FORCED_SHAPES: Partial<Record<ImportSource, 'executions' | 'trades'>> = {
+    tradovate_performance_csv: 'trades',
+    ninjatrader_csv: 'trades',
+    tradingview_csv: 'trades',
+    tradovate_csv: 'executions',
+    rithmic_csv: 'executions',
+  }
+  const shape = (options.source && FORCED_SHAPES[options.source]) || detected.shape
   const { map, unmapped } = buildIndex(headers)
   const sourceZone = options.sourceTimezone ?? SOURCE_TIMEZONES[source]
 
@@ -313,12 +339,27 @@ function parseExecutionRows(
   const executions: ParsedExecution[] = []
   let skipped = 0
 
+  // Some platforms carry no side column at all and encode it in the
+  // quantity's sign (-2 = sell 2). That is a property of the file, not of a
+  // row: only when at least one quantity is negative do unsigned rows read as
+  // buys — otherwise a file that merely lacks a side column would silently
+  // import as all-buys garbage instead of erroring.
+  const signEncoded =
+    !map.side && rows.some((row) => (toNumber(cell(row, map, 'qty')) ?? 0) < 0)
+
   rows.forEach((row, index) => {
     const contract = cell(row, map, 'contract')?.trim()
-    const side = toSide(cell(row, map, 'side'))
-    const qty = toNumber(cell(row, map, 'qty'))
+    let side = toSide(cell(row, map, 'side'))
+    let qty = toNumber(cell(row, map, 'qty'))
     const price = toPrice(cell(row, map, 'price'))
     const fillAt = parseTimestamp(cell(row, map, 'timestamp'), sourceZone)
+
+    if (qty !== null && qty < 0) {
+      side ??= 'sell'
+      qty = Math.abs(qty)
+    } else if (signEncoded && side === null && qty !== null && qty > 0) {
+      side = 'buy'
+    }
 
     const missing: string[] = []
     if (!contract) missing.push('contract')
@@ -420,11 +461,23 @@ function parseTradeRows(
     const commission = Math.abs(toNumber(cell(row, map, 'commission')) ?? 0)
     const fees = Math.abs(toNumber(cell(row, map, 'fees')) ?? 0)
 
-    // Round-trip exports normally report P&L already net of commission. Trust
-    // the reported figure and derive gross, rather than recomputing from price
-    // and risking a double deduction.
-    const netPnl = reportedPnl ?? 0
-    const grossPnl = reportedPnl !== null ? reportedPnl + commission + fees : 0
+    // Round-trip exports normally report P&L already net of commission; trust
+    // that and derive gross. A column explicitly named "Gross P/L" is the
+    // opposite case — treating it as net would refund the commission into net
+    // and count it twice in gross.
+    const grossOnly = toNumber(cell(row, map, 'grossPnlCol'))
+    let netPnl: number
+    let grossPnl: number
+    if (reportedPnl !== null) {
+      netPnl = reportedPnl
+      grossPnl = reportedPnl + commission + fees
+    } else if (grossOnly !== null) {
+      grossPnl = grossOnly
+      netPnl = grossOnly - commission - fees
+    } else {
+      netPnl = 0
+      grossPnl = 0
+    }
 
     trades.push({
       contract: contract!.toUpperCase(),

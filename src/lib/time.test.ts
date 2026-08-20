@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addMonths, dateRange, parseTimestamp, secondsToHuman, tradingDayFor } from './time'
+import { addDays, addMonths, dateRange, parseTimestamp, secondsToHuman, tradingDayFor } from './time'
 
 describe('parseTimestamp', () => {
   it('reads an ISO timestamp with an explicit zone', () => {
@@ -65,6 +65,16 @@ describe('dateRange', () => {
 
   it('crosses a month boundary', () => {
     expect(dateRange('2026-02-27', '2026-03-01')).toEqual(['2026-02-27', '2026-02-28', '2026-03-01'])
+  })
+})
+
+describe('addDays', () => {
+  it('advances by exactly the given days', () => {
+    expect(addDays('2026-08-01', 7)).toBe('2026-08-08')
+  })
+
+  it('crosses month and year boundaries', () => {
+    expect(addDays('2026-12-29', 7)).toBe('2027-01-05')
   })
 })
 

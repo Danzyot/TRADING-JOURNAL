@@ -11,7 +11,7 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { eq } from 'drizzle-orm'
+import { and, eq, gte, lte } from 'drizzle-orm'
 import { db } from '@/db'
 import { accounts, importBatches, trades, type NewExecution } from '@/db/schema'
 import { parseCsv, SOURCE_LABELS, type ImportSource } from '@/lib/integrations/importers'
@@ -124,7 +124,40 @@ export async function importCsvFile(formData: FormData): Promise<ImportReport> {
     } else {
       // Round-trip exports are already complete trades. They are inserted as
       // manual records so a later rebuild from fills cannot wipe them.
+      //
+      // Idempotence: the trades table has no broker id, so re-uploads are
+      // filtered on the natural key — entry instant, symbol, direction,
+      // quantity and entry price identify the same trade however many times
+      // the file arrives. One indexed query covers the whole file's window.
+      const entryTimes = parsed.trades.length > 0 ? parsed.trades.map((t) => t.entryAt.getTime()) : [0]
+      const windowStart = new Date(Math.min(...entryTimes))
+      const windowEnd = new Date(Math.max(...entryTimes))
+      const existing = await db
+        .select({
+          entryAt: trades.entryAt,
+          symbol: trades.symbol,
+          direction: trades.direction,
+          qty: trades.qty,
+          avgEntry: trades.avgEntry,
+        })
+        .from(trades)
+        .where(
+          and(
+            eq(trades.accountId, accountId),
+            gte(trades.entryAt, windowStart),
+            lte(trades.entryAt, windowEnd),
+          ),
+        )
+      const seen = new Set(
+        existing.map(
+          (t) => `${t.entryAt.getTime()}|${t.symbol}|${t.direction}|${t.qty}|${t.avgEntry}`,
+        ),
+      )
+
       for (const trade of parsed.trades) {
+        const key = `${trade.entryAt.getTime()}|${trade.symbol}|${trade.direction}|${trade.qty}|${trade.avgEntry}`
+        if (seen.has(key)) continue
+        seen.add(key)
         await db.insert(trades).values({
           accountId,
           symbol: trade.symbol,

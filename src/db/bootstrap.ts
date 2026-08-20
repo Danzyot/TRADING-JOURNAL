@@ -77,8 +77,25 @@ async function run(): Promise<BootstrapResult> {
 
   let locked = false
   try {
-    await db.execute(sql`select pg_advisory_lock(${LOCK_KEY})`)
-    locked = true
+    // pg_try_advisory_lock rather than pg_advisory_lock: through a
+    // transaction-pooling proxy (Neon's -pooler endpoint) session locks are not
+    // reliable, and the blocking variant has no timeout — a leaked lock would
+    // hang every page load forever. Try, poll the fast path while someone else
+    // migrates, and after the wait window proceed anyway: the migrator's worst
+    // case in a race is an "already exists" error, which is handled below as a
+    // healthy database.
+    for (let attempt = 0; attempt < 20 && !locked; attempt++) {
+      const rows = await db.execute<{ locked: boolean }>(
+        sql`select pg_try_advisory_lock(${LOCK_KEY}) as locked`,
+      )
+      locked = Boolean(rows[0]?.locked)
+      if (!locked) {
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        if (expected > 0 && (await appliedCount()) >= expected) {
+          return { ok: true, migrated: false, message: 'Database already up to date.' }
+        }
+      }
+    }
 
     const before = await appliedCount()
     await migrate(db, { migrationsFolder: folder })
