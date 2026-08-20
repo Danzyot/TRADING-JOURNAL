@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ActionForm, Field, SubmitButton } from '@/components/form'
 import { Card, EmptyState, PageHeader } from '@/components/ui'
 import { ALL_SPECS } from '@/lib/symbols'
+import { SymbolField } from './symbol-field'
 import { saveManualTrade } from '@/server/actions'
 import { listAccounts } from '@/server/trades'
 
@@ -52,14 +53,7 @@ export default async function NewTradePage() {
             </Field>
 
             <Field label="Symbol" hint="Root symbol — MNQ, ES, CL">
-              <input name="symbol" className="input" list="symbol-list" required placeholder="MNQ" />
-              <datalist id="symbol-list">
-                {ALL_SPECS.map((spec) => (
-                  <option key={spec.root} value={spec.root}>
-                    {spec.name}
-                  </option>
-                ))}
-              </datalist>
+              <SymbolField specs={ALL_SPECS.map((spec) => ({ root: spec.root, name: spec.name }))} />
             </Field>
           </div>
 

@@ -10,6 +10,11 @@ Honest summary first, because this is where most journal tools oversell:
 | **Tradecopia** | ❌ No | CSV from the broker it copies into. See below. |
 | **Any other platform** | ❌ No | CSV import, with alias-based column matching. |
 
+> **Automate the CSV step:** the local watcher (`tools/watcher.mjs`, see
+> [WATCHER.md](./WATCHER.md)) runs on your trading computer, uploads any CSV
+> you export into a folder, and triggers the Tradovate sync every few minutes
+> so synced trades appear near-live instead of once a day.
+
 ---
 
 ## Tradovate — full automatic sync

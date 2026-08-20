@@ -28,13 +28,17 @@ export default async function DashboardPage() {
 
   if (metrics.trades === 0 && data.accountCards.length === 0) {
     return (
-      <>
-        <PageHeader
-          title="Dashboard"
-          subtitle="Everything on this page derives from your trades. The steps below get them in."
-        />
+      <div className="mx-auto max-w-3xl pt-6 sm:pt-12">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
+            Welcome to your trading journal
+          </h1>
+          <p className="mt-1.5 text-sm text-[var(--ink-secondary)]">
+            Everything on the dashboard derives from your trades. The steps below get them in.
+          </p>
+        </div>
         <SetupChecklist setup={data.setup} />
-      </>
+      </div>
     )
   }
 
@@ -259,7 +263,7 @@ export default async function DashboardPage() {
       {/* --- Money ---------------------------------------------------------- */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card
-          title="Money"
+          title="Earnings"
           actions={
             <Link href="/money" className="text-xs text-[var(--accent)] hover:underline">
               Details →

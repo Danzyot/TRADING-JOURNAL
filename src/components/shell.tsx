@@ -10,7 +10,7 @@ const NAV = [
   { href: '/trades', label: 'Trades', glyph: '≡' },
   { href: '/analytics', label: 'Analytics', glyph: '◔' },
   { href: '/accounts', label: 'Accounts', glyph: '▤' },
-  { href: '/money', label: 'Money', glyph: '$' },
+  { href: '/money', label: 'Earnings', glyph: '$' },
   { href: '/tax', label: 'Tax', glyph: '%' },
   { href: '/journal', label: 'Journal', glyph: '✎' },
   { href: '/import', label: 'Import', glyph: '↥' },

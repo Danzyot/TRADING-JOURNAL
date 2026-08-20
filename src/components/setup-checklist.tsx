@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import type { SetupState } from '@/server/dashboard'
-import { Card } from './ui'
 
 type Step = {
   done: boolean
+  /** Step exists but can't be acted on yet (e.g. no accounts to set commission on). */
+  locked?: boolean
   title: string
   detail: string
   href: string
@@ -13,10 +14,13 @@ type Step = {
 /**
  * First-run guidance.
  *
- * An empty dashboard full of zeros tells a new user nothing about what to do
- * next. This walks the actual state of their data — not a stored "step 3 of 5"
- * flag — so it can never disagree with reality, disappears the moment setup is
- * genuinely complete, and reappears only if something important goes missing.
+ * Walks the actual state of the data — not a stored "step 3 of 5" flag — so it
+ * can never disagree with reality, disappears the moment setup is genuinely
+ * complete, and reappears only if something important goes missing.
+ *
+ * A step is done only when its thing exists. "Zero accounts are missing
+ * commission" while there are zero accounts is not done, it is not started —
+ * vacuous truths never earn a checkmark here.
  */
 export function SetupChecklist({ setup }: { setup: SetupState }) {
   if (setup.complete && setup.accountsMissingCommission === 0) return null
@@ -39,10 +43,13 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
       linkLabel: 'Add account',
     },
     {
-      done: setup.accountsMissingCommission === 0,
+      done: setup.accounts > 0 && setup.accountsMissingCommission === 0,
+      locked: setup.accounts === 0,
       title: 'Set the round-turn commission on each account',
       detail:
-        'Broker fill feeds carry no commission. At zero, every strategy looks better than it is — a losing scalping strategy can look profitable.',
+        setup.accounts === 0
+          ? 'Unlocks once you have accounts. Broker fill feeds carry no commission — at zero, every strategy looks better than it is.'
+          : 'Broker fill feeds carry no commission. At zero, every strategy looks better than it is — a losing scalping strategy can look profitable.',
       href: '/accounts',
       linkLabel: 'Edit accounts',
     },
@@ -66,49 +73,99 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
     },
   ]
 
-  const remaining = steps.filter((step) => !step.done).length
+  const doneCount = steps.filter((step) => step.done).length
+  // The step to point at: first one that is neither done nor waiting on another.
+  const nextIndex = steps.findIndex((step) => !step.done && !step.locked)
 
   return (
-    <Card
-      title="Set up your journal"
-      description={`${steps.length - remaining} of ${steps.length} done. This card disappears when setup is complete.`}
-      className="mb-6"
-      bodyClassName="divide-y divide-[var(--line)]"
-    >
-      {steps.map((step) => (
-        <div key={step.title} className="flex items-start gap-3 p-4 first:pt-0 last:pb-0">
-          <span
-            aria-hidden
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-bold"
-            style={
-              step.done
-                ? { background: 'color-mix(in srgb, var(--good) 18%, transparent)', color: 'var(--good)' }
-                : { background: 'var(--surface-sunken)', color: 'var(--ink-muted)' }
-            }
-          >
-            {step.done ? '✓' : '·'}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p
-              className={
-                step.done
-                  ? 'text-sm font-medium text-[var(--ink-muted)] line-through decoration-[var(--line-strong)]'
-                  : 'text-sm font-medium text-[var(--ink)]'
-              }
-            >
-              {step.title}
-            </p>
-            {!step.done && (
-              <p className="mt-0.5 text-xs leading-relaxed text-[var(--ink-secondary)]">{step.detail}</p>
-            )}
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="card overflow-hidden">
+        <div className="border-b border-[var(--line)] p-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-base font-semibold text-[var(--ink)]">Set up your journal</h2>
+            <span className="tabular text-xs font-medium text-[var(--ink-secondary)]">
+              {doneCount} of {steps.length}
+            </span>
           </div>
-          {!step.done && (
-            <Link href={step.href} className="btn shrink-0">
-              {step.linkLabel}
-            </Link>
-          )}
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">
+            Everything in the app derives from these. The card disappears when setup is complete.
+          </p>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-sunken)]">
+            <div
+              className="h-full rounded-full bg-[var(--good)] transition-all"
+              style={{ width: `${(doneCount / steps.length) * 100}%` }}
+            />
+          </div>
         </div>
-      ))}
-    </Card>
+
+        <ol className="p-3">
+          {steps.map((step, index) => {
+            const isNext = index === nextIndex
+            return (
+              <li key={step.title} className="relative flex gap-3.5 pb-1 last:pb-0">
+                {/* Connector line between step markers */}
+                {index < steps.length - 1 && (
+                  <span
+                    aria-hidden
+                    className="absolute bottom-0 left-[15px] top-9 w-px bg-[var(--line)]"
+                  />
+                )}
+
+                <span
+                  aria-hidden
+                  className="z-10 mt-2 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                  style={
+                    step.done
+                      ? { background: 'color-mix(in srgb, var(--good) 16%, transparent)', color: 'var(--good)' }
+                      : isNext
+                        ? { background: 'var(--accent)', color: '#fff' }
+                        : {
+                            background: 'var(--surface-sunken)',
+                            color: 'var(--ink-muted)',
+                            boxShadow: 'inset 0 0 0 1px var(--line)',
+                          }
+                  }
+                >
+                  {step.done ? '✓' : index + 1}
+                </span>
+
+                <div
+                  className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2.5 ${
+                    isNext ? 'bg-[color-mix(in_srgb,var(--accent)_6%,transparent)]' : ''
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={
+                        step.done
+                          ? 'text-sm font-medium text-[var(--ink-muted)]'
+                          : step.locked
+                            ? 'text-sm font-medium text-[var(--ink-muted)]'
+                            : 'text-sm font-semibold text-[var(--ink)]'
+                      }
+                    >
+                      {step.title}
+                    </p>
+                    {!step.done && (
+                      <p className="mt-0.5 text-xs leading-relaxed text-[var(--ink-secondary)]">
+                        {step.detail}
+                      </p>
+                    )}
+                  </div>
+                  {!step.done && !step.locked && (
+                    <Link
+                      href={step.href}
+                      className={isNext ? 'btn btn-primary shrink-0' : 'btn shrink-0'}
+                    >
+                      {step.linkLabel}
+                    </Link>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+    </div>
   )
 }
