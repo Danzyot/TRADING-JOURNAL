@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createSession, isAuthenticated, passwordMatches } from '@/lib/auth'
+import { createSession, isAuthenticated, passwordMatches, safeRedirectPath } from '@/lib/auth'
 
 export const metadata = { title: 'Sign in — Trading Journal' }
 
@@ -15,7 +15,7 @@ async function signIn(formData: FormData) {
 
   await createSession()
   // Only ever redirect within this app — never to a URL supplied in the query.
-  redirect(next.startsWith('/') ? next : '/')
+  redirect(safeRedirectPath(next))
 }
 
 export default async function LoginPage({

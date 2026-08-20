@@ -49,10 +49,24 @@ export function decryptJson<T>(payload: string): T {
   return JSON.parse(decrypt(payload)) as T
 }
 
-/** Constant-time-ish comparison for shared secrets (cron token, webhook token). */
+/** Constant-time comparison of two equal-length strings. */
 export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
   return diff === 0
+}
+
+/**
+ * Compares two secrets without leaking the length of the expected one.
+ *
+ * `safeEqual` returns early when lengths differ, which tells an attacker how
+ * long the real secret is. Hashing both sides first makes every comparison
+ * exactly 64 characters, so only equality is observable.
+ */
+export function secretsMatch(candidate: string, expected: string): boolean {
+  if (!candidate || !expected) return false
+  const a = createHash('sha256').update(candidate).digest('hex')
+  const b = createHash('sha256').update(expected).digest('hex')
+  return safeEqual(a, b)
 }

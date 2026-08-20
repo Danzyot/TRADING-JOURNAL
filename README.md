@@ -129,7 +129,7 @@ src/
 ```
 
 The pure logic in `src/lib` has no database and no clock, and is covered by
-**142 tests**:
+**165 tests**:
 
 ```bash
 npm test

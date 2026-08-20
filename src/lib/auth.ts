@@ -7,8 +7,7 @@
  */
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
-import { createHash } from 'node:crypto'
-import { safeEqual } from './crypto'
+import { secretsMatch } from './crypto'
 
 const COOKIE = 'tj_session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30
@@ -24,10 +23,25 @@ function secret(): Uint8Array {
 export function passwordMatches(candidate: string): boolean {
   const expected = process.env.APP_PASSWORD
   if (!expected) throw new Error('APP_PASSWORD is not set.')
-  // Hash both sides so the comparison length is fixed regardless of input.
-  const a = createHash('sha256').update(candidate).digest('hex')
-  const b = createHash('sha256').update(expected).digest('hex')
-  return safeEqual(a, b)
+  return secretsMatch(candidate, expected)
+}
+
+/**
+ * Sanitises the `?next=` parameter on the login form.
+ *
+ * `startsWith('/')` is not enough: `//evil.com` also starts with a slash and is
+ * a protocol-relative URL, so a browser treats it as an absolute link to
+ * another host. That turns the login page into an open redirect — a phishing
+ * primitive, since the victim really did just authenticate on the real site.
+ * Only a single leading slash, and no backslash, is accepted.
+ */
+export function safeRedirectPath(candidate: string | null | undefined): string {
+  const value = (candidate ?? '').trim()
+  if (!value.startsWith('/')) return '/'
+  if (value.startsWith('//')) return '/'
+  // Some browsers normalise a backslash to a forward slash before parsing.
+  if (value.includes('\\')) return '/'
+  return value
 }
 
 export async function createSession(): Promise<void> {
@@ -80,5 +94,5 @@ export function authorizeMachineRequest(request: Request): boolean {
   const header = request.headers.get('authorization') ?? ''
   const bearer = header.startsWith('Bearer ') ? header.slice(7) : ''
   const query = new URL(request.url).searchParams.get('token') ?? ''
-  return (bearer !== '' && safeEqual(bearer, expected)) || (query !== '' && safeEqual(query, expected))
+  return secretsMatch(bearer, expected) || secretsMatch(query, expected)
 }
