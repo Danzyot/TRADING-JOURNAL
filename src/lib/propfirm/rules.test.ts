@@ -20,6 +20,7 @@ function account(overrides: Partial<Account> = {}): Account {
     dailyLossLimit: null,
     maxContracts: null,
     minTradingDays: null,
+    planLabel: null,
     minWinningDays: null,
     winningDayMinProfit: null,
     consistencyPercent: null,

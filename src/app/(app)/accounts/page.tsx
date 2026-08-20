@@ -1,10 +1,21 @@
+import Link from 'next/link'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { FirmForm } from './firm-form'
-import { Badge, Card, EmptyState, KeyValue, Meter, PageHeader, Stat, StatGrid } from '@/components/ui'
-import { money, percent, titleCase } from '@/lib/format'
+import { FirmPlans } from './firm-plans'
+import { AccountsGrid, type GridFirm, type GridRow } from './accounts-grid'
+import { Card, EmptyState, KeyValue, PageHeader, Stat, StatGrid, clsx } from '@/components/ui'
+import { money, percent } from '@/lib/format'
 import { dailySeries } from '@/lib/analytics/metrics'
-import { payoutEligibility } from '@/lib/propfirm/rules'
-import { deleteAccount, deleteFirm, rebuildAccountTrades, saveAccount, saveFirm } from '@/server/actions'
+import { consistencyCheck, drawdownState, payoutEligibility } from '@/lib/propfirm/rules'
+import {
+  bulkUpdateAccounts,
+  deleteAccount,
+  deleteFirm,
+  rebuildAccountTrades,
+  saveAccount,
+  saveFirm,
+  saveFirmPlans,
+} from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
 import { firmEconomics, listFirms } from '@/server/money'
 import { getSettings } from '@/server/settings'
@@ -13,8 +24,13 @@ import { listAccounts } from '@/server/trades'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Accounts — Trading Journal' }
 
-export default async function AccountsPage() {
-  const [settings, accounts, firms, economics, dashboard] = await Promise.all([
+export default async function AccountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ edit?: string; firm?: string }>
+}) {
+  const [params, settings, accounts, firms, economics, dashboard] = await Promise.all([
+    searchParams,
     getSettings(),
     listAccounts(),
     listFirms(),
@@ -24,32 +40,207 @@ export default async function AccountsPage() {
 
   const ccy = settings.baseCurrency
   const cardsById = new Map(dashboard.accountCards.map((card) => [card.account.id, card]))
+  const firmsById = new Map(firms.map((firm) => [firm.id, firm]))
 
-  const funded = accounts.filter((a) => a.phase === 'funded' || a.phase === 'live').length
-  const evaluations = accounts.filter((a) => a.phase === 'eval' && a.status === 'active').length
-  const totalCost = accounts.reduce((sum, a) => sum + a.costBase, 0)
+  // --- Portfolio tiles ------------------------------------------------------
+  // Pass-rate semantics match firmEconomics: funded/live counts as a pass.
+  const passed = accounts.filter((a) => a.status === 'passed' || a.phase === 'funded' || a.phase === 'live')
+  const failed = accounts.filter((a) => a.status === 'failed')
+  const evaluations = accounts.filter((a) => a.phase === 'eval' || a.status === 'passed' || a.status === 'failed')
+  const attempts = Math.max(evaluations.length, passed.length + failed.length)
+  const passRate = attempts > 0 ? passed.length / attempts : null
+
+  const totalSpent = accounts.reduce((sum, a) => sum + a.costBase, 0)
+  const totalPayouts = dashboard.money.payoutsPaid
+  const net = totalPayouts - totalSpent
+
+  // --- Grid rows ------------------------------------------------------------
+  const firmFilter = params.firm ?? ''
+  const filtered = accounts.filter((account) => {
+    if (firmFilter === '') return true
+    if (firmFilter === 'none') return account.firmId === null
+    return account.firmId === Number(firmFilter)
+  })
+
+  const fallbackDay = new Date().toISOString().slice(0, 10)
+  const rows: GridRow[] = filtered.map((account) => {
+    const accountTrades = dashboard.trades.filter((trade) => trade.accountId === account.id)
+    const netPnl = accountTrades.reduce((sum, trade) => sum + trade.netPnl, 0)
+    const card = cardsById.get(account.id)
+    const equity = card?.equity ?? account.currentBalance ?? account.startingBalance + netPnl
+    const dd = card?.drawdown ?? drawdownState(account, [{ day: fallbackDay, equity }])
+    const tracksDrawdown = account.drawdownType !== 'none' && (account.maxDrawdown ?? 0) > 0
+
+    const daily = dailySeries(accountTrades).map((point) => ({ day: point.day, netPnl: point.netPnl }))
+    const check = consistencyCheck(daily, account.consistencyPercent)
+    const firm = account.firmId === null ? undefined : firmsById.get(account.firmId)
+
+    let payout: GridRow['payout'] = null
+    if ((account.phase === 'funded' || account.phase === 'live') && account.status === 'active') {
+      const eligibility = payoutEligibility(account, {
+        currentEquity: equity,
+        tradingDays: new Set(accountTrades.map((trade) => trade.tradingDay)).size,
+        dailyPnls: daily,
+        profitSplit: firm?.profitSplit ?? 0.9,
+      })
+      payout = eligibility.eligible
+        ? {
+            state: 'eligible',
+            text: `≈ ${money(eligibility.netToTrader, ccy, 0)} to you after the ${percent(firm?.profitSplit ?? 0.9, 0)} split`,
+          }
+        : {
+            state: 'blocked',
+            text: `${eligibility.blockers.length} blocker${eligibility.blockers.length === 1 ? '' : 's'} to payout`,
+          }
+    }
+
+    return {
+      id: account.id,
+      label: account.label,
+      platform: account.platform,
+      firmId: account.firmId,
+      planLabel: account.planLabel,
+      phase: account.phase,
+      status: account.status,
+      size: account.startingBalance,
+      maxDrawdown: account.maxDrawdown,
+      drawdownType: account.drawdownType,
+      consistencyPct: account.consistencyPercent ? Math.round(account.consistencyPercent * 100) : null,
+      profitTarget: account.profitTarget,
+      costBase: account.costBase,
+      equity,
+      netPnl,
+      line: tracksDrawdown && Number.isFinite(dd.line) ? dd.line : null,
+      roomPct: tracksDrawdown && Number.isFinite(dd.line) ? dd.roomPercent : null,
+      toTarget:
+        account.phase === 'eval' && account.status === 'active' && account.profitTarget
+          ? Math.max(0, account.profitTarget - (equity - account.startingBalance))
+          : null,
+      bestDayPct: check.bestDay && check.totalProfit > 0 ? Math.round(check.bestDayShare * 100) : null,
+      payout,
+      needsSetup:
+        account.startingBalance <= 0 ||
+        (account.maxDrawdown === null && account.drawdownType !== 'none') ||
+        (account.phase === 'eval' && account.profitTarget === null),
+    }
+  })
+
+  const gridFirms: GridFirm[] = firms.map((firm) => ({
+    id: firm.id,
+    name: firm.name,
+    plans: firm.plans ?? [],
+  }))
+
+  const editId = params.edit ? Number(params.edit) : null
+  const editing = editId === null ? undefined : accounts.find((account) => account.id === editId)
+  const hasUnassigned = accounts.some((account) => account.firmId === null)
 
   return (
     <>
       <PageHeader
         title="Accounts"
-        subtitle="Prop firms and the accounts you hold with them. Drawdown rules here drive the warnings everywhere else."
+        subtitle="Every account across every firm, in one table. Firms are yours to define — plans are templates you apply per account."
       />
 
-      <StatGrid columns={4}>
+      <StatGrid columns={5}>
         <Card bodyClassName="p-4">
-          <Stat label="Funded accounts" value={String(funded)} />
+          <Stat
+            label="Accounts"
+            value={String(accounts.length)}
+            hint={`${accounts.filter((a) => a.status === 'active').length} active`}
+          />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Live evaluations" value={String(evaluations)} />
+          <Stat label="Total spent" value={money(totalSpent, ccy, 0)} hint="Sum of account costs" />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Firms" value={String(firms.length)} />
+          <Stat label="Total payouts" value={money(totalPayouts, ccy, 0)} hint="Paid out to date" />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Spent on accounts" value={money(totalCost, ccy, 0)} />
+          <Stat
+            label="Net P&L"
+            value={money(net, ccy, 0)}
+            tone={net > 0 ? 'good' : net < 0 ? 'critical' : 'neutral'}
+            hint="Payouts − account costs"
+          />
+        </Card>
+        <Card bodyClassName="p-4">
+          <Stat
+            label="Pass rate"
+            value={passRate === null ? '—' : percent(passRate, 0)}
+            hint={attempts > 0 ? `${passed.length} of ${attempts} evaluations` : 'No finished evaluations yet'}
+          />
         </Card>
       </StatGrid>
+
+      {/* --- Full edit form (opened from a grid row) ------------------------ */}
+      {editing && (
+        <div id="full-edit" className="mt-6">
+          <Card
+            title={`Edit ${editing.label}`}
+            description="The full account form — everything the grid does not edit inline lives here."
+            actions={
+              <Link href="/accounts" className="text-xs text-[var(--accent)] hover:underline">
+                Close
+              </Link>
+            }
+          >
+            <AccountForm firms={firms} ccy={ccy} account={editing} />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <ActionButton
+                action={async () => {
+                  'use server'
+                  return rebuildAccountTrades(editing.id)
+                }}
+                pendingLabel="Rebuilding…"
+              >
+                Rebuild trades
+              </ActionButton>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* --- Accounts table ------------------------------------------------- */}
+      <div className="mt-6 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Firm filter — server-rendered tabs, no client state to manage. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <FilterTab href="/accounts" active={firmFilter === ''} label="All firms" />
+            {firms.map((firm) => (
+              <FilterTab
+                key={firm.id}
+                href={`/accounts?firm=${firm.id}`}
+                active={firmFilter === String(firm.id)}
+                label={firm.name}
+              />
+            ))}
+            {hasUnassigned && (
+              <FilterTab href="/accounts?firm=none" active={firmFilter === 'none'} label="No firm" />
+            )}
+          </div>
+          <Disclosure label="+ Add account">
+            <AccountForm firms={firms} ccy={ccy} />
+          </Disclosure>
+        </div>
+
+        {accounts.length === 0 ? (
+          <Card>
+            <EmptyState
+              title="No accounts yet"
+              body="Add each prop account you trade, with its size, drawdown allowance and drawdown type. Those three numbers drive every risk warning in the app."
+            />
+          </Card>
+        ) : (
+          <AccountsGrid
+            rows={rows}
+            firms={gridFirms}
+            ccy={ccy}
+            bulkAction={bulkUpdateAccounts}
+            deleteAction={deleteAccount}
+          />
+        )}
+      </div>
 
       {/* --- Firm economics ------------------------------------------------- */}
       {/* A table of zeros teaches nothing; it appears once there is money in it. */}
@@ -108,165 +299,6 @@ export default async function AccountsPage() {
         </div>
       )}
 
-      {/* --- Accounts ------------------------------------------------------- */}
-      <div className="mt-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Accounts</h2>
-          <Disclosure label="Add account">
-            <AccountForm firms={firms} ccy={ccy} />
-          </Disclosure>
-        </div>
-
-        {accounts.length === 0 ? (
-          <Card>
-            <EmptyState
-              title="No accounts yet"
-              body="Add each prop account you trade, with its size, drawdown allowance and drawdown type. Those three numbers drive every risk warning in the app."
-            />
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {accounts.map((account) => {
-              const card = cardsById.get(account.id)
-              const room = card?.drawdown.roomPercent ?? 1
-              const tone = room < 0.25 ? 'critical' : room < 0.5 ? 'warn' : 'good'
-              const firm = firms.find((f) => f.id === account.firmId)
-
-              return (
-                <Card
-                  key={account.id}
-                  title={account.label}
-                  description={`${firm?.name ?? 'No firm'} · ${titleCase(account.phase)} · ${account.platform}`}
-                  actions={
-                    <Badge tone={account.status === 'active' ? 'good' : account.status === 'failed' ? 'critical' : 'neutral'}>
-                      {titleCase(account.status)}
-                    </Badge>
-                  }
-                >
-                  <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-                    <div>
-                      <KeyValue label="Size" value={money(account.startingBalance, ccy, 0)} />
-                      <KeyValue
-                        label="Current equity"
-                        value={card ? money(card.equity, ccy, 0) : money(account.currentBalance ?? account.startingBalance, ccy, 0)}
-                      />
-                      <KeyValue
-                        label="Profit target"
-                        value={account.profitTarget ? money(account.profitTarget, ccy, 0) : '—'}
-                      />
-                      <KeyValue
-                        label="Max drawdown"
-                        value={account.maxDrawdown ? money(account.maxDrawdown, ccy, 0) : '—'}
-                        hint={titleCase(account.drawdownType)}
-                      />
-                    </div>
-                    <div>
-                      <KeyValue
-                        label="Drawdown line"
-                        value={
-                          card && Number.isFinite(card.drawdown.line) ? money(card.drawdown.line, ccy, 0) : '—'
-                        }
-                        hint={card?.drawdown.locked ? 'locked — no longer trailing' : 'trails your high-water mark'}
-                      />
-                      <KeyValue
-                        label="Room left"
-                        value={card && Number.isFinite(card.drawdown.room) ? money(card.drawdown.room, ccy, 0) : '—'}
-                      />
-                      <KeyValue label="Cost to date" value={money(account.costBase, ccy, 0)} />
-                      <KeyValue
-                        label="Commission"
-                        value={
-                          account.commissionPerContract > 0
-                            ? `${money(account.commissionPerContract, ccy)} round turn`
-                            : 'Not set'
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {card && Number.isFinite(card.drawdown.room) && (
-                    <div className="mt-4">
-                      <Meter value={room} tone={tone} label={`${percent(room, 0)} of the drawdown allowance remains`} />
-                    </div>
-                  )}
-
-                  {(account.phase === 'funded' || account.phase === 'live') &&
-                    account.status === 'active' &&
-                    (() => {
-                      const accountTrades = dashboard.trades.filter((t) => t.accountId === account.id)
-                      const eligibility = payoutEligibility(account, {
-                        currentEquity: card?.equity ?? account.startingBalance,
-                        tradingDays: new Set(accountTrades.map((t) => t.tradingDay)).size,
-                        dailyPnls: dailySeries(accountTrades).map((d) => ({ day: d.day, netPnl: d.netPnl })),
-                        profitSplit: firm?.profitSplit ?? 0.9,
-                      })
-
-                      return (
-                        <div className="mt-4 rounded-lg border border-[var(--line)] p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-[var(--ink)]">Payout readiness</span>
-                            <Badge tone={eligibility.eligible ? 'good' : 'warn'}>
-                              {eligibility.eligible ? 'Eligible' : `${eligibility.blockers.length} blocker${eligibility.blockers.length === 1 ? '' : 's'}`}
-                            </Badge>
-                          </div>
-                          {eligibility.eligible ? (
-                            <p className="mt-1.5 text-xs leading-relaxed text-[var(--ink-secondary)]">
-                              About {money(eligibility.withdrawable, ccy, 0)} above starting balance —
-                              roughly {money(eligibility.netToTrader, ccy, 0)} to you after the{' '}
-                              {percent(firm?.profitSplit ?? 0.9, 0)} split. Check the firm's payout window
-                              before requesting.
-                            </p>
-                          ) : (
-                            <ul className="mt-1.5 space-y-1">
-                              {eligibility.blockers.map((blocker) => (
-                                <li key={blocker} className="text-xs leading-relaxed text-[var(--ink-secondary)]">
-                                  · {blocker}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )
-                    })()}
-
-                  {account.commissionPerContract === 0 && (
-                    <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] p-2.5 text-xs text-[var(--serious)]">
-                      No commission rate set. Synced trades will be costed at zero, which makes this account look
-                      more profitable than it is.
-                    </p>
-                  )}
-
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <Disclosure label="Edit">
-                      <AccountForm firms={firms} ccy={ccy} account={account} />
-                    </Disclosure>
-                    <ActionButton
-                      action={async () => {
-                        'use server'
-                        return rebuildAccountTrades(account.id)
-                      }}
-                      pendingLabel="Rebuilding…"
-                    >
-                      Rebuild trades
-                    </ActionButton>
-                    <ActionButton
-                      action={async () => {
-                        'use server'
-                        return deleteAccount(account.id)
-                      }}
-                      className="btn btn-danger"
-                      confirm={`Delete "${account.label}" and every trade and fill on it? This cannot be undone.`}
-                    >
-                      Delete
-                    </ActionButton>
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
       {/* --- Firms ---------------------------------------------------------- */}
       <div className="mt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -284,18 +316,22 @@ export default async function AccountsPage() {
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {firms.map((firm) => (
               <Card key={firm.id} title={firm.name} description={firm.website ?? undefined}>
-                <KeyValue label="Profit split" value={percent(firm.profitSplit, 0)} />
-                <KeyValue label="Platform" value={titleCase(firm.platform)} />
-                <KeyValue
-                  label="Min days to payout"
-                  value={firm.minDaysToPayout ? String(firm.minDaysToPayout) : '—'}
-                />
+                <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                  <KeyValue label="Profit split" value={percent(firm.profitSplit, 0)} />
+                  <KeyValue
+                    label="Min days to payout"
+                    value={firm.minDaysToPayout ? String(firm.minDaysToPayout) : '—'}
+                  />
+                </div>
                 {firm.payoutPolicy && (
                   <p className="mt-3 text-xs leading-relaxed text-[var(--ink-secondary)]">{firm.payoutPolicy}</p>
                 )}
+
+                <FirmPlansEditor firmId={firm.id} plans={firm.plans ?? []} />
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Disclosure label="Edit firm">
                     <FirmEditor firm={firm} />
@@ -322,6 +358,22 @@ export default async function AccountsPage() {
 
 // ---------------------------------------------------------------------------
 
+function FilterTab({ href, active, label }: { href: string; active: boolean; label: string }) {
+  return (
+    <Link
+      href={href}
+      className={clsx(
+        'rounded-full border px-3 py-1 text-xs transition-colors',
+        active
+          ? 'border-transparent bg-[var(--accent)] font-medium text-white'
+          : 'border-[var(--line)] text-[var(--ink-secondary)] hover:border-[var(--line-strong)]',
+      )}
+    >
+      {label}
+    </Link>
+  )
+}
+
 type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
 type AccountRow = Awaited<ReturnType<typeof listAccounts>>[number]
 
@@ -341,7 +393,6 @@ function FirmEditor({ firm }: { firm?: FirmRow }) {
                 id: firm.id,
                 name: firm.name,
                 website: firm.website,
-                platform: firm.platform,
                 profitSplit: firm.profitSplit,
                 minDaysToPayout: firm.minDaysToPayout,
                 payoutPolicy: firm.payoutPolicy,
@@ -352,6 +403,15 @@ function FirmEditor({ firm }: { firm?: FirmRow }) {
       />
     </Card>
   )
+}
+
+function FirmPlansEditor({ firmId, plans }: { firmId: number; plans: FirmRow['plans'] }) {
+  async function save(plans: unknown) {
+    'use server'
+    return saveFirmPlans(firmId, plans)
+  }
+
+  return <FirmPlans plans={plans ?? []} saveAction={save} />
 }
 
 function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; account?: AccountRow }) {
@@ -383,7 +443,7 @@ function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; a
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label="Platform">
+          <Field label="Data source" hint="Where this account's fills come from">
             <select name="platform" defaultValue={account?.platform ?? 'tradovate'} className="select">
               <option value="tradovate">Tradovate</option>
               <option value="rithmic">Rithmic</option>

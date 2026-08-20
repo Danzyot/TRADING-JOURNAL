@@ -9,7 +9,6 @@ export type FirmFormData = {
   id: number
   name: string
   website: string | null
-  platform: string
   profitSplit: number
   minDaysToPayout: number | null
   payoutPolicy: string | null
@@ -37,7 +36,6 @@ export function FirmForm({
   const defaults = {
     name: preset?.name ?? firm?.name ?? '',
     website: firm?.website ?? '',
-    platform: preset?.platform ?? firm?.platform ?? 'tradovate',
     profitSplit: preset?.profitSplit ?? firm?.profitSplit ?? 0.9,
     minDaysToPayout: firm?.minDaysToPayout ?? '',
     payoutPolicy: preset?.note ?? firm?.payoutPolicy ?? '',
@@ -74,14 +72,6 @@ export function FirmForm({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Platform">
-            <select name="platform" defaultValue={defaults.platform} className="select">
-              <option value="tradovate">Tradovate</option>
-              <option value="rithmic">Rithmic</option>
-              <option value="projectx">ProjectX / TopstepX</option>
-              <option value="other">Other</option>
-            </select>
-          </Field>
           <Field label="Profit split" hint="Your share as a fraction, e.g. 0.9 for 90%">
             <input
               name="profitSplit"

@@ -111,12 +111,41 @@ export type RiskRules = {
 // Prop firms & accounts
 // ---------------------------------------------------------------------------
 
+/**
+ * A plan template inside a firm's catalogue — "Pro — $50k" and friends.
+ *
+ * Applying one to an account copies the values onto the account; nothing
+ * references the plan afterwards, so editing a plan never silently rewrites
+ * history, and an account can always diverge from its template.
+ */
+export type FirmPlan = {
+  label: string
+  phase: 'eval' | 'funded'
+  size: number
+  maxDrawdown: number | null
+  drawdownType: 'trailing_intraday' | 'trailing_eod' | 'static' | 'none'
+  /** Fraction, 0..1, like the account column. */
+  consistencyPercent: number | null
+  profitTarget: number | null
+  dailyLossLimit: number | null
+  minWinningDays: number | null
+  winningDayMinProfit: number | null
+  /** What this plan costs to buy, for pre-filling the account's cost. */
+  cost: number | null
+}
+
 export const propFirms = pgTable('prop_firms', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   website: text('website'),
-  /** Broker/platform the firm routes through: tradovate | rithmic | projectx | other */
-  platform: text('platform').default('tradovate').notNull(),
+  /**
+   * Legacy column, no longer shown anywhere. A broker is a property of the
+   * account/connection — the same firm hands out accounts on Rithmic,
+   * Tradovate and paper feeds at once — so tying it to the firm was wrong.
+   */
+  platform: text('platform').default('other').notNull(),
+  /** Plan catalogue: templates applied to accounts, per firm. */
+  plans: jsonb('plans').$type<FirmPlan[]>().default([]).notNull(),
   /** Trader's share of profits, 0..1. */
   profitSplit: ratio('profit_split').default(0.9).notNull(),
   /** Firm-level payout policy, free text — the specifics vary wildly. */
@@ -145,6 +174,8 @@ export const accounts = pgTable(
     /** tradovate | rithmic | projectx | tradingview | manual */
     platform: text('platform').default('tradovate').notNull(),
     phase: text('phase', { enum: ACCOUNT_PHASES }).default('eval').notNull(),
+    /** Which catalogue plan this account was created from, for display only. */
+    planLabel: text('plan_label'),
     status: text('status', { enum: ACCOUNT_STATUSES }).default('active').notNull(),
     currency: text('currency').default('USD').notNull(),
 

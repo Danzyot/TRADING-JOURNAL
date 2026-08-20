@@ -15,6 +15,13 @@
       "when": 1787251389379,
       "tag": "0001_winning_day_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787259698824,
+      "tag": "0002_firm_plans",
+      "breakpoints": true
     }
   ]
 }

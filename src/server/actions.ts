@@ -96,7 +96,6 @@ function fxToBase(currency: string, settings: { baseCurrency: string; usdIls: nu
 const firmSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   website: optionalText,
-  platform: z.string().default('tradovate'),
   profitSplit: num.min(0).max(1).default(0.9),
   payoutPolicy: optionalText,
   minDaysToPayout: optionalNum,
@@ -224,6 +223,80 @@ export async function rebuildAccountTrades(id: number): Promise<ActionResult> {
     const count = await rebuildTradesForAccount(id)
     revalidateAll()
     return `Rebuilt ${count} trades from stored fills.`
+  })
+}
+
+const bulkRowSchema = z.object({
+  id: z.number().int().positive(),
+  firmId: z.number().int().positive().nullable(),
+  planLabel: z.string().max(120).nullable(),
+  phase: z.enum(['eval', 'funded', 'live', 'personal', 'demo']),
+  startingBalance: z.number().nonnegative(),
+  drawdownType: z.enum(['trailing_intraday', 'trailing_eod', 'static', 'none']),
+  maxDrawdown: z.number().positive().nullable(),
+  /** Whole percent from the grid, 0..100. */
+  consistencyPercent: z.number().min(0).max(100).nullable(),
+  profitTarget: z.number().positive().nullable(),
+  costBase: z.number().nonnegative(),
+})
+
+/**
+ * Saves the accounts grid in one submit.
+ *
+ * One transaction, one UPDATE per changed row — the grid sends only rows the
+ * user actually touched, so this stays small even with dozens of accounts on
+ * screen. Fields not present in the grid (commission, broker id, status…) are
+ * deliberately untouched; the full per-account form owns those.
+ */
+export async function bulkUpdateAccounts(rows: unknown): Promise<ActionResult> {
+  return guard(async () => {
+    const parsed = z.array(bulkRowSchema).min(1).max(500).parse(rows)
+
+    await db.transaction(async (tx) => {
+      for (const row of parsed) {
+        await tx
+          .update(accounts)
+          .set({
+            firmId: row.firmId,
+            planLabel: row.planLabel,
+            phase: row.phase,
+            startingBalance: row.startingBalance,
+            drawdownType: row.drawdownType,
+            maxDrawdown: row.maxDrawdown,
+            consistencyPercent: row.consistencyPercent === null ? null : row.consistencyPercent / 100,
+            profitTarget: row.profitTarget,
+            costBase: row.costBase,
+          })
+          .where(eq(accounts.id, row.id))
+      }
+    })
+
+    revalidateAll()
+    return `Saved ${parsed.length} account${parsed.length === 1 ? '' : 's'}.`
+  })
+}
+
+const firmPlanSchema = z.object({
+  label: z.string().min(1).max(120),
+  phase: z.enum(['eval', 'funded']),
+  size: z.number().positive(),
+  maxDrawdown: z.number().positive().nullable(),
+  drawdownType: z.enum(['trailing_intraday', 'trailing_eod', 'static', 'none']),
+  consistencyPercent: z.number().min(0).max(1).nullable(),
+  profitTarget: z.number().positive().nullable(),
+  dailyLossLimit: z.number().positive().nullable(),
+  minWinningDays: z.number().int().positive().nullable(),
+  winningDayMinProfit: z.number().positive().nullable(),
+  cost: z.number().nonnegative().nullable(),
+})
+
+/** Replaces a firm's plan catalogue. Plans are templates; accounts keep copies. */
+export async function saveFirmPlans(firmId: number, plans: unknown): Promise<ActionResult> {
+  return guard(async () => {
+    const parsed = z.array(firmPlanSchema).max(50).parse(plans)
+    await db.update(propFirms).set({ plans: parsed }).where(eq(propFirms.id, firmId))
+    revalidateAll()
+    return `Saved ${parsed.length} plan${parsed.length === 1 ? '' : 's'}.`
   })
 }
 
