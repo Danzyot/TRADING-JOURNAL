@@ -149,7 +149,7 @@ export default async function TradesPage({
                       <td className="tabular whitespace-nowrap">{shortDate(trade.tradingDay)}</td>
                       <td className="font-medium text-[var(--ink)]">{trade.symbol}</td>
                       <td>
-                        <Badge tone={trade.direction === 'long' ? 'accent' : 'neutral'}>
+                        <Badge tone={trade.direction === 'long' ? 'accent' : 'warn'}>
                           {trade.direction === 'long' ? 'Long' : 'Short'}
                         </Badge>
                       </td>

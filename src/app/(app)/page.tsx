@@ -163,7 +163,15 @@ export default async function DashboardPage() {
               value={
                 metrics.currentStreak === 0
                   ? '—'
-                  : `${Math.abs(metrics.currentStreak)} ${metrics.currentStreak > 0 ? 'wins' : 'losses'}`
+                  : `${Math.abs(metrics.currentStreak)} ${
+                      Math.abs(metrics.currentStreak) === 1
+                        ? metrics.currentStreak > 0
+                          ? 'win'
+                          : 'loss'
+                        : metrics.currentStreak > 0
+                          ? 'wins'
+                          : 'losses'
+                    }`
               }
             />
           </div>
