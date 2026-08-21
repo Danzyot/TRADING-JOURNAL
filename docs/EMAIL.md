@@ -36,8 +36,23 @@ support-ticket replies never produce an event.
    and create one. Google shows sixteen characters once.
 2. **Add it to the app.** In Vercel → Settings → Environment Variables, add
    `GMAIL_USER` (the address) and `GMAIL_APP_PASSWORD` (those sixteen
-   characters), scoped to Production, then redeploy. A second inbox goes in
-   `GMAIL_ACCOUNTS` as `address:apppassword`, one per line.
+   characters), scoped to Production, then redeploy.
+
+   **More than one inbox** — the usual case, since firm accounts end up spread
+   across addresses — is numbered pairs, each needing its own app password
+   created while signed in to *that* account:
+
+   ```
+   GMAIL_USER_1=you@gmail.com
+   GMAIL_APP_PASSWORD_1=abcdefghijklmnop
+   GMAIL_USER_2=other@gmail.com
+   GMAIL_APP_PASSWORD_2=qrstuvwxyzabcdef
+   ```
+
+   `GMAIL_ACCOUNTS`, holding `address:apppassword` one per line, does the same
+   thing in a single variable. All three forms can be mixed; an address that
+   appears twice is read once. An address whose password is missing is named on
+   the Settings page rather than skipped silently.
 3. **Turn on the hourly beat.** In the GitHub repository → Settings → Secrets
    and variables → Actions, add `JOURNAL_URL` (`https://your-app.vercel.app`)
    and `CRON_SECRET` (the same value the app uses). The `Email ingest` workflow
@@ -59,6 +74,9 @@ IMAP mailbox, not just Gmail.
 IMAP (read-only)  →  rules  →  AI fallback  →  effects  →  email_events
 ```
 
+- **Which inboxes** (`src/lib/email/mailboxes.ts`) is pure and tested: it reads
+  the three env forms above into one deduplicated list, and reports anything
+  half-configured instead of quietly dropping it.
 - **Reading** (`src/server/gmail.ts`) opens Gmail's All Mail folder read-only
   and asks the *server* to run the search, using Gmail's own query syntax over
   the X-GM-EXT-1 capability. Only mail from tracked firms in the last two days
@@ -116,7 +134,11 @@ overlaps, and nothing new arrived.
 - *Nothing at all is found* — check `GMAIL_USER`/`GMAIL_APP_PASSWORD` are in
   the Production scope and the app has been redeployed since.
 - *`Invalid credentials`* — the app password was revoked, or 2-Step
-  Verification was turned off, which revokes them all.
+  Verification was turned off, which revokes them all. With several inboxes the
+  message names which address failed; the others are still read.
+- *One inbox is ignored* — check Settings for a "Not being read" note. An app
+  password only works for the account it was created in, so each address needs
+  its own, made while signed in to that account.
 - *An event landed on the wrong account* — accounts are matched on the external
   id or label written in the email. Set the account's **Broker id** on the
   Accounts page to the id the firm uses.

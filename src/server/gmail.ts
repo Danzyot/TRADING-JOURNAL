@@ -1,6 +1,7 @@
 import 'server-only'
 import { ImapFlow, type ListResponse } from 'imapflow'
 import { simpleParser } from 'mailparser'
+import { readMailboxes, type Mailbox } from '@/lib/email/mailboxes'
 import { gmailQuery, htmlToText, type RawEmail } from '@/lib/email/parse'
 
 /**
@@ -17,38 +18,16 @@ import { gmailQuery, htmlToText, type RawEmail } from '@/lib/email/parse'
  * with `readOnly: true`, so nothing here can mark, move or delete a message.
  */
 
-export type Mailbox = { user: string; password: string; host: string }
+export type { Mailbox } from '@/lib/email/mailboxes'
 
-/**
- * Reads the configured inboxes.
- *
- * `GMAIL_USER`/`GMAIL_APP_PASSWORD` is the single-inbox case. `GMAIL_ACCOUNTS`
- * holds extra inboxes as `user:password` pairs separated by newlines or
- * commas, because prop-firm accounts are often spread across two addresses.
- * App passwords contain spaces when Google shows them and no commas, so the
- * split is unambiguous.
- */
+/** The inboxes this deployment is configured to read. */
 export function mailboxes(): Mailbox[] {
-  const host = process.env.IMAP_HOST ?? 'imap.gmail.com'
-  const found: Mailbox[] = []
+  return readMailboxes(process.env).mailboxes
+}
 
-  const user = process.env.GMAIL_USER?.trim()
-  const password = process.env.GMAIL_APP_PASSWORD?.trim()
-  if (user && password) found.push({ user, password: password.replace(/\s+/g, ''), host })
-
-  for (const entry of (process.env.GMAIL_ACCOUNTS ?? '').split(/[\n,]+/)) {
-    const line = entry.trim()
-    if (!line) continue
-    const at = line.lastIndexOf(':')
-    if (at < 1) continue
-    const extraUser = line.slice(0, at).trim()
-    const extraPassword = line.slice(at + 1).trim().replace(/\s+/g, '')
-    if (!extraUser || !extraPassword) continue
-    if (found.some((box) => box.user.toLowerCase() === extraUser.toLowerCase())) continue
-    found.push({ user: extraUser, password: extraPassword, host })
-  }
-
-  return found
+/** Configuration that looks intended but is unusable — shown in Settings. */
+export function mailboxProblems(): string[] {
+  return readMailboxes(process.env).problems
 }
 
 export function gmailConfigured(): boolean {

@@ -3,7 +3,7 @@ import { db } from '@/db'
 import { brokerConnections, syncLog } from '@/db/schema'
 import { FIRM_DOMAINS } from '@/lib/email/parse'
 import { recentEmailEvents } from '@/server/email-ingest'
-import { mailboxes } from '@/server/gmail'
+import { mailboxProblems, mailboxes } from '@/server/gmail'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
@@ -44,6 +44,7 @@ export default async function SettingsPage() {
   ])
 
   const inboxes = mailboxes()
+  const inboxProblems = mailboxProblems()
 
   const rules = settings.riskRules ?? DEFAULT_RISK_RULES
 
@@ -337,7 +338,11 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
-        <EmailAutomationCard inboxes={inboxes.map((box) => box.user)} events={emailLog} />
+        <EmailAutomationCard
+          inboxes={inboxes.map((box) => box.user)}
+          problems={inboxProblems}
+          events={emailLog}
+        />
 
         <Card title="Recent automated runs" bodyClassName="p-0">
           {logs.length === 0 ? (
@@ -385,9 +390,11 @@ export default async function SettingsPage() {
  */
 function EmailAutomationCard({
   inboxes,
+  problems,
   events,
 }: {
   inboxes: string[]
+  problems: string[]
   events: { id: number; kind: string; summary: string | null; createdAt: Date }[]
 }) {
   const configured = inboxes.length > 0
@@ -400,11 +407,13 @@ function EmailAutomationCard({
       {configured ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="good">Connected</Badge>
+            <Badge tone="good">{inboxes.length === 1 ? 'Connected' : `${inboxes.length} inboxes`}</Badge>
             <span className="text-xs text-[var(--ink-secondary)]">
               {inboxes.join(', ')} — watching {FIRM_DOMAINS.length} firms, hourly.
             </span>
           </div>
+
+          {problems.length > 0 && <ProblemList problems={problems} />}
 
           {/* Each button is boxed so that a long result message wraps under its
               own button instead of widening the row and pushing the next one
@@ -443,6 +452,7 @@ function EmailAutomationCard({
         </div>
       ) : (
         <div className="space-y-3">
+          {problems.length > 0 && <ProblemList problems={problems} />}
           <ol className="list-decimal space-y-2 pl-4 text-xs leading-relaxed text-[var(--ink-secondary)]">
             <li>
               Turn on 2-Step Verification for your Google account, then create an app password at{' '}
@@ -462,8 +472,10 @@ function EmailAutomationCard({
               characters), scoped to Production, then redeploy.
             </li>
             <li>
-              For a second inbox, add <code>GMAIL_ACCOUNTS</code> as{' '}
-              <code>other@gmail.com:apppassword</code>, one per line.
+              For several inboxes, number them instead: <code>GMAIL_USER_1</code> /{' '}
+              <code>GMAIL_APP_PASSWORD_1</code>, <code>GMAIL_USER_2</code> /{' '}
+              <code>GMAIL_APP_PASSWORD_2</code>, and so on. (<code>GMAIL_ACCOUNTS</code> with{' '}
+              <code>address:apppassword</code> per line works too.)
             </li>
             <li>
               Hourly checks run from the <code>Email ingest</code> GitHub Action — add repository secrets{' '}
@@ -479,6 +491,28 @@ function EmailAutomationCard({
         </div>
       )}
     </Card>
+  )
+}
+
+/**
+ * Names configuration that was clearly meant to work but cannot.
+ *
+ * An address whose password is missing reads as "connected" everywhere else
+ * while that inbox is never opened — the quietest possible failure, and the
+ * one most likely after adding a second account.
+ */
+function ProblemList({ problems }: { problems: string[] }) {
+  return (
+    <div className="rounded-md border border-[var(--warning)]/40 bg-[var(--surface-sunken)] p-2.5">
+      <p className="text-xs font-medium text-[var(--ink)]">Not being read:</p>
+      <ul className="mt-1 space-y-0.5">
+        {problems.map((problem) => (
+          <li key={problem} className="text-xs text-[var(--ink-secondary)]">
+            {problem}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
