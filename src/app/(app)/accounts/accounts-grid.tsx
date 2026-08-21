@@ -133,6 +133,20 @@ const STATE_FILTERS: { key: StateKey; label: string; match: (row: GridRow) => bo
   { key: 'funded', label: 'Funded', match: (row) => row.phase === 'funded' || row.phase === 'live' },
 ]
 
+/** Hideable view-mode columns. Account and the row actions are always shown. */
+const TABLE_COLUMNS = [
+  { key: 'firm', label: 'Firm' },
+  { key: 'type', label: 'Type' },
+  { key: 'progress', label: 'Progress' },
+  { key: 'target', label: 'To target / payout' },
+  { key: 'consistency', label: 'Consistency' },
+  { key: 'size', label: 'Size' },
+  { key: 'cost', label: 'Cost' },
+] as const
+type ColumnKey = (typeof TABLE_COLUMNS)[number]['key']
+
+const COLUMNS_STORAGE_KEY = 'tj-accounts-hidden-columns'
+
 export function AccountsGrid({
   rows,
   firms,
@@ -155,6 +169,31 @@ export function AccountsGrid({
     if (window.innerWidth < 768) setView('cards')
   }, [])
   const [stateFilter, setStateFilter] = useState<StateKey | ''>('')
+  // Hidden view-mode columns — a per-browser convenience, kept in localStorage.
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set())
+  const [columnsOpen, setColumnsOpen] = useState(false)
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(COLUMNS_STORAGE_KEY) ?? '[]')
+      if (Array.isArray(stored)) setHiddenColumns(new Set(stored as ColumnKey[]))
+    } catch {
+      // Unreadable storage means the default: everything visible.
+    }
+  }, [])
+  const show = (key: ColumnKey): boolean => !hiddenColumns.has(key)
+  function toggleColumn(key: ColumnKey) {
+    setHiddenColumns((previous) => {
+      const next = new Set(previous)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      try {
+        localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify([...next]))
+      } catch {
+        // Storage blocked — the choice just won't survive a reload.
+      }
+      return next
+    })
+  }
   const [edits, setEdits] = useState<Record<number, Edits>>({})
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [message, setMessage] = useState<string | null>(null)
@@ -270,6 +309,52 @@ export function AccountsGrid({
             <span className="text-xs text-[var(--ink-secondary)]" role="status">
               {message}
             </span>
+          )}
+          {!editMode && view === 'table' && (
+            <div className="relative">
+              <button
+                type="button"
+                className="btn px-2.5"
+                aria-label="Table settings"
+                aria-expanded={columnsOpen}
+                onClick={() => setColumnsOpen(!columnsOpen)}
+              >
+                ⚙
+              </button>
+              {columnsOpen && (
+                <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-2 shadow-lg">
+                  <p className="px-1 pb-1 text-[0.625rem] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                    Columns
+                  </p>
+                  {TABLE_COLUMNS.map((column) => (
+                    <label
+                      key={column.key}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs text-[var(--ink)] hover:bg-[var(--surface-sunken)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={show(column.key)}
+                        onChange={() => toggleColumn(column.key)}
+                      />
+                      {column.label}
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    className="mt-1 w-full rounded px-1 py-1 text-left text-[0.6875rem] text-[var(--accent)] hover:bg-[var(--surface-sunken)]"
+                    onClick={() => {
+                      setHiddenColumns(new Set())
+                      try {
+                        localStorage.removeItem(COLUMNS_STORAGE_KEY)
+                      } catch {}
+                      setColumnsOpen(false)
+                    }}
+                  >
+                    Reset to default
+                  </button>
+                </div>
+              )}
+            </div>
           )}
           {!editMode && (
             <div className="flex overflow-hidden rounded-md border border-[var(--line)]" role="group" aria-label="View">
@@ -567,14 +652,14 @@ export function AccountsGrid({
               </>
             ) : (
               <tr>
-                <th>Firm</th>
+                {show('firm') && <th>Firm</th>}
                 <th>Account</th>
-                <th>Type</th>
-                <th className="min-w-[220px]">Progress</th>
-                <th className="text-right">To target / payout</th>
-                <th className="text-right">Consistency</th>
-                <th className="text-right">Size</th>
-                <th className="text-right">Cost</th>
+                {show('type') && <th>Type</th>}
+                {show('progress') && <th className="min-w-[220px]">Progress</th>}
+                {show('target') && <th className="text-right">To target / payout</th>}
+                {show('consistency') && <th className="text-right">Consistency</th>}
+                {show('size') && <th className="text-right">Size</th>}
+                {show('cost') && <th className="text-right">Cost</th>}
                 <th className="w-20" />
               </tr>
             )}
@@ -710,7 +795,7 @@ export function AccountsGrid({
               // ------------------------------------------ view mode row ----
               return (
                 <tr key={row.id} className={row.status !== 'active' ? 'opacity-55' : undefined}>
-                  <td className="max-w-[140px] truncate text-xs">{firm?.name ?? '—'}</td>
+                  {show('firm') && <td className="max-w-[140px] truncate text-xs">{firm?.name ?? '—'}</td>}
                   <td className="max-w-[220px]">
                     <span className="block truncate font-medium text-[var(--ink)]">{row.label}</span>
                     <span className="text-[0.6875rem] text-[var(--ink-muted)]">
@@ -719,7 +804,8 @@ export function AccountsGrid({
                       {row.status !== 'active' ? ` · ${titleCase(row.status)}` : ''}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap text-xs">{titleCase(row.phase)}</td>
+                  {show('type') && <td className="whitespace-nowrap text-xs">{titleCase(row.phase)}</td>}
+                  {show('progress') && (
                   <td>
                     {row.needsSetup ? (
                       <Link
@@ -733,6 +819,8 @@ export function AccountsGrid({
                       <JourneyBar row={row} ccy={ccy} />
                     )}
                   </td>
+                  )}
+                  {show('target') && (
                   <td className="whitespace-nowrap text-right">
                     {row.payout ? (
                       <span
@@ -753,6 +841,8 @@ export function AccountsGrid({
                       <span className="text-xs text-[var(--ink-muted)]">—</span>
                     )}
                   </td>
+                  )}
+                  {show('consistency') && (
                   <td className="whitespace-nowrap text-right">
                     {row.consistencyPct === null ? (
                       <span className="text-xs text-[var(--ink-muted)]">—</span>
@@ -771,10 +861,15 @@ export function AccountsGrid({
                       </span>
                     )}
                   </td>
+                  )}
+                  {show('size') && (
                   <td className="tabular whitespace-nowrap text-right text-xs">
                     {moneyCompact(row.size, ccy)}
                   </td>
+                  )}
+                  {show('cost') && (
                   <td className="tabular whitespace-nowrap text-right text-xs">{money(row.costBase, ccy, 0)}</td>
+                  )}
                   <td className="whitespace-nowrap text-right">
                     <Link
                       prefetch={false}
