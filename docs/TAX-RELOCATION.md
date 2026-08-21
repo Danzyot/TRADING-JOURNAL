@@ -29,12 +29,51 @@ exit. See the disclaimer at the end for exactly what to ask them.
   2. **CFC rules**: even a genuinely foreign company that is >50% Israeli-
      owned with passive low-taxed profits gets its undistributed profits
      attributed to you as deemed dividends.
-- A **US LLC** (Wyoming/Delaware, disregarded) is a different animal and is
-  sometimes worth having — not for tax, but for banking/receiving payouts.
-  A non-US person performing services outside the US through a disregarded
-  LLC generally owes no US tax (file the 5472/1120 information return, give
-  the firm a W-8BEN). But **all of the income is still yours, taxed where
-  you live**. The LLC changes plumbing, not tax.
+- A **US LLC** (Wyoming/Delaware) is a different animal — one you *can*
+  own — and it deserves its own verdict; see §1a.
+
+## 1a. "OK, then an LLC" — the full verdict
+
+A US LLC is legal for you to own, cheap to open, and changes your tax by
+**zero or worse**. Israel's Tax Authority answered exactly this in Circular
+5/2004, which gives an Israeli member a choice of two treatments — and both
+lose:
+
+**Path A — transparent (the US default, and the circular's election).**
+- US side: a single-member LLC owned by a non-US person, doing work
+  performed outside the US, owes **no US tax** — but must file Form 5472 +
+  a pro-forma 1120 every year, income or not, with a **$25,000 penalty**
+  for missing it. You give the prop firm a W-8BEN.
+- Israeli side: with the transparency election, the LLC's income flows
+  straight to you and is taxed **exactly as it is today** — same brackets,
+  same Bituach Leumi. The election exists so you can credit any US tax paid
+  (you'd have none); it does not reduce Israeli tax by a shekel.
+- Net effect: identical tax, plus ~$500–1,000/yr of fees (state + agent +
+  the 5472 preparer), plus Israeli reporting on a foreign holding
+  (Form 150), plus a five-figure penalty landmine.
+
+**Path B — opaque (treat the LLC as a company).**
+- An LLC you run from your apartment is **managed and controlled from
+  Israel**, making it an Israeli-resident company: 23% corporate tax, then
+  30–33% dividend tax (substantial shareholder, incl. surtax) when you take
+  the money out — **~46–48% combined**, far worse than your personal rate.
+  Leaving profits inside to defer runs into CFC attribution and the small
+  problem that the money isn't in your pocket.
+
+**And the write-offs?** Deductions attach to the *expense*, not the wrapper.
+Your osek murshe deducts evaluations, resets, data feeds, platforms,
+hardware, home-office share, travel with a business purpose and accountant
+fees — the identical list an LLC or Ltd would deduct. No entity unlocks a
+single extra deduction for a trader.
+
+**When an LLC is still worth $500/yr**: US banking rails (Mercury/Relay),
+smoother payouts from US prop firms that prefer paying entities, a
+liability/privacy layer. Those are real conveniences — buy it for those if
+you want them, never for tax.
+
+**The Israeli Ltd**, for completeness: 23% + dividend tax only beats
+personal rates at high income with profits retained in the company — the
+app's Tax page computes the crossover on your real numbers.
 
 **Bottom line: entities don't lower your tax while you live in Israel.
 Only two things do: (a) deductions/status optimization inside Israel —
