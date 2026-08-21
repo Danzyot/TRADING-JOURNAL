@@ -594,6 +594,24 @@ export const modelReviews = pgTable(
   ],
 )
 
+/**
+ * Events ingested from the user's prop-firm emails by the hourly Gmail
+ * automation. sourceId is the Gmail message id — the unique index is what
+ * makes re-processing the same inbox idempotent.
+ */
+export const emailEvents = pgTable(
+  'email_events',
+  {
+    id: serial('id').primaryKey(),
+    sourceId: text('source_id').notNull(),
+    kind: text('kind').notNull(),
+    summary: text('summary'),
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex('email_events_source_idx').on(t.sourceId)],
+)
+
 // ---------------------------------------------------------------------------
 // Journal, insights, imports
 // ---------------------------------------------------------------------------
@@ -741,3 +759,4 @@ export type ImportBatch = typeof importBatches.$inferSelect
 export type TradingModel = typeof tradingModels.$inferSelect
 export type NewTradingModel = typeof tradingModels.$inferInsert
 export type ModelReview = typeof modelReviews.$inferSelect
+export type EmailEvent = typeof emailEvents.$inferSelect

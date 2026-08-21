@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { DailyPnlChart, EquityChart, RankedBarChart } from '@/components/charts'
+import { DailyPnlChart, EquityChart } from '@/components/charts'
 import { ActionButton } from '@/components/form'
 import {
   Badge,
-  BarRow,
+
   Card,
   EmptyState,
   KeyValue,
@@ -59,10 +59,13 @@ export default async function DashboardPage() {
         }
       />
 
-      {/* --- Headline numbers ---------------------------------------------- */}
+      {/* --- Trading at a glance ------------------------------------------- */}
       <StatGrid columns={5}>
         <Card bodyClassName="p-4">
-          <Stat label="Today" value={signed(data.todayPnl, ccy, 0)} tone="pnl" />
+          <Stat label="P&L today" value={signed(data.todayPnl, ccy, 0)} tone="pnl" />
+        </Card>
+        <Card bodyClassName="p-4">
+          <Stat label="This week" value={signed(data.business.weekPnl, ccy, 0)} tone="pnl" />
         </Card>
         <Card bodyClassName="p-4">
           <Stat label="This month" value={signed(data.monthPnl, ccy, 0)} tone="pnl" />
@@ -72,17 +75,9 @@ export default async function DashboardPage() {
         </Card>
         <Card bodyClassName="p-4">
           <Stat
-            label="Expectancy"
-            value={signed(metrics.expectancy, ccy)}
-            hint="per trade"
-            tone="pnl"
-          />
-        </Card>
-        <Card bodyClassName="p-4">
-          <Stat
             label="Profit factor"
             value={metrics.profitFactor === null ? '—' : number(metrics.profitFactor)}
-            hint={`${percent(metrics.winRate)} win rate`}
+            hint={`${percent(metrics.winRate)} win rate · ${signed(metrics.expectancy, ccy)}/trade`}
             tone={
               metrics.profitFactor === null
                 ? 'neutral'
@@ -96,6 +91,50 @@ export default async function DashboardPage() {
           />
         </Card>
       </StatGrid>
+
+      {/* --- Business at a glance ------------------------------------------- */}
+      <div className="mt-4">
+        <StatGrid columns={5}>
+          <Card bodyClassName="p-4">
+            <Stat
+              label="Last payout"
+              value={data.business.lastPayout ? money(data.business.lastPayout.amount, ccy, 0) : '—'}
+              hint={data.business.lastPayout ? relativeDays(data.business.lastPayout.date) : 'none yet'}
+              tone={data.business.lastPayout ? 'good' : 'neutral'}
+            />
+          </Card>
+          <Card bodyClassName="p-4">
+            <Stat
+              label="Total payouts"
+              value={money(data.business.totalPayouts, ccy, 0)}
+              tone={data.business.totalPayouts > 0 ? 'good' : 'neutral'}
+            />
+          </Card>
+          <Card bodyClassName="p-4">
+            <Stat
+              label="Total costs"
+              value={money(-data.business.totalCosts, ccy, 0)}
+              hint={`${money(data.business.costsThisMonth, ccy, 0)} this month`}
+              tone={data.business.totalCosts > 0 ? 'critical' : 'neutral'}
+            />
+          </Card>
+          <Card bodyClassName="p-4">
+            <Stat
+              label="Net business"
+              value={signed(data.business.totalPayouts - data.business.totalCosts, ccy, 0)}
+              hint="payouts − every cost"
+              tone="pnl"
+            />
+          </Card>
+          <Card bodyClassName="p-4">
+            <Stat
+              label="Accounts"
+              value={`${data.business.activeEvals} eval · ${data.business.fundedActive} funded`}
+              hint={`${data.openTrades} open trade${data.openTrades === 1 ? '' : 's'}`}
+            />
+          </Card>
+        </StatGrid>
+      </div>
 
       <div className="mt-6">
         <SetupChecklist setup={data.setup} />
@@ -178,17 +217,16 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card title="Daily net P&L" className="xl:col-span-2">
+      <div className="mt-4">
+        <Card
+          title="Daily net P&L"
+          actions={
+            <Link href="/analytics" className="text-xs text-[var(--accent)] hover:underline">
+              Sessions, symbols, weekdays →
+            </Link>
+          }
+        >
           <DailyPnlChart data={data.daily} currency={ccy} height={220} />
-        </Card>
-
-        <Card title="By session" description={`Times shown in ${data.timezone}.`}>
-          <RankedBarChart
-            data={data.bySession.map((bucket) => ({ label: bucket.label, netPnl: bucket.netPnl }))}
-            currency={ccy}
-            height={200}
-          />
         </Card>
       </div>
 
@@ -269,7 +307,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* --- Money ---------------------------------------------------------- */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card
           title="Earnings"
           actions={
@@ -322,24 +360,6 @@ export default async function DashboardPage() {
           </div>
         </Card>
 
-        <Card title="Top symbols">
-          {data.bySymbol.length === 0 ? (
-            <p className="py-6 text-center text-xs text-[var(--ink-muted)]">No trades yet</p>
-          ) : (
-            <div>
-              {data.bySymbol.map((bucket) => (
-                <BarRow
-                  key={bucket.key}
-                  label={bucket.label}
-                  value={bucket.netPnl}
-                  max={Math.max(...data.bySymbol.map((b) => Math.abs(b.netPnl)), 1)}
-                  currency={ccy}
-                  sublabel={`${bucket.trades} trades`}
-                />
-              ))}
-            </div>
-          )}
-        </Card>
       </div>
 
       {/* --- Today's journal ------------------------------------------------- */}

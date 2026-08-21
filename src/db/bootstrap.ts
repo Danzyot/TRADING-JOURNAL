@@ -41,9 +41,17 @@ export type BootstrapResult = {
   message: string
 }
 
-/** Memoised: runs at most once per process, however many callers there are. */
+/**
+ * Memoised: runs at most once per process — but only a *successful* run is
+ * remembered. A database that was unreachable on the first request must not
+ * pin its failure for the process's whole life, or a single Neon cold-start
+ * blip would silently stop future migrations from ever applying.
+ */
 export function bootstrapDatabase(): Promise<BootstrapResult> {
-  started ??= run()
+  started ??= run().then((result) => {
+    if (!result.ok) started = null
+    return result
+  })
   return started
 }
 

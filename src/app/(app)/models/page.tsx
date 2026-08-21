@@ -15,6 +15,10 @@ import {
 } from '@/server/actions'
 import { aiConfigured } from '@/server/ai'
 import { getSettings } from '@/server/settings'
+import { TagPicker, TIMEFRAME_OPTIONS } from '@/components/tag-picker'
+import { ALL_SPECS } from '@/lib/symbols'
+
+const INSTRUMENT_OPTIONS = ALL_SPECS.map((spec) => spec.root)
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Models — Trading Journal' }
@@ -154,8 +158,8 @@ export default async function ModelsPage() {
 
                 <div className="mt-3 space-y-2 text-xs leading-relaxed">
                   <RuleBlock label="Entry" value={model.entryRules} />
-                  <RuleBlock label="Exit" value={model.exitRules} />
-                  <RuleBlock label="Risk" value={model.riskRules} />
+                  <RuleBlock label="SL" value={model.riskRules} />
+                  <RuleBlock label="TP" value={model.exitRules} />
                   <RuleBlock label="Void when" value={model.invalidations} />
                 </div>
 
@@ -327,32 +331,40 @@ function ModelForm({ model }: { model?: TradingModel }) {
           <Field label="Name" hint="e.g. ORB 15m, VWAP reclaim">
             <input name="name" defaultValue={model?.name ?? ''} className="input" required />
           </Field>
-          <Field label="Timeframe">
-            <input name="timeframe" defaultValue={model?.timeframe ?? ''} className="input" placeholder="15m entry, 1h context" />
+          <Field label="Timeframes">
+            <TagPicker
+              name="timeframe"
+              options={TIMEFRAME_OPTIONS}
+              defaultValue={model?.timeframe}
+              placeholder="Search timeframes…"
+            />
           </Field>
           <Field label="Instruments">
-            <input name="instruments" defaultValue={model?.instruments ?? ''} className="input" placeholder="MNQ, NQ" />
+            <TagPicker
+              name="instruments"
+              options={INSTRUMENT_OPTIONS}
+              defaultValue={model?.instruments}
+              placeholder="Search instruments…"
+            />
           </Field>
         </div>
 
-        <Field label="The idea" hint="What edge this captures, in one paragraph">
-          <textarea name="description" rows={2} defaultValue={model?.description ?? ''} className="textarea" />
+        <Field label="Entry rules" hint="The AI checks trades against these, word for word">
+          <textarea name="entryRules" rows={4} defaultValue={model?.entryRules ?? ''} className="textarea" />
         </Field>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Entry rules" hint="The AI checks trades against these, word for word">
-            <textarea name="entryRules" rows={3} defaultValue={model?.entryRules ?? ''} className="textarea" />
-          </Field>
-          <Field label="Exit rules">
-            <textarea name="exitRules" rows={3} defaultValue={model?.exitRules ?? ''} className="textarea" />
-          </Field>
-          <Field label="Risk rules" hint="Stop placement, size limits">
+          <Field label="SL" hint="Where the stop goes, and size limits">
             <textarea name="riskRules" rows={3} defaultValue={model?.riskRules ?? ''} className="textarea" />
           </Field>
-          <Field label="Invalidations" hint="When the setup is void — weighed hardest in review">
-            <textarea name="invalidations" rows={3} defaultValue={model?.invalidations ?? ''} className="textarea" />
+          <Field label="TP" hint="Where and how you take profit">
+            <textarea name="exitRules" rows={3} defaultValue={model?.exitRules ?? ''} className="textarea" />
           </Field>
         </div>
+
+        <Field label="Invalidations" hint="When the setup is void — weighed hardest in review">
+          <textarea name="invalidations" rows={3} defaultValue={model?.invalidations ?? ''} className="textarea" />
+        </Field>
 
         <label className="flex items-center gap-2 text-xs text-[var(--ink-secondary)]">
           <input type="checkbox" name="active" defaultChecked={model?.active ?? true} />

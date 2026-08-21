@@ -103,15 +103,23 @@ const firmSchema = z.object({
   payoutPolicy: optionalText,
   minDaysToPayout: optionalNum,
   notes: optionalText,
+  /** Plan catalogue carried from a firm template, as JSON. */
+  plansJson: optionalText.optional(),
 })
 
 export async function saveFirm(id: number | null, formData: FormData): Promise<ActionResult> {
   return guard(async () => {
-    const values = firmSchema.parse(Object.fromEntries(formData))
-    const payload = { ...values, minDaysToPayout: values.minDaysToPayout ?? null }
+    const { plansJson, ...values } = firmSchema.parse(Object.fromEntries(formData))
+    const payload: Record<string, unknown> = { ...values, minDaysToPayout: values.minDaysToPayout ?? null }
+
+    // A template's catalogue seeds plans only on create — an edit never
+    // silently overwrites a catalogue the user has since customised.
+    if (id === null && plansJson) {
+      payload.plans = z.array(firmPlanSchema).max(50).parse(JSON.parse(plansJson))
+    }
 
     if (id) await db.update(propFirms).set(payload).where(eq(propFirms.id, id))
-    else await db.insert(propFirms).values(payload)
+    else await db.insert(propFirms).values(payload as typeof propFirms.$inferInsert)
 
     revalidateAll()
     return `Saved ${values.name}.`

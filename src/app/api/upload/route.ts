@@ -4,6 +4,7 @@ import { db } from '@/db'
 import { accounts } from '@/db/schema'
 import { authorizeMachineRequest } from '@/lib/auth'
 import { importCsvFile } from '@/server/import'
+import { log } from '@/server/sync'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -58,5 +59,10 @@ export async function POST(request: Request) {
 
   form.set('accountId', String(accountId))
   const report = await importCsvFile(form)
+  // Marks the setup checklist's "watcher" step done, and gives Settings'
+  // recent-runs table a row per upload.
+  await log('watcher_upload', report.ok ? 'ok' : 'error', report.message.slice(0, 300), null, 0).catch(
+    () => {},
+  )
   return NextResponse.json({ accountId, ...report })
 }

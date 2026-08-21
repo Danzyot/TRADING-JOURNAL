@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/db'
 import { journalEntries } from '@/db/schema'
-import { desc } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import {
   bySession,
   bySymbol,
@@ -17,7 +17,7 @@ import { deploymentAdvice, type DeploymentSuggestion } from '@/lib/allocation'
 import { calculateIsraeliTax, reservePercentFor } from '@/lib/tax/israel'
 import { today } from '@/lib/time'
 import type { Account, Insight } from '@/db/schema'
-import { brokerConnections } from '@/db/schema'
+import { brokerConnections, emailEvents, payouts, syncLog, tradingModels } from '@/db/schema'
 import { getSettings } from './settings'
 import { equityHistory, listAccounts, listTradesForStats } from './trades'
 import { listFirms } from './money'
@@ -41,7 +41,23 @@ export type SetupState = {
   connections: number
   taxStatusChosen: boolean
   payouts: number
+  aiConfigured: boolean
+  models: number
+  /** The local trade watcher has uploaded or pumped at least once. */
+  watcherSeen: boolean
+  /** The Gmail automation has delivered at least one event. */
+  emailAutomation: boolean
   complete: boolean
+}
+
+export type BusinessSummary = {
+  lastPayout: { amount: number; date: string } | null
+  totalPayouts: number
+  totalCosts: number
+  costsThisMonth: number
+  activeEvals: number
+  fundedActive: number
+  weekPnl: number
 }
 
 export type DashboardData = {
@@ -49,6 +65,7 @@ export type DashboardData = {
   /** Per-trade rows behind the metrics, for pages that need per-account slices. */
   trades: Awaited<ReturnType<typeof listTradesForStats>>
   setup: SetupState
+  business: BusinessSummary
   daily: DailyPoint[]
   equity: ReturnType<typeof equityCurve>
   todayPnl: number
@@ -92,25 +109,65 @@ export async function getDashboardData(): Promise<DashboardData> {
   const monthStart = `${currentDay.slice(0, 7)}-01`
   const yearStart = `${year}-01-01`
 
-  const [trades, accounts, equityByAccount, insights, money, renewals, revenue, deductions, firms, connections] =
-    await Promise.all([
-      listTradesForStats(),
-      listAccounts(),
-      equityHistory(),
-      listInsights(),
-      moneySummary(),
-      upcomingRenewals(30),
-      revenueForYear(year),
-      deductibleExpensesForYear(year),
-      listFirms(),
-      db.select({ id: brokerConnections.id }).from(brokerConnections),
-    ])
+  const [
+    trades,
+    accounts,
+    equityByAccount,
+    insights,
+    money,
+    renewals,
+    revenue,
+    deductions,
+    firms,
+    connections,
+    monthMoney,
+    [lastPaidPayout],
+    [{ modelCount }],
+    [{ emailEventCount }],
+    [watcherRun],
+  ] = await Promise.all([
+    listTradesForStats(),
+    listAccounts(),
+    equityHistory(),
+    listInsights(),
+    moneySummary(),
+    upcomingRenewals(30),
+    revenueForYear(year),
+    deductibleExpensesForYear(year),
+    listFirms(),
+    db.select({ id: brokerConnections.id }).from(brokerConnections),
+    moneySummary(monthStart),
+    db.select().from(payouts).where(eq(payouts.status, 'paid')).orderBy(desc(payouts.paidOn)).limit(1),
+    db.select({ modelCount: sql<number>`count(*)::int` }).from(tradingModels),
+    db.select({ emailEventCount: sql<number>`count(*)::int` }).from(emailEvents),
+    db.select({ id: syncLog.id }).from(syncLog).where(eq(syncLog.job, 'watcher_upload')).limit(1),
+  ])
 
   const metrics = computeMetrics(trades)
   const daily = dailySeries(trades)
 
   const sumFrom = (start: string): number =>
     daily.filter((point) => point.day >= start).reduce((sum, point) => sum + point.netPnl, 0)
+
+  // Calendar week starting Sunday, in the user's timezone via currentDay.
+  const weekStartDate = new Date(`${currentDay}T00:00:00Z`)
+  weekStartDate.setUTCDate(weekStartDate.getUTCDate() - weekStartDate.getUTCDay())
+  const weekStart = weekStartDate.toISOString().slice(0, 10)
+
+  const business: BusinessSummary = {
+    lastPayout:
+      lastPaidPayout && lastPaidPayout.paidOn
+        ? { amount: lastPaidPayout.netAmountBase, date: lastPaidPayout.paidOn }
+        : null,
+    totalPayouts: money.payoutsPaid,
+    totalCosts: money.expensesTotal,
+    costsThisMonth: monthMoney.expensesTotal,
+    activeEvals: accounts.filter((a) => a.phase === 'eval' && a.status === 'active').length,
+    fundedActive: accounts.filter(
+      (a) => (a.phase === 'funded' || a.phase === 'live') && a.status === 'active',
+    ).length,
+    weekPnl: sumFrom(weekStart),
+  }
 
   const accountCards: AccountCard[] = accounts
     .filter((account) => account.status === 'active')
@@ -183,17 +240,26 @@ export async function getDashboardData(): Promise<DashboardData> {
     connections: connections.length,
     taxStatusChosen: profile.status !== 'undecided',
     payouts: money.payoutsPaid > 0 ? 1 : 0,
+    aiConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+    models: modelCount,
+    watcherSeen: Boolean(watcherRun),
+    emailAutomation: emailEventCount > 0,
     complete:
       firms.length > 0 &&
       accounts.length > 0 &&
       trades.length > 0 &&
-      profile.status !== 'undecided',
+      profile.status !== 'undecided' &&
+      Boolean(process.env.ANTHROPIC_API_KEY) &&
+      modelCount > 0 &&
+      Boolean(watcherRun) &&
+      emailEventCount > 0,
   }
 
   return {
     metrics,
     trades,
     setup,
+    business,
     daily,
     equity: equityCurve(trades),
     todayPnl: sumFrom(currentDay),

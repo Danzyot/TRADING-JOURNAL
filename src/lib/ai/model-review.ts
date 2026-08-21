@@ -53,8 +53,8 @@ export function describeModel(model: TradingModel): string {
     field('Timeframe', model.timeframe),
     field('Instruments', model.instruments),
     field('Entry rules', model.entryRules),
-    field('Exit rules', model.exitRules),
-    field('Risk rules', model.riskRules),
+    field('Take profit (TP)', model.exitRules),
+    field('Stop loss (SL) / risk rules', model.riskRules),
     field('Invalidations (setup is void when)', model.invalidations),
   ]
     .filter(Boolean)

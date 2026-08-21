@@ -64,6 +64,41 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
       linkLabel: 'Import trades',
     },
     {
+      done: setup.watcherSeen,
+      locked: setup.accounts === 0,
+      title: 'Run the trade watcher on your PC',
+      detail:
+        setup.accounts === 0
+          ? 'Unlocks once you have accounts. Two downloads and a double-click — trades then arrive on their own.'
+          : 'Settings has both files ready with your URL and token filled in. Install Node, download, double-click — done.',
+      href: '/settings',
+      linkLabel: 'Settings',
+    },
+    {
+      done: setup.aiConfigured,
+      title: 'Connect the AI trade reviewer',
+      detail:
+        'Add ANTHROPIC_API_KEY in Vercel (Settings → Environment Variables → redeploy). Unlocks AI trade checks, auto-tagging and model refinement.',
+      href: '/models',
+      linkLabel: 'Models page',
+    },
+    {
+      done: setup.models > 0,
+      title: 'Write your first trading model',
+      detail:
+        'Your setup as rules — entry, SL, TP, invalidations. Everything you tag afterwards gets judged against it.',
+      href: '/models',
+      linkLabel: 'Add model',
+    },
+    {
+      done: setup.emailAutomation,
+      title: 'Email automation',
+      detail:
+        'Claude reads your prop-firm emails hourly — payouts, purchases, passes and fails log themselves. Needs INGEST_SECRET in Vercel; done the first time an event lands.',
+      href: '/money',
+      linkLabel: 'Earnings',
+    },
+    {
       done: setup.taxStatusChosen,
       title: 'Choose your tax status',
       detail:

@@ -20,8 +20,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/login') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/webhook') ||
-    // Machine upload — carries its own bearer token, like the cron routes.
+    // Machine upload + email ingest — carry their own bearer tokens.
     pathname.startsWith('/api/upload') ||
+    pathname.startsWith('/api/ingest') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico'
 

@@ -60,6 +60,24 @@ export function FirmForm({
         </Field>
       )}
 
+      {/* The template's plan catalogue rides along as JSON; the server seeds
+          the firm's plans from it so the accounts grid's Catalogue works
+          immediately. Editable afterwards like everything else. */}
+      {!firm && preset && preset.plans.length > 0 && (
+        <>
+          <input type="hidden" name="plansJson" value={JSON.stringify(preset.plans)} />
+          <p className="text-xs text-[var(--ink-secondary)]">
+            Includes {preset.plans.length} plan template{preset.plans.length === 1 ? '' : 's'} (
+            {preset.plans
+              .slice(0, 3)
+              .map((entry) => entry.label)
+              .join(', ')}
+            {preset.plans.length > 3 ? ', …' : ''}) — sizes, drawdowns, targets and list prices, all
+            editable in the firm&apos;s plan catalogue after saving.
+          </p>
+        </>
+      )}
+
       {/* Remounting on template change is what lets defaultValue re-apply. */}
       <div key={template || 'blank'} className="space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
