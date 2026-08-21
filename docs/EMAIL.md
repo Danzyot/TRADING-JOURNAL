@@ -54,9 +54,10 @@ support-ticket replies never produce an event.
    appears twice is read once. An address whose password is missing is named on
    the Settings page rather than skipped silently.
 3. **Turn on the hourly beat.** In the GitHub repository → Settings → Secrets
-   and variables → Actions, add `JOURNAL_URL` (`https://your-app.vercel.app`)
-   and `CRON_SECRET` (the same value the app uses). The `Email ingest` workflow
-   then runs every hour.
+   and variables → Actions, add `CRON_SECRET` (the same value the app uses) as
+   a **Secret** — a Variable would be printed in plain text in the run logs —
+   and `JOURNAL_URL` (`https://your-app.vercel.app`) in either tab, since a URL
+   is not sensitive. The `Email ingest` workflow then runs every hour.
 4. **Backfill.** Open **Settings** in the app and press *Backfill 30 days*.
 
 Step 3 is optional: the daily cron reads the mail too, so skipping it costs

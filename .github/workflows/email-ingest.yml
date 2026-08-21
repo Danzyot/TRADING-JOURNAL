@@ -7,9 +7,11 @@ name: Email ingest
 # here instead, where it costs nothing and does not depend on any machine being
 # switched on. All it does is call the app; the work happens there.
 #
-# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
-#   JOURNAL_URL  https://your-journal.vercel.app
-#   CRON_SECRET  the same value as the app's CRON_SECRET env var
+# Needs two repository values (Settings -> Secrets and variables -> Actions):
+#   CRON_SECRET  a Secret. Same value as the app's CRON_SECRET env var, and it
+#                must be a Secret: a Variable is printed in plain text in logs.
+#   JOURNAL_URL  https://your-journal.vercel.app - either tab works, since a URL
+#                is not sensitive. A Variable wins if both exist.
 #
 # GitHub disables scheduled workflows in a repository with no activity for 60
 # days. The daily Vercel cron keeps the automation alive if that ever happens.
@@ -31,12 +33,12 @@ jobs:
     steps:
       - name: Read the inbox
         env:
-          JOURNAL_URL: ${{ secrets.JOURNAL_URL }}
+          JOURNAL_URL: ${{ vars.JOURNAL_URL || secrets.JOURNAL_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           DAYS: ${{ github.event.inputs.days || '2' }}
         run: |
           if [ -z "$JOURNAL_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "JOURNAL_URL or CRON_SECRET is not set - add them as repository secrets."
+            echo "JOURNAL_URL or CRON_SECRET is not set - add them under Settings > Secrets and variables > Actions."
             exit 1
           fi
 
