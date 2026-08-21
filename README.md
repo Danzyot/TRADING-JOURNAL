@@ -81,6 +81,7 @@ Environment variables, all set once in Vercel:
 | **[SETUP.md](docs/SETUP.md)** | Deploy to Vercel or Docker, first-run checklist, troubleshooting |
 | **[INTEGRATIONS.md](docs/INTEGRATIONS.md)** | Tradovate, Rithmic, Tradecopia, TradingView — what connects and what honestly doesn't |
 | **[TAX-ISRAEL.md](docs/TAX-ISRAEL.md)** | Business income vs capital gains, which status to register, deductions, travelling and leaving |
+| **[TAX-RELOCATION.md](docs/TAX-RELOCATION.md)** | Why an S corp is a dead end, and the honest country-by-country comparison (Cyprus, Greece, Dubai, Bulgaria, Georgia, Thailand, Costa Rica…) |
 | **[PAYOUT-STRATEGY.md](docs/PAYOUT-STRATEGY.md)** | The allocation waterfall and the reasoning behind it |
 
 ---
