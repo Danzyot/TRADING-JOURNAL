@@ -23,6 +23,7 @@ import { equityHistory, listAccounts, listTradesForStats } from './trades'
 import { listFirms } from './money'
 import { deductibleExpensesForYear, moneySummary, revenueForYear, upcomingRenewals } from './money'
 import { listInsights } from './insights'
+import { gmailConfigured } from './gmail'
 
 export type AccountCard = {
   account: Account
@@ -243,7 +244,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     aiConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
     models: modelCount,
     watcherSeen: Boolean(watcherRun),
-    emailAutomation: emailEventCount > 0,
+    emailAutomation: gmailConfigured() || emailEventCount > 0,
     complete:
       firms.length > 0 &&
       accounts.length > 0 &&

@@ -39,6 +39,7 @@ import { regenerateInsights } from './insights'
 import { rebuildTradesForAccount, rollupDailyStats } from './trades'
 import { saveTradovateCredentials, syncAllConnections, syncTradovateConnection } from './sync'
 import { autoTagTrades, refineModelGuidance, reviewPendingForModel, reviewTradeAgainstModel } from './ai'
+import { runEmailIngest } from './email-ingest'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
@@ -840,6 +841,30 @@ export async function refreshInsights(): Promise<ActionResult> {
     const result = await regenerateInsights()
     revalidateAll()
     return `${result.generated} insights generated, ${result.resolved} resolved.`
+  })
+}
+
+/**
+ * Reads the prop-firm inboxes on demand.
+ *
+ * The same job the schedule runs — exposed as a button so setting the mailbox
+ * up has an immediate, visible result, and so a wider window can be replayed
+ * to backfill mail that arrived before the automation existed. Re-reading is
+ * safe: every event is deduped on the email's own Message-ID.
+ */
+export async function checkInbox(days: number): Promise<ActionResult> {
+  return guard(async () => {
+    const summary = await runEmailIngest({ days })
+    revalidateAll()
+
+    if (summary.errors.length > 0) {
+      throw new Error(summary.errors.join('; ').slice(0, 300))
+    }
+
+    const parts = [`Read ${summary.scanned} email${summary.scanned === 1 ? '' : 's'}`]
+    parts.push(summary.applied === 1 ? '1 new event logged' : `${summary.applied} new events logged`)
+    if (summary.skipped > 0) parts.push(`${summary.skipped} already known`)
+    return `${parts.join(' — ')}.`
   })
 }
 

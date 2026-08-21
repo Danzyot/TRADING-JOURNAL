@@ -36,6 +36,8 @@ import {
   type ReviewTradeFacts,
 } from '@/lib/ai/model-review'
 import { getSettings } from './settings'
+import { EMAIL_SYSTEM_PROMPT, buildEmailPrompt, parseEmailEvents } from '@/lib/email/ai'
+import { firmForSender, type EmailEventDraft, type RawEmail } from '@/lib/email/parse'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
 
@@ -300,3 +302,27 @@ export async function refineModelGuidance(modelId: number): Promise<{ ok: boolea
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Email
+
+/**
+ * Reads one prop-firm email the deterministic rules could not.
+ *
+ * Returns nothing rather than throwing: the email automation must finish and
+ * record what it did understand even when the model is unreachable, over
+ * budget, or replies with something unusable.
+ */
+export async function classifyEmailWithAi(email: RawEmail): Promise<EmailEventDraft[]> {
+  if (!aiConfigured()) return []
+  try {
+    const reply = await callClaude({
+      system: EMAIL_SYSTEM_PROMPT,
+      prompt: buildEmailPrompt(email),
+      maxTokens: 700,
+    })
+    return parseEmailEvents(reply, email, firmForSender(email.from))
+  } catch {
+    return []
+  }
+}

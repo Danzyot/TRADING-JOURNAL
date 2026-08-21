@@ -1,0 +1,58 @@
+name: Email ingest
+
+# Reads the prop-firm inboxes hourly.
+#
+# Vercel's Hobby plan allows two cron jobs, both daily, and the journal already
+# spends them on the sync and housekeeping passes — so the hourly beat lives
+# here instead, where it costs nothing and does not depend on any machine being
+# switched on. All it does is call the app; the work happens there.
+#
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
+#   JOURNAL_URL  https://your-journal.vercel.app
+#   CRON_SECRET  the same value as the app's CRON_SECRET env var
+#
+# GitHub disables scheduled workflows in a repository with no activity for 60
+# days. The daily Vercel cron keeps the automation alive if that ever happens.
+
+on:
+  schedule:
+    - cron: '25 * * * *'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'How many days of mail to read (use a bigger number to backfill)'
+        required: false
+        default: '2'
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read the inbox
+        env:
+          JOURNAL_URL: ${{ secrets.JOURNAL_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DAYS: ${{ github.event.inputs.days || '2' }}
+        run: |
+          if [ -z "$JOURNAL_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "JOURNAL_URL or CRON_SECRET is not set - add them as repository secrets."
+            exit 1
+          fi
+
+          response=$(curl -sS --max-time 120 --retry 2 --retry-delay 10 \
+            -w '\n%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${JOURNAL_URL%/}/api/cron/email?days=$DAYS")
+
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+
+          echo "$body"
+          if [ "$status" != "200" ]; then
+            echo "Journal returned HTTP $status"
+            exit 1
+          fi
+          # The route reports its own failures as ok:false with a 200, so that a
+          # retry never double-writes; surface that as a failed run.
+          echo "$body" | grep -q '"ok":true' || { echo "Ingest reported a failure"; exit 1; }

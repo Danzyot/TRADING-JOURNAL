@@ -14,6 +14,10 @@ npm run check:integration  # end-to-end against a real Postgres in DATABASE_URL
 npm run db:generate        # new migration after editing src/db/schema.ts
 ```
 
+```bash
+npm run check:email        # email parser + applier against a real Postgres
+```
+
 The build needs env vars present but not valid; every page is force-dynamic.
 
 ## Architecture in one paragraph
@@ -51,6 +55,10 @@ through.
 - **Every statistic must be checkable.** Insights state their evidence;
   estimates say they are estimates. The tax module is arithmetic on published
   rates, not advice, and its docs carry sources.
+- **Email automation is rules-first.** `src/lib/email/parse.ts` is pure and
+  tested against real messages; the AI pass only sees what the rules could not
+  read. Every event is deduped on the email's Message-ID in `email_events`, so
+  the job re-reads an overlapping window on purpose and is safe to re-run.
 - **Serverless + remote DB: no per-row awaits in loops.** Batch inserts, one
   VALUES-join update for linkage (array params with `::int[]` casts do not
   survive postgres.js — use a VALUES list).

@@ -92,11 +92,11 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
     },
     {
       done: setup.emailAutomation,
-      title: 'Email automation',
+      title: 'Connect your prop-firm inbox',
       detail:
-        'Claude reads your prop-firm emails hourly — payouts, purchases, passes and fails log themselves. Needs INGEST_SECRET in Vercel; done the first time an event lands.',
-      href: '/money',
-      linkLabel: 'Earnings',
+        'The app reads your firm emails hourly and logs payouts, fees, passes, fails and daily balances by itself. Takes a Gmail app password.',
+      href: '/settings',
+      linkLabel: 'Connect inbox',
     },
     {
       done: setup.taxStatusChosen,

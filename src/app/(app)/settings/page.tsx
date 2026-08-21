@@ -1,11 +1,15 @@
 import { desc } from 'drizzle-orm'
 import { db } from '@/db'
 import { brokerConnections, syncLog } from '@/db/schema'
+import { FIRM_DOMAINS } from '@/lib/email/parse'
+import { recentEmailEvents } from '@/server/email-ingest'
+import { mailboxes } from '@/server/gmail'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
 import { DEFAULT_RISK_RULES } from '@/server/settings'
 import {
+  checkInbox,
   createConnection,
   deleteConnection,
   refreshInsights,
@@ -32,11 +36,14 @@ const TIMEZONES = [
 ]
 
 export default async function SettingsPage() {
-  const [settings, connections, logs] = await Promise.all([
+  const [settings, connections, logs, emailLog] = await Promise.all([
     getSettings(),
     db.select().from(brokerConnections).orderBy(desc(brokerConnections.createdAt)),
     db.select().from(syncLog).orderBy(desc(syncLog.ranAt)).limit(15),
+    recentEmailEvents(8),
   ])
+
+  const inboxes = mailboxes()
 
   const rules = settings.riskRules ?? DEFAULT_RISK_RULES
 
@@ -240,7 +247,7 @@ export default async function SettingsPage() {
         <Card title="Automation" description="What runs on its own once deployed.">
           <div className="space-y-3 text-xs leading-relaxed text-[var(--ink-secondary)]">
             <p>
-              Four scheduled jobs run against <code>/api/cron/*</code>, authorised by the{' '}
+              The scheduled jobs run against <code>/api/cron/*</code>, authorised by the{' '}
               <code>CRON_SECRET</code> bearer token. On Vercel they are declared in{' '}
               <code>vercel.json</code>; anywhere else, point a scheduler at the same URLs.
             </p>
@@ -254,6 +261,11 @@ export default async function SettingsPage() {
                 name="sync"
                 schedule="once a day"
                 detail="Pulls fills and balances from every enabled broker connection, then rebuilds trades."
+              />
+              <Entry
+                name="email"
+                schedule="hourly, from GitHub Actions"
+                detail="Reads the prop-firm inboxes and logs payouts, evaluation fees, account passes and failures, daily balances and subscription changes. The daily job runs it too, so it still works with no Action configured."
               />
             </dl>
             <p>
@@ -325,6 +337,8 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
+        <EmailAutomationCard inboxes={inboxes.map((box) => box.user)} events={emailLog} />
+
         <Card title="Recent automated runs" bodyClassName="p-0">
           {logs.length === 0 ? (
             <EmptyState title="Nothing has run yet" body="Scheduled jobs will report here once the app is deployed." />
@@ -360,6 +374,121 @@ export default async function SettingsPage() {
       </div>
     </>
   )
+}
+
+/**
+ * Setting up the email automation, or showing what it has found.
+ *
+ * The setup half is deliberately a short list of literal steps: this is the
+ * one feature whose configuration lives entirely outside the app, so the page
+ * has to carry the instructions rather than assume anyone remembers them.
+ */
+function EmailAutomationCard({
+  inboxes,
+  events,
+}: {
+  inboxes: string[]
+  events: { id: number; kind: string; summary: string | null; createdAt: Date }[]
+}) {
+  const configured = inboxes.length > 0
+
+  return (
+    <Card
+      title="Email automation — payouts, fees and account changes"
+      description="Reads your prop-firm mail on the server and logs what it finds: payouts requested and paid, evaluation fees, accounts passed or blown, daily balances, subscription changes. Nothing has to be running on your computer."
+    >
+      {configured ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="good">Connected</Badge>
+            <span className="text-xs text-[var(--ink-secondary)]">
+              {inboxes.join(', ')} — watching {FIRM_DOMAINS.length} firms, hourly.
+            </span>
+          </div>
+
+          {/* Each button is boxed so that a long result message wraps under its
+              own button instead of widening the row and pushing the next one
+              onto a line of its own. */}
+          <div className="flex flex-wrap items-start gap-2">
+            <div className="max-w-[16rem]">
+              <ActionButton action={checkInbox.bind(null, 3)} className="btn" pendingLabel="Reading…">
+                Check inbox now
+              </ActionButton>
+            </div>
+            <div className="max-w-[16rem]">
+              <ActionButton action={checkInbox.bind(null, 30)} className="btn" pendingLabel="Backfilling…">
+                Backfill 30 days
+              </ActionButton>
+            </div>
+          </div>
+
+          {events.length === 0 ? (
+            <p className="text-xs text-[var(--ink-muted)]">
+              Nothing found yet. Backfilling reads the last 30 days — re-reading the same mail never logs
+              anything twice.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {events.map((event) => (
+                <li key={event.id} className="flex items-start gap-2 text-xs">
+                  <Badge tone={TONES[event.kind] ?? 'neutral'}>{titleCase(event.kind.replace(/_/g, ' '))}</Badge>
+                  <span className="min-w-0 flex-1 text-[var(--ink-secondary)]">{event.summary}</span>
+                  <span className="whitespace-nowrap tabular text-[var(--ink-muted)]">
+                    {event.createdAt.toLocaleDateString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <ol className="list-decimal space-y-2 pl-4 text-xs leading-relaxed text-[var(--ink-secondary)]">
+            <li>
+              Turn on 2-Step Verification for your Google account, then create an app password at{' '}
+              <a
+                href="https://myaccount.google.com/apppasswords"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[var(--accent)] hover:underline"
+              >
+                myaccount.google.com/apppasswords
+              </a>
+              . Google shows 16 characters — copy them.
+            </li>
+            <li>
+              In Vercel → your project → Settings → Environment Variables, add{' '}
+              <code>GMAIL_USER</code> (your address) and <code>GMAIL_APP_PASSWORD</code> (those 16
+              characters), scoped to Production, then redeploy.
+            </li>
+            <li>
+              For a second inbox, add <code>GMAIL_ACCOUNTS</code> as{' '}
+              <code>other@gmail.com:apppassword</code>, one per line.
+            </li>
+            <li>
+              Hourly checks run from the <code>Email ingest</code> GitHub Action — add repository secrets{' '}
+              <code>JOURNAL_URL</code> and <code>CRON_SECRET</code> to enable it. Without it the daily cron
+              still reads the mail once a day.
+            </li>
+          </ol>
+          <p className="text-xs text-[var(--ink-muted)]">
+            The app password only reads mail, is revocable on its own, and is never shown again after setup.
+            Mailboxes are opened read-only — the automation cannot send, label or delete anything. Full
+            details in docs/EMAIL.md.
+          </p>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+const TONES: Record<string, 'good' | 'critical' | 'warn' | 'neutral'> = {
+  payout: 'good',
+  purchase: 'warn',
+  account_status: 'critical',
+  balance_snapshot: 'neutral',
+  subscription: 'neutral',
+  note: 'neutral',
 }
 
 function Entry({ name, schedule, detail }: { name: string; schedule: string; detail: string }) {

@@ -3,6 +3,8 @@ import { refreshUsdIls } from '@/server/fx'
 import { materialiseSubscriptions } from '@/server/money'
 import { regenerateInsights } from '@/server/insights'
 import { rebuildAllAccounts } from '@/server/trades'
+import { runEmailIngest } from '@/server/email-ingest'
+import { gmailConfigured } from '@/server/gmail'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -23,7 +25,15 @@ export async function GET(request: Request) {
     const rebuilt = await rebuildAllAccounts()
     const insights = await regenerateInsights()
 
+    // The inbox is read here as well as on its own schedule so that the email
+    // automation still works on a host that allows only one cron a day.
+    const email = gmailConfigured() ? await runEmailIngest({ days: 2 }) : null
+
     return {
+      emailApplied: email?.applied ?? 'not configured',
+      // Surfaced rather than thrown: the rest of the daily pass succeeded, and
+      // the hourly email job is where a mailbox failure should go red.
+      emailErrors: email?.errors.join('; ').slice(0, 200) || 0,
       subscriptionCharges,
       usdIls: usdIls ?? 'unchanged',
       accountsRebuilt: rebuilt.length,
