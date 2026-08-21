@@ -294,7 +294,17 @@ export default async function SettingsPage() {
             </li>
             <li>
               Double-click <code>start-watcher.bat</code>. It creates an <code>exports</code> folder and starts
-              watching. Keep the window open while you trade (or add it to Task Scheduler at logon).
+              watching. Keep the window open while you trade.
+            </li>
+            <li>
+              <span className="font-medium text-[var(--ink)]">Auto-start at logon (optional):</span> open
+              Command Prompt as administrator and run this once (adjust the path if you used a different
+              folder):
+              <pre className="mt-1.5 overflow-x-auto rounded-md bg-[var(--surface-sunken)] p-2 font-mono text-[0.6875rem] leading-relaxed">
+                schtasks /Create /TN &quot;Trading journal watcher&quot; /SC ONLOGON /TR &quot;C:\trading\start-watcher.bat&quot;
+              </pre>
+              Undo anytime with{' '}
+              <code>schtasks /Delete /TN &quot;Trading journal watcher&quot; /F</code>.
             </li>
           </ol>
           <div className="mt-3 space-y-2 text-xs leading-relaxed text-[var(--ink-secondary)]">
