@@ -112,7 +112,7 @@ export default async function ModelsPage() {
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-[var(--ink)]">Your models</h2>
-        <Disclosure label="+ Add model">
+        <Disclosure label="Add model">
           <ModelForm />
         </Disclosure>
       </div>

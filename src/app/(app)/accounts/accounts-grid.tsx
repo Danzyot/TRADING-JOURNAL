@@ -16,7 +16,7 @@
  */
 
 import Link from 'next/link'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { FirmPlan } from '@/db/schema'
 import type { ActionResult } from '@/server/actions'
@@ -149,6 +149,11 @@ export function AccountsGrid({
   const router = useRouter()
   const [editMode, setEditMode] = useState(false)
   const [view, setView] = useState<'table' | 'cards'>('table')
+  // On a phone the dense table only works with sideways scrolling; cards are
+  // the native fit. Applied after mount so server and client render the same.
+  useEffect(() => {
+    if (window.innerWidth < 768) setView('cards')
+  }, [])
   const [stateFilter, setStateFilter] = useState<StateKey | ''>('')
   const [edits, setEdits] = useState<Record<number, Edits>>({})
   const [selected, setSelected] = useState<Set<number>>(new Set())

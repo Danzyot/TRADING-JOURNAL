@@ -219,7 +219,7 @@ export default async function AccountsPage({
               <FilterTab href="/accounts?firm=none" active={firmFilter === 'none'} label="No firm" />
             )}
           </div>
-          <Disclosure label="+ Add account">
+          <Disclosure label="Add account">
             <AccountForm firms={firms} ccy={ccy} />
           </Disclosure>
         </div>
@@ -303,7 +303,7 @@ export default async function AccountsPage({
       <div className="mt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-[var(--ink)]">Prop firms</h2>
-          <Disclosure label="+ Add firm">
+          <Disclosure label="Add firm">
             <FirmEditor />
           </Disclosure>
         </div>
