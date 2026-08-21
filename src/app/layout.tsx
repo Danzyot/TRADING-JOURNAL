@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { NavigationFallback } from '@/components/navigation-fallback'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -35,7 +36,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <NavigationFallback />
+        {children}
+      </body>
     </html>
   )
 }

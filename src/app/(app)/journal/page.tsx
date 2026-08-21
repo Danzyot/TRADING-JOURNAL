@@ -10,6 +10,7 @@ import { today } from '@/lib/time'
 import { saveJournalEntry } from '@/server/actions'
 import { getSettings } from '@/server/settings'
 import { listTradesForStats } from '@/server/trades'
+import { PnlCalendar } from './pnl-calendar'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Journal — Trading Journal' }
@@ -23,7 +24,11 @@ const MOODS = [
   { value: 1, emoji: '😡', label: 'Terrible' },
 ]
 
-export default async function JournalPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function JournalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string; month?: string }>
+}) {
   const params = await searchParams
   const [settings, trades, entries] = await Promise.all([
     getSettings(),
@@ -48,6 +53,11 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     return date.toISOString().slice(0, 10)
   }
 
+  // Calendar month: explicit ?month=, else the month of the selected day.
+  const month = /^\d{4}-\d{2}$/.test(params.month ?? '') ? params.month! : day.slice(0, 7)
+  const calendarDays = new Map(daily.map((point) => [point.day, { netPnl: point.netPnl, trades: point.trades }]))
+  const journaledDays = new Set(entries.map((entry) => entry.entryDate))
+
   const withEntries = entries.length
   const disciplineScores = entries.map((e) => e.discipline).filter((v): v is number => typeof v === 'number')
   const avgDiscipline = disciplineScores.length
@@ -61,7 +71,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         subtitle="A plan before the session and an honest review after it. The review is where the pattern gets found — the P&L only tells you it happened."
         actions={
           <div className="flex items-center gap-2">
-            <Link href={`/journal?date=${shiftDay(-1)}`} className="btn px-2.5" aria-label="Previous day">
+            <Link prefetch={false} href={`/journal?date=${shiftDay(-1)}`} className="btn px-2.5" aria-label="Previous day">
               ‹
             </Link>
             <Link
@@ -71,6 +81,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
               Today
             </Link>
             <Link
+              prefetch={false}
               href={`/journal?date=${shiftDay(1)}`}
               className={day >= todayStr ? 'btn pointer-events-none px-2.5 opacity-50' : 'btn px-2.5'}
               aria-label="Next day"
@@ -114,6 +125,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           />
         </Card>
       </StatGrid>
+
+      <div className="mt-6">
+        <PnlCalendar month={month} days={calendarDays} journaled={journaledDays} today={todayStr} ccy={ccy} />
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card title={longDate(day)} description="Write the plan before you trade; write the review before you close the laptop." className="lg:col-span-2">

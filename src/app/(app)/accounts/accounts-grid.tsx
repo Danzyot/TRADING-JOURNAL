@@ -373,6 +373,7 @@ export function AccountsGrid({
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Link
+                      prefetch={false}
                       href={`/accounts?edit=${row.id}#full-edit`}
                       className="text-xs text-[var(--accent)] hover:underline"
                     >
@@ -405,6 +406,7 @@ export function AccountsGrid({
                 <div className="mt-3">
                   {row.needsSetup ? (
                     <Link
+                      prefetch={false}
                       href={`/accounts?edit=${row.id}#full-edit`}
                       className="text-xs text-[var(--accent)] hover:underline"
                     >
@@ -721,6 +723,7 @@ export function AccountsGrid({
                   <td>
                     {row.needsSetup ? (
                       <Link
+                        prefetch={false}
                         href={`/accounts?edit=${row.id}#full-edit`}
                         className="text-xs text-[var(--accent)] hover:underline"
                       >
@@ -774,6 +777,7 @@ export function AccountsGrid({
                   <td className="tabular whitespace-nowrap text-right text-xs">{money(row.costBase, ccy, 0)}</td>
                   <td className="whitespace-nowrap text-right">
                     <Link
+                      prefetch={false}
                       href={`/accounts?edit=${row.id}#full-edit`}
                       className="text-xs text-[var(--accent)] hover:underline"
                     >

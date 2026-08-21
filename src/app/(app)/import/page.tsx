@@ -22,7 +22,7 @@ export default async function ImportPage() {
     <>
       <PageHeader
         title="Import"
-        subtitle="Bring in trades from any platform's CSV export. Safe to re-run — anything already stored is skipped."
+        subtitle="Bring in trades from any platform's CSV export. Safe to re-run — anything already stored is skipped. Tired of doing this by hand? The trade watcher in Settings uploads exports from a folder on your computer automatically."
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
