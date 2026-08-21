@@ -10,6 +10,13 @@ import {
   type TaxInput,
 } from '@/lib/tax/israel'
 import { ratesFor } from '@/lib/tax/rates'
+import {
+  DEDUCTIBLE_CHECKLIST,
+  ENTITY_VERDICTS,
+  RELOCATION_OPTIONS,
+  RELOCATION_VERIFIED,
+  RESIDENCY_REALITY,
+} from '@/lib/tax/relocation'
 import { saveTaxProfile } from '@/server/actions'
 import { deductibleExpensesForYear, moneySummary, revenueForYear } from '@/server/money'
 import { getSettings } from '@/server/settings'
@@ -523,6 +530,99 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
               ))}
             </div>
           )}
+        </Card>
+      </div>
+
+      {/* --- What you can write off ---------------------------------------- */}
+      <div className="mt-6">
+        <Card
+          title="What you can write off"
+          description="Every one of these reduces taxable business income. Log them on the Earnings page as they happen — each unlogged expense is tax paid unnecessarily."
+          bodyClassName="p-0"
+        >
+          <ul className="divide-y divide-[var(--line)]">
+            {DEDUCTIBLE_CHECKLIST.map((entry) => (
+              <li key={entry.item} className="flex flex-col gap-0.5 px-4 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                <span className="text-sm font-medium text-[var(--ink)]">{entry.item}</span>
+                <span className="text-xs text-[var(--ink-secondary)] sm:text-right">{entry.note}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+
+      {/* --- Structures ----------------------------------------------------- */}
+      <div className="mt-6">
+        <Card
+          title="Company structures — the short answer"
+          description={`"Run it through an S corp / LLC and write everything off" — checked against the actual rules, ${RELOCATION_VERIFIED}.`}
+        >
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {ENTITY_VERDICTS.map((entity) => (
+              <div key={entity.name} className="rounded-lg border border-[var(--line)] p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-[var(--ink)]">{entity.name}</span>
+                  <Badge tone={entity.verdict.startsWith('Not') || entity.verdict.startsWith('Same') ? 'warn' : 'neutral'}>
+                    {entity.verdict}
+                  </Badge>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-[var(--ink-secondary)]">{entity.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* --- Relocation ----------------------------------------------------- */}
+      <div className="mt-6">
+        <Card
+          title="If you relocate — the honest comparison"
+          description={`Rough all-in burden on ~$100k of prop payouts under each country's 2026 rules. Researched ${RELOCATION_VERIFIED}; full write-up with sources in docs/TAX-RELOCATION.md.`}
+          bodyClassName="p-0"
+        >
+          <p className="border-b border-[var(--line)] p-4 text-xs leading-relaxed text-[var(--serious)]">
+            {RESIDENCY_REALITY}
+          </p>
+          <div className="scroll-x">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Destination</th>
+                  <th>Regime</th>
+                  <th className="text-right">All-in ≈</th>
+                  <th>Presence needed</th>
+                  <th>The catch</th>
+                </tr>
+              </thead>
+              <tbody>
+                {RELOCATION_OPTIONS.map((option) => (
+                  <tr key={option.country}>
+                    <td className="whitespace-nowrap font-medium text-[var(--ink)]">
+                      {option.flag} {option.country}
+                    </td>
+                    <td className="max-w-[280px] text-xs">{option.regime}</td>
+                    <td className="tabular whitespace-nowrap text-right font-medium">{option.effective}</td>
+                    <td className="max-w-[150px] text-xs">{option.presence}</td>
+                    <td className="max-w-[260px] text-xs text-[var(--ink-secondary)]">{option.theCatch}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="divide-y divide-[var(--line)] border-t border-[var(--line)]">
+            {RELOCATION_OPTIONS.map((option) => (
+              <details key={option.country} className="group">
+                <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-[var(--ink)] hover:bg-[var(--surface-sunken)]">
+                  {option.flag} {option.country} — details
+                </summary>
+                <p className="px-4 pb-3 text-xs leading-relaxed text-[var(--ink-secondary)]">{option.detail}</p>
+              </details>
+            ))}
+          </div>
+          <p className="border-t border-[var(--line)] p-4 text-xs leading-relaxed text-[var(--ink-muted)]">
+            These are published-rule summaries, not advice, and they rot — before acting, one session with an
+            Israeli international-tax advisor for the exit and one with a local advisor in the destination.
+          </p>
         </Card>
       </div>
     </>
