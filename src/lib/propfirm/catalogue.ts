@@ -366,7 +366,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 3100,
         "payoutFrequency": null,
         "minPayout": null,
-        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1 · Target, drawdown, contracts and daily loss follow Lucid's published ladder — confirmed against LucidPro and LucidFlex at this size, not read off a Daily rules card"
+        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
       },
       {
         "label": "LucidDaily $150k",
@@ -389,7 +389,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 4600,
         "payoutFrequency": null,
         "minPayout": null,
-        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1 · Target, drawdown, contracts and daily loss follow Lucid's published ladder — confirmed against LucidPro and LucidFlex at this size, not read off a Daily rules card"
+        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
       }
     ]
   },

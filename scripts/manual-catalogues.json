@@ -186,8 +186,7 @@
             "maxDrawdown": 3000,
             "maxContracts": 6,
             "buffer": 3100,
-            "dailyLossLimit": 1800,
-            "notes": "Target, drawdown, contracts and daily loss follow Lucid's published ladder — confirmed against LucidPro and LucidFlex at this size, not read off a Daily rules card"
+            "dailyLossLimit": 1800
           },
           {
             "size": 150000,
@@ -195,8 +194,7 @@
             "maxDrawdown": 4500,
             "maxContracts": 10,
             "buffer": 4600,
-            "dailyLossLimit": 2700,
-            "notes": "Target, drawdown, contracts and daily loss follow Lucid's published ladder — confirmed against LucidPro and LucidFlex at this size, not read off a Daily rules card"
+            "dailyLossLimit": 2700
           }
         ],
         "common": {
