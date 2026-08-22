@@ -1,16 +1,15 @@
 name: Email ingest
 
-# Reads the prop-firm inboxes twice a day.
+# The morning and evening check-ins.
 #
 # Vercel's Hobby plan allows two cron jobs, both daily, and the journal already
 # spends them on the sync and housekeeping passes — so this beat lives here
 # instead, where it costs nothing and does not depend on any machine being
 # switched on. All it does is call the app; the work happens there.
 #
-# Twice a day is enough: firm mail is not urgent, each run reads a two-day
-# window so nothing is missed between runs, and a failing run emails you every
-# time it fires — an hourly schedule turns one misconfiguration into two dozen
-# notifications a day.
+# 07:00 UTC reads overnight mail before the session; 21:00 UTC reads the
+# evening's and sends the day's summary, plus the week's wrap on a Friday.
+# Each run reads a two-day window, so nothing falls between them.
 #
 # Needs two repository values (Settings -> Secrets and variables -> Actions):
 #   CRON_SECRET  a Secret. Same value as the app's CRON_SECRET env var, and it
@@ -23,8 +22,8 @@ name: Email ingest
 
 on:
   schedule:
-    # 05:25 and 17:25 UTC — morning and evening in Israel.
-    - cron: '25 5,17 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 21 * * *'
   workflow_dispatch:
     inputs:
       days:
@@ -42,6 +41,10 @@ jobs:
           JOURNAL_URL: ${{ vars.JOURNAL_URL || secrets.JOURNAL_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           DAYS: ${{ github.event.inputs.days || '2' }}
+          # Which cron fired decides whether a summary follows the inbox read.
+          # A manual run is treated as a morning check so testing the workflow
+          # never fires an evening summary out of context.
+          SLOT: ${{ github.event.schedule == '0 21 * * *' && 'evening' || 'morning' }}
         run: |
           if [ -z "$JOURNAL_URL" ] || [ -z "$CRON_SECRET" ]; then
             echo "JOURNAL_URL or CRON_SECRET is not set - add them under Settings > Secrets and variables > Actions."
@@ -51,7 +54,7 @@ jobs:
           response=$(curl -sS --max-time 120 --retry 2 --retry-delay 10 \
             -w '\n%{http_code}' \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "${JOURNAL_URL%/}/api/cron/email?days=$DAYS")
+            "${JOURNAL_URL%/}/api/cron/email?days=$DAYS&slot=$SLOT")
 
           body=$(echo "$response" | sed '$d')
           status=$(echo "$response" | tail -n1)
