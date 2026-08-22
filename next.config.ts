@@ -38,6 +38,12 @@ const nextConfig: NextConfig = {
    */
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,
 
+  /**
+   * The framework and its version are free reconnaissance for anyone probing
+   * the app; nothing legitimate reads this header.
+   */
+  poweredByHeader: false,
+
   eslint: { ignoreDuringBuilds: true },
 }
 

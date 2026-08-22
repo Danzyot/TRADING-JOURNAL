@@ -810,6 +810,21 @@ export const siteText = pgTable(
  * cannot find. Kept deliberately shallow — a parent reference would let the
  * vault grow a tree nobody wants to navigate on a phone.
  */
+/**
+ * Failed sign-in attempts, per client address.
+ *
+ * In a database rather than in memory because the app runs on serverless
+ * functions: an in-process counter is empty on most requests, which is the
+ * same as no throttle at all. Rows are replaced as they are counted and swept
+ * when they age out, so this stays a handful of rows.
+ */
+export const authAttempts = pgTable('auth_attempts', {
+  /** The client address, as far as the proxy headers can be trusted. */
+  address: text('address').primaryKey(),
+  attempts: integer('attempts').default(0).notNull(),
+  lastFailedAt: timestamp('last_failed_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const documentFolders = pgTable('document_folders', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),

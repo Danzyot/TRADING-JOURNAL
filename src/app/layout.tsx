@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import { DEFAULT_LOGO, logoOrDefault, logoPath } from '@/lib/logos'
 import { getSettings } from '@/server/settings'
 import { NavigationFallback } from '@/components/navigation-fallback'
@@ -69,7 +70,12 @@ try {
 } catch (e) {}
 `
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The content policy blocks inline scripts without the request's nonce, and
+  // this one runs before paint to stop a dark-mode user seeing a white flash.
+  // Blocked, it would not error — it would just quietly stop working.
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -79,7 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           makes the home-screen app open without Safari's chrome.
         */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         <NavigationFallback />

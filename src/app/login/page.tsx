@@ -1,18 +1,39 @@
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { clientAddress } from '@/lib/auth-throttle'
+import {
+  checkLoginThrottle,
+  clearLoginFailures,
+  recordLoginFailure,
+} from '@/server/auth-guard'
 import { createSession, isAuthenticated, passwordMatches, safeRedirectPath } from '@/lib/auth'
 
 export const metadata = { title: 'Sign in — Trading Journal' }
 
+/**
+ * The whole app is behind one password, so the number of guesses an attacker
+ * gets is the security property that matters most after the password itself.
+ * Attempts are counted per client address, with a lockout that doubles.
+ */
 async function signIn(formData: FormData) {
   'use server'
 
   const password = String(formData.get('password') ?? '')
   const next = String(formData.get('next') ?? '/')
+  const tail = next !== '/' ? `&next=${encodeURIComponent(next)}` : ''
+  const address = clientAddress(await headers())
 
-  if (!passwordMatches(password)) {
-    redirect(`/login?error=1${next !== '/' ? `&next=${encodeURIComponent(next)}` : ''}`)
+  const throttle = await checkLoginThrottle(address)
+  if (throttle.blocked) {
+    redirect(`/login?wait=${throttle.retryAfterSeconds}${tail}`)
   }
 
+  if (!passwordMatches(password)) {
+    await recordLoginFailure(address)
+    redirect(`/login?error=1${tail}`)
+  }
+
+  await clearLoginFailures(address)
   await createSession()
   // Only ever redirect within this app — never to a URL supplied in the query.
   redirect(safeRedirectPath(next))
@@ -21,7 +42,7 @@ async function signIn(formData: FormData) {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>
+  searchParams: Promise<{ error?: string; next?: string; wait?: string }>
 }) {
   if (await isAuthenticated()) redirect('/')
   const params = await searchParams
@@ -63,6 +84,13 @@ export default async function LoginPage({
           {params.error && (
             <p className="text-xs text-[var(--critical)]" role="alert">
               That password is not correct.
+            </p>
+          )}
+
+          {params.wait && (
+            <p className="text-xs text-[var(--critical)]" role="alert">
+              Too many attempts. Try again in {Math.ceil(Number(params.wait) / 60) || 1} minute
+              {Math.ceil(Number(params.wait) / 60) === 1 ? '' : 's'}.
             </p>
           )}
 
