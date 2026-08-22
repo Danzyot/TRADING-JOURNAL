@@ -1,183 +1,222 @@
 /**
- * Getting paid — the rails prop firms actually use, and what each account
- * type costs to receive USD into.
+ * Getting paid, holding it, and spending it — the account structure and the
+ * rails that feed it.
  *
- * Researched August 2026; sources and workings in docs/BANKING.md. Rules and
- * fee schedules here are published-terms summaries, not advice, and fintech
- * pricing moves faster than tax law — the verification date is carried into
- * the UI so a stale number is visible rather than assumed.
+ * Researched August 2026; workings and sources in docs/BANKING.md.
  *
- * On what this module deliberately does not do: it does not model receiving
- * payouts abroad as a way of not declaring them. An Israeli tax resident is
- * taxed on worldwide income wherever it lands (see RESIDENCY_NOTE), and since
- * 1 January 2026 CRS 2.0 covers e-money and digital wallets, so a Wise or
- * Revolut balance is reported exactly like a bank account. The savings here
- * are real but they are FX and fee savings, which is a different thing.
+ * The shape of the answer is four layers, because the failure modes are
+ * different at each one. A payout arriving is an FX problem. Money you spend
+ * is an availability problem — a frozen card on a Tuesday. Money you keep is a
+ * protection problem, where a deposit guarantee is the only thing that
+ * actually matters. Past the guarantee it stops being a banking question at
+ * all. One account cannot be good at four jobs, and the usual mistake is
+ * asking a neobank to do all of them.
+ *
+ * This assumes Cyprus residence — the relocation table above is what makes the
+ * tax side work. Where the money *sits* never changes what is owed on it;
+ * where you live does.
  */
 
 export const BANKING_VERIFIED = 'August 2026'
 
 // ---------------------------------------------------------------------------
+// The four layers
+// ---------------------------------------------------------------------------
+
+export type AccountLayer = {
+  layer: number
+  name: string
+  role: string
+  holds: string
+  /** Why this provider, rather than the obvious alternative. */
+  why: string
+  /** The failure this layer is designed around. */
+  watchOut: string
+}
+
+export const ACCOUNT_LAYERS: AccountLayer[] = [
+  {
+    layer: 1,
+    name: 'Wise',
+    role: 'Inbound and FX',
+    holds: 'Transit only — days, not months',
+    why: 'Real USD account details, so a USD payout arrives as a domestic-style transfer instead of an international wire with correspondent banks skimming it. You convert at 0.33–0.57% when you choose, not at whatever rate applies the moment the money lands.',
+    watchOut:
+      'Not a bank, so no deposit guarantee. That is survivable precisely because nothing stays here: the exposure is one payout cycle, never a balance.',
+  },
+  {
+    layer: 2,
+    name: 'Revolut',
+    role: 'Daily spending',
+    holds: 'One to two months of living costs',
+    why: 'The card, Apple Pay, ATM access, splitting bills, virtual cards for subscriptions. Spending EUR from a EUR balance never touches the €1,000/month conversion allowance — that limit only bites if you convert inside Revolut, which this setup never does.',
+    watchOut:
+      'Freezes happen. Capping the balance at a month or two is what turns a freeze from a catastrophe into an inconvenience.',
+  },
+  {
+    layer: 3,
+    name: 'bunq',
+    role: 'Reserve',
+    holds: 'Everything else, up to €100,000',
+    why: 'A full Dutch banking licence and €100,000 of Deposit Guarantee Scheme cover, on the free plan. Money arrives from your own account and sits in savings — no payment traffic, nothing that triggers a compliance review.',
+    watchOut:
+      'Do not spend abroad on it: the free plan covers €1,000/year of foreign-currency card spend, then charges 3%. This is the boring account, and boring is the feature.',
+  },
+  {
+    layer: 4,
+    name: 'Broker (Interactive Brokers)',
+    role: 'Above the guarantee',
+    holds: 'Anything past €100,000',
+    why: 'The guarantee caps at €100,000 per bank. A second bank works, but a broker with segregated client assets and cash in a EUR overnight-rate ETF earns roughly the ECB rate instead of whatever a neobank decides to pay.',
+    watchOut: 'Only relevant once you are meaningfully into six figures. Until then it is a distraction.',
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Rails
 // ---------------------------------------------------------------------------
 
-export type PayoutRail = {
-  firm: string
-  processor: string
-  methods: string
-  speed: string
-  note: string
-}
-
-/**
- * How each firm pays, which decides what an account has to be able to receive.
- *
- * The practical split: firms on Rise can pay stablecoin in minutes, firms on
- * Deel or Plane move fiat in days, and a USD account with real local details
- * (ACH routing + account number) is what turns an expensive international wire
- * into a cheap domestic transfer at the sender's end.
- */
-export const PAYOUT_RAILS: PayoutRail[] = [
-  {
-    firm: 'Apex Trader Funding',
-    processor: 'Deel',
-    methods: 'Bank transfer, some regions crypto',
-    speed: '5–10 business days',
-    note: 'Bi-weekly payout windows. Slowest of the firms you trade, and the wire lands in USD.',
-  },
-  {
-    firm: 'Topstep',
-    processor: 'Direct',
-    methods: 'ACH, Wise, wire',
-    speed: '1–3 business days',
-    note: 'Pays Wise directly, which makes a Wise USD balance the cheapest destination of the lot.',
-  },
-  {
-    firm: 'Lucid Trading',
-    processor: 'Rise',
-    methods: 'USDC/USDT, bank transfer',
-    speed: 'Minutes on crypto, 2–5 days on bank',
-    note: 'Daily-payout plans only pay quickly if the rail is quick — crypto is the reason those exist.',
-  },
-  {
-    firm: 'MyFundedFutures',
-    processor: 'Rise + direct crypto',
-    methods: 'USDC/USDT, bank transfer',
-    speed: 'Minutes to 3 days',
-    note: 'Offers crypto without going through Rise.',
-  },
-  {
-    firm: 'Take Profit Trader',
-    processor: 'Rise',
-    methods: 'USDC/USDT, bank transfer',
-    speed: 'Same day to 3 days',
-    note: 'Advertises near-instant withdrawals; that is the crypto rail, not the bank one.',
-  },
-  {
-    firm: 'FundedNext',
-    processor: 'Rise',
-    methods: 'Crypto, bank transfer',
-    speed: '1–3 business days',
-    note: 'Futures arm follows the same Rise rails as the FX side.',
-  },
-  {
-    firm: 'Alpha Futures',
-    processor: 'Rise',
-    methods: 'Crypto, bank transfer',
-    speed: '1–5 business days',
-    note: '',
-  },
-]
-
-// ---------------------------------------------------------------------------
-// Accounts
-// ---------------------------------------------------------------------------
-
-export type ReceivingAccount = {
+export type Rail = {
   name: string
-  /** What it costs to turn a received USD payout into spendable shekels. */
-  fxCostPercent: number
-  /** Does it give real local USD details a US sender can pay domestically? */
-  usdDetails: boolean
-  strength: string
-  weakness: string
+  /** Flat fee in USD. */
+  flat: number
+  /** Proportional cost as a fraction of the payout. */
+  percent: number
+  speed: string
   verdict: string
+  /** Ranked for display: lower is better. */
+  rank: number
 }
 
 /**
- * The cost of receiving is two things stacked: whatever the sender's rail
- * charges, and the spread applied when USD becomes ILS. The second one is
- * where the money actually goes — an Israeli bank's retail conversion spread
- * is roughly four times a specialist's, on every payout, forever.
+ * The ways a payout can actually reach you, priced.
+ *
+ * The firm picks the processor; you pick the exit. That distinction is the
+ * whole game — Rise lets you choose fiat or stablecoin every cycle, and the
+ * choice is worth more than the difference between a 90% and an 85% split at
+ * any size worth caring about.
  */
-export const RECEIVING_ACCOUNTS: ReceivingAccount[] = [
+export const RAILS: Rail[] = [
   {
-    name: 'Wise',
-    fxCostPercent: 0.5,
-    usdDetails: true,
-    strength:
-      'Real local details in USD (ACH routing + account number), EUR, GBP and ~10 more, so a US firm pays domestically instead of wiring internationally. Mid-market rate plus a stated fee from ~0.41%. Topstep pays Wise directly.',
-    weakness:
-      'Not a bank — no credit, and balances are held at partner institutions rather than deposit-insured in the usual sense. Card is fine but plainer than Revolut’s.',
-    verdict: 'Best for receiving. This is the one that matters for payouts.',
+    name: 'Rise → USDC → exchange → EUR',
+    flat: 2,
+    percent: 0.002,
+    speed: 'Minutes',
+    verdict: 'Cheapest, and the gap widens with size — the only variable cost is a small exchange spread.',
+    rank: 1,
   },
   {
-    name: 'Revolut',
-    fxCostPercent: 0.6,
-    usdDetails: false,
-    strength:
-      'Strong card, app and spending controls, free FX up to a monthly plan cap, good for day-to-day and travel. Full EU bank licence (Lithuania) so balances are deposit-guaranteed.',
-    weakness:
-      'Local account details are mainly GBP and EUR — a USD payout usually arrives as an international transfer rather than a domestic one. Weekend FX markups, and fair-usage caps beyond the plan allowance.',
-    verdict: 'Better card, weaker at collecting USD. Fine as the spending half of a pair.',
+    name: 'Rise → USD → Wise → EUR',
+    flat: 20,
+    percent: 0.005,
+    speed: 'T+1 to T+4',
+    verdict: 'The fallback when EUR-direct is not offered, and cheaper than EUR-direct above roughly $1,500 anyway.',
+    rank: 2,
   },
   {
-    name: 'Israeli bank (USD account)',
-    fxCostPercent: 2,
-    usdDetails: false,
-    strength:
-      'Local, familiar, and the account an Israeli accountant expects to reconcile against. Incoming USD can sit in a USD sub-account without forced conversion.',
-    weakness:
-      'Conversion spreads of roughly 1.5–2.5%, plus per-wire receiving fees of ~$10–25. On a year of payouts that is the largest single fee you pay to anyone.',
-    verdict: 'Keep it for the accountant and for shekel life, not for converting payouts.',
+    name: 'Firm → Wise directly (USD)',
+    flat: 0,
+    percent: 0.005,
+    speed: '1–3 days',
+    verdict: 'Best case. No processor in the middle at all — worth asking every firm whether it is possible.',
+    rank: 0,
   },
   {
-    name: 'Stablecoin (USDC/USDT)',
-    fxCostPercent: 1,
-    usdDetails: false,
-    strength:
-      'Minutes rather than days, no banking hours, and the only rail some firms make genuinely fast. Rise, MyFundedFutures and Bulenox all support it.',
-    weakness:
-      'Off-ramping to shekels costs an exchange spread plus withdrawal fees, and every conversion is a separate record to keep. Israeli banks question crypto-sourced deposits and can demand a full paper trail.',
-    verdict: 'Use for speed when a firm is slow on fiat; keep the paperwork.',
+    name: 'Rise → EUR bank',
+    flat: 10,
+    percent: 0.0115,
+    speed: 'T+1',
+    verdict: 'Convenient, and the FX margin makes it the most expensive Rise exit. Not offered for every country.',
+    rank: 3,
+  },
+  {
+    name: 'WorkMarket → PayPal',
+    flat: 0,
+    percent: 0.035,
+    speed: '1–3 days',
+    verdict: "Avoid. PayPal's conversion runs 3–4%, and WorkMarket's bank leg expects a US bank tied to a US tax identity.",
+    rank: 4,
   },
 ]
 
-/**
- * What it costs to receive `amount` USD through an account with a given
- * all-in FX cost, in USD.
- *
- * Deliberately simple: one percentage applied to the converted amount. The
- * fee schedules differ in shape (Wise charges a stated fee, a bank buries a
- * spread in the rate) but they land in the same place for someone converting
- * whole payouts, and a comparison you can check beats a model you cannot.
- */
-export function conversionCost(amount: number, fxCostPercent: number): number {
+/** What a payout of `amount` costs to collect on a given rail, in USD. */
+export function railCost(amount: number, rail: Rail): number {
   if (!Number.isFinite(amount) || amount <= 0) return 0
-  return amount * (fxCostPercent / 100)
+  return rail.flat + amount * rail.percent
 }
 
-/** What switching from one account to another saves on the same volume. */
-export function annualSaving(amount: number, fromPercent: number, toPercent: number): number {
-  return Math.max(0, conversionCost(amount, fromPercent) - conversionCost(amount, toPercent))
+/** Every rail costed against the same payout, cheapest first. */
+export function compareRails(amount: number): { rail: Rail; cost: number }[] {
+  return RAILS.map((rail) => ({ rail, cost: railCost(amount, rail) })).sort((a, b) => a.cost - b.cost)
+}
+
+/** What the wrong rail costs over a year of payouts. */
+export function annualRailPenalty(payoutTotal: number, payoutCount: number): number {
+  if (payoutCount <= 0 || payoutTotal <= 0) return 0
+  const perPayout = payoutTotal / payoutCount
+  const ranked = compareRails(perPayout)
+  return (ranked[ranked.length - 1].cost - ranked[0].cost) * payoutCount
 }
 
 // ---------------------------------------------------------------------------
-// The part that is not optional
+// Rules
 // ---------------------------------------------------------------------------
+
+export const FEE_RULES: { rule: string; why: string }[] = [
+  {
+    rule: 'Convert USD → EUR only at Wise',
+    why: "Revolut's free allowance is €1,000 a month, then a 1% fair-usage fee. One payout blows through it.",
+  },
+  {
+    rule: 'Never convert Friday evening to Sunday evening',
+    why: '1% weekend markup on Revolut Standard. Waiting costs nothing.',
+  },
+  {
+    rule: 'Always choose EUR at a terminal or ATM',
+    why: 'Dynamic currency conversion skims 3–8%. The single biggest avoidable cost while travelling.',
+  },
+  {
+    rule: 'Batch ATM withdrawals',
+    why: 'Wise is free to €250/month then 1.75%; Revolut Standard free to €200. One large withdrawal beats four small ones.',
+  },
+  {
+    rule: 'Stay on free plans',
+    why: 'Nothing here needs a paid tier. Revolut Premium only pays for itself if you convert inside Revolut, which this setup never does.',
+  },
+  {
+    rule: 'Withdraw from Rise, never park in it',
+    why: 'Rise Earn is yield on USDC through Aave — smart-contract and depeg risk on money meant to be in transit for 48 hours.',
+  },
+]
+
+export const SETUP_NOTES: { title: string; body: string }[] = [
+  {
+    title: 'Open everything before you move',
+    body: 'Use your current address, then update it in-app once you are there. A brand-new account receiving a large first payout from an unfamiliar sender is the textbook freeze trigger — season each account with small, ordinary transactions first.',
+  },
+  {
+    title: 'The Polish passport is the KYC key',
+    body: 'An EEA identity document is accepted everywhere without the residence-permit friction non-EU citizens hit. Onboarding is minutes rather than weeks.',
+  },
+  {
+    title: 'Skip the Cypriot bank for a short stay',
+    body: 'It needs you physically present with a Yellow Slip and takes four to eight weeks. Not worth it for a few months.',
+  },
+  {
+    title: 'Do not change your address of record every move',
+    body: 'Changing registered country re-triggers KYC at every provider at once — which is how people end up locked out of everything simultaneously while sitting in an Airbnb somewhere.',
+  },
+  {
+    title: 'Keep the evidence folder ready',
+    body: 'Payout confirmations, account statements and ID scans, reachable from your phone. Revolut asking for source of funds is a when, not an if, and answering within the hour is the difference between a two-day hold and a three-week one. The Documents page in this app is that folder.',
+  },
+  {
+    title: 'Every crypto leg is a disposal',
+    body: 'USDC → EUR is a near-zero gain, but it is still a transaction that needs recording. Log date, firm, gross, rail, fees and net — the same record that answers a compliance request.',
+  },
+]
 
 export const RESIDENCY_NOTE = [
-  'Where a payout lands does not change what is owed on it. Israel taxes residents on worldwide income, and residence is decided by centre of life — family, home, economic and social ties — with a presumption of residence at 30 days in a year and 425 days across three years. A second passport does not change any of that while you live here; only actually moving does, which is what the relocation table above is for.',
-  'Nor is a foreign fintech account invisible. Since 1 January 2026 the CRS 2.0 definition of a reportable account explicitly covers e-money and digital wallets, so Wise and Revolut balances are exchanged with your country of tax residence exactly like a bank account. Both providers ask you to self-certify that residence, and certifying a country you do not live in is a false declaration rather than a loophole.',
-  'What is genuinely worth optimising: the FX spread on every payout, the rail each firm pays on, the timing of a payout across a tax year, the deductions you are entitled to, and — if the numbers justify it — where you actually live.',
+  'Where a payout lands does not change what is owed on it. Residence does — which is what the relocation table above is for, and why this structure assumes the move has actually happened rather than being a way to avoid it.',
+  'Nor is a foreign fintech account invisible. Since 1 January 2026 the CRS 2.0 definition of a reportable account explicitly covers e-money and digital wallets, so Wise and Revolut balances are exchanged with your country of tax residence exactly like a bank account. Both ask you to self-certify that residence; certifying a country you do not live in is a false declaration rather than a loophole.',
 ]

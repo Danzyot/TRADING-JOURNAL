@@ -135,6 +135,8 @@ function rateFor(currency: string, settings: { usdIls: number; baseCurrency: str
 
 export type MoneySummary = {
   payoutsPaid: number
+  /** How many paid payouts, so a per-payout average can be taken. */
+  payoutsPaidCount: number
   payoutsPending: number
   taxReserved: number
   expensesTotal: number
@@ -171,6 +173,7 @@ export async function moneySummary(from?: string, to?: string): Promise<MoneySum
 
   return {
     payoutsPaid,
+    payoutsPaidCount: paid.length,
     payoutsPending: pending.reduce((sum, p) => sum + p.netAmountBase, 0),
     taxReserved: paid.reduce((sum, p) => sum + p.taxReserved, 0),
     expensesTotal,

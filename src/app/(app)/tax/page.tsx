@@ -11,12 +11,13 @@ import {
 } from '@/lib/tax/israel'
 import { ratesFor } from '@/lib/tax/rates'
 import {
+  ACCOUNT_LAYERS,
   BANKING_VERIFIED,
-  PAYOUT_RAILS,
-  RECEIVING_ACCOUNTS,
+  FEE_RULES,
   RESIDENCY_NOTE,
-  annualSaving,
-  conversionCost,
+  SETUP_NOTES,
+  annualRailPenalty,
+  compareRails,
 } from '@/lib/tax/banking'
 import {
   DEDUCTIBLE_CHECKLIST,
@@ -633,123 +634,172 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           </p>
         </Card>
 
-        <GettingPaid payoutsThisYear={summary.payoutsPaid} ccy={settings.baseCurrency} />
+        <GettingPaid
+          payoutsThisYear={summary.payoutsPaid}
+          payoutCount={summary.payoutsPaidCount}
+          ccy={settings.baseCurrency}
+        />
       </div>
     </>
   )
 }
 
 /**
- * Getting paid: which rail each firm uses, and what receiving costs.
+ * Getting paid: the account structure, and what each rail costs.
  *
- * This sits under the relocation table on purpose. The two questions look
- * alike — both are "how do I keep more of a payout" — but only one of them is
- * about where you live. This one is about fees, and the fees are large enough
- * to be worth a page: a couple of percent of every payout, forever.
+ * This sits under the relocation table because it only makes sense after it.
+ * Where money lands never changes what is owed on it — that is decided by
+ * where you live. What this decides is how much of each payout survives the
+ * trip, which is a different question and a surprisingly expensive one.
  */
-function GettingPaid({ payoutsThisYear, ccy }: { payoutsThisYear: number; ccy: string }) {
-  const bank = RECEIVING_ACCOUNTS.find((account) => account.name.startsWith('Israeli bank'))!
-  const wise = RECEIVING_ACCOUNTS.find((account) => account.name === 'Wise')!
-
-  // Costed on real payouts when there are some, and on a round number when
-  // there are not — always labelled as which, so no figure is mistaken for a
-  // measurement it is not.
-  const measured = payoutsThisYear > 0
-  const basis = measured ? payoutsThisYear : 60_000
-  const saving = annualSaving(basis, bank.fxCostPercent, wise.fxCostPercent)
+function GettingPaid({
+  payoutsThisYear,
+  payoutCount,
+  ccy,
+}: {
+  payoutsThisYear: number
+  payoutCount: number
+  ccy: string
+}) {
+  // Costed on a real average payout when there are some, and on a round number
+  // when there are not — always labelled as which, so no figure is mistaken
+  // for a measurement it is not.
+  const measured = payoutsThisYear > 0 && payoutCount > 0
+  const perPayout = measured ? payoutsThisYear / payoutCount : 2000
+  const ranked = compareRails(perPayout)
+  const best = ranked[0]
+  const worst = ranked[ranked.length - 1]
+  const penalty = measured
+    ? annualRailPenalty(payoutsThisYear, payoutCount)
+    : (worst.cost - best.cost) * 12
 
   return (
-    <Card
-      title="Getting paid — rails, accounts and what receiving actually costs"
-      description={`How each firm pays, and what it costs to turn a USD payout into spendable money. Verified ${BANKING_VERIFIED}.`}
-      bodyClassName="p-0"
-    >
-      <div className="border-b border-[var(--line)] p-4">
-        <p className="text-xs leading-relaxed text-[var(--ink-secondary)]">
-          On {measured ? 'your' : 'a'} {money(basis, ccy, 0)} of payouts {measured ? 'paid this year' : 'a year'},
-          converting through an Israeli bank at ~{bank.fxCostPercent}% costs{' '}
-          <strong className="text-[var(--ink)]">{money(conversionCost(basis, bank.fxCostPercent), ccy, 0)}</strong>{' '}
-          against ~{money(conversionCost(basis, wise.fxCostPercent), ccy, 0)} through Wise — a difference of{' '}
-          <strong className="text-[var(--good-text)]">{money(saving, ccy, 0)}</strong>.{' '}
-          {measured ? 'Based on payouts actually recorded here.' : 'Illustrative until you record payouts here.'}
-        </p>
-      </div>
-
-      <div className="scroll-x border-b border-[var(--line)]">
-        <table className="data">
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th className="text-right">FX cost</th>
-              <th>Local USD details</th>
-              <th>Verdict</th>
-            </tr>
-          </thead>
-          <tbody>
-            {RECEIVING_ACCOUNTS.map((account) => (
-              <tr key={account.name}>
-                <td className="whitespace-nowrap font-medium text-[var(--ink)]">{account.name}</td>
-                <td className="tabular whitespace-nowrap text-right">~{account.fxCostPercent}%</td>
-                <td>
-                  <Badge tone={account.usdDetails ? 'good' : 'neutral'}>
-                    {account.usdDetails ? 'Yes' : 'No'}
-                  </Badge>
-                </td>
-                <td className="max-w-[320px] text-xs text-[var(--ink-secondary)]">{account.verdict}</td>
+    <>
+      <Card
+        title="Getting paid — where it lands, and what it costs to get there"
+        description={`Four accounts, each guarding against a different failure. Verified ${BANKING_VERIFIED}.`}
+        bodyClassName="p-0"
+      >
+        <div className="scroll-x border-b border-[var(--line)]">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Account</th>
+                <th>Holds</th>
+                <th>Why this one</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {ACCOUNT_LAYERS.map((layer) => (
+                <tr key={layer.layer}>
+                  <td className="whitespace-nowrap">
+                    <span className="font-medium text-[var(--ink)]">{layer.layer}</span>{' '}
+                    <span className="text-xs text-[var(--ink-muted)]">{layer.role}</span>
+                  </td>
+                  <td className="whitespace-nowrap font-medium text-[var(--ink)]">{layer.name}</td>
+                  <td className="max-w-[180px] text-xs">{layer.holds}</td>
+                  <td className="max-w-[420px] text-xs text-[var(--ink-secondary)]">{layer.why}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <div className="divide-y divide-[var(--line)] border-b border-[var(--line)]">
-        {RECEIVING_ACCOUNTS.map((account) => (
-          <details key={account.name} className="group">
-            <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-[var(--ink)] hover:bg-[var(--surface-sunken)]">
-              {account.name} — the detail
-            </summary>
-            <dl className="px-4 pb-3 text-xs leading-relaxed">
-              <dt className="font-medium text-[var(--ink-secondary)]">Strength</dt>
-              <dd className="mb-1.5 text-[var(--ink-muted)]">{account.strength}</dd>
-              <dt className="font-medium text-[var(--ink-secondary)]">Weakness</dt>
-              <dd className="text-[var(--ink-muted)]">{account.weakness}</dd>
-            </dl>
-          </details>
-        ))}
-      </div>
+        <div className="divide-y divide-[var(--line)] border-b border-[var(--line)]">
+          {ACCOUNT_LAYERS.map((layer) => (
+            <details key={layer.layer} className="group">
+              <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-[var(--ink)] hover:bg-[var(--surface-sunken)]">
+                {layer.name} — what it is guarding against
+              </summary>
+              <p className="px-4 pb-3 text-xs leading-relaxed text-[var(--ink-secondary)]">{layer.watchOut}</p>
+            </details>
+          ))}
+        </div>
 
-      <div className="scroll-x border-b border-[var(--line)]">
-        <table className="data">
-          <thead>
-            <tr>
-              <th>Firm</th>
-              <th>Processor</th>
-              <th>Methods</th>
-              <th>Speed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PAYOUT_RAILS.map((rail) => (
-              <tr key={rail.firm}>
-                <td className="whitespace-nowrap font-medium text-[var(--ink)]">{rail.firm}</td>
-                <td className="whitespace-nowrap text-xs">{rail.processor}</td>
-                <td className="max-w-[200px] text-xs">{rail.methods}</td>
-                <td className="whitespace-nowrap text-xs text-[var(--ink-secondary)]">{rail.speed}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="space-y-2 p-4">
-        <h3 className="text-xs font-semibold text-[var(--ink)]">Before you route payouts abroad</h3>
-        {RESIDENCY_NOTE.map((paragraph) => (
-          <p key={paragraph.slice(0, 24)} className="text-xs leading-relaxed text-[var(--ink-secondary)]">
-            {paragraph}
+        <div className="p-4">
+          <p className="text-xs leading-relaxed text-[var(--ink-secondary)]">
+            On {measured ? 'your average' : 'a'} {money(perPayout, ccy, 0)} payout, the cheapest rail costs{' '}
+            <strong className="text-[var(--good-text)]">{money(best.cost, ccy, 0)}</strong> ({best.rail.name})
+            and the most expensive <strong className="text-[var(--critical)]">{money(worst.cost, ccy, 0)}</strong>{' '}
+            ({worst.rail.name}) — a difference of{' '}
+            <strong className="text-[var(--ink)]">{money(penalty, ccy, 0)}</strong>{' '}
+            {measured ? 'across the payouts recorded here this year.' : 'over twelve payouts a year.'}{' '}
+            {measured ? '' : 'Illustrative until you record payouts here.'}
           </p>
-        ))}
-      </div>
-    </Card>
+        </div>
+      </Card>
+
+      <Card title="The rails, priced" bodyClassName="p-0">
+        <div className="scroll-x">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Rail</th>
+                <th className="text-right">On {money(perPayout, ccy, 0)}</th>
+                <th>Speed</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranked.map(({ rail, cost }) => (
+                <tr key={rail.name}>
+                  <td className="whitespace-nowrap font-medium text-[var(--ink)]">{rail.name}</td>
+                  <td className="tabular whitespace-nowrap text-right">{money(cost, ccy, 0)}</td>
+                  <td className="whitespace-nowrap text-xs">{rail.speed}</td>
+                  <td className="max-w-[360px] text-xs text-[var(--ink-secondary)]">{rail.verdict}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="border-t border-[var(--line)] p-4 text-xs leading-relaxed text-[var(--ink-muted)]">
+          The firm picks the processor; you pick the exit. That distinction is worth more than the
+          difference between a 90% and an 85% split — a 90% split paying through PayPal is worse than 85%
+          paying through Rise on stablecoin. Ask every firm whether a wire or crypto option exists before
+          accepting the default.
+        </p>
+      </Card>
+
+      <Card title="Rules that pay for themselves" bodyClassName="p-0">
+        <div className="scroll-x">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Rule</th>
+                <th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FEE_RULES.map((rule) => (
+                <tr key={rule.rule}>
+                  <td className="max-w-[280px] font-medium text-[var(--ink)]">{rule.rule}</td>
+                  <td className="max-w-[460px] text-xs text-[var(--ink-secondary)]">{rule.why}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card title="Setting it up without getting frozen">
+        <dl className="space-y-3">
+          {SETUP_NOTES.map((note) => (
+            <div key={note.title}>
+              <dt className="text-xs font-medium text-[var(--ink)]">{note.title}</dt>
+              <dd className="mt-0.5 text-xs leading-relaxed text-[var(--ink-secondary)]">{note.body}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-4 space-y-2 border-t border-[var(--line)] pt-3">
+          {RESIDENCY_NOTE.map((paragraph) => (
+            <p key={paragraph.slice(0, 24)} className="text-xs leading-relaxed text-[var(--ink-muted)]">
+              {paragraph}
+            </p>
+          ))}
+        </div>
+      </Card>
+    </>
   )
 }
 
