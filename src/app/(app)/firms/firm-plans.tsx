@@ -24,6 +24,17 @@ type Draft = {
   consistencyPct: string
   profitTarget: string
   cost: string
+  /**
+   * The plan this row came from, kept so a save can put back what this editor
+   * never showed.
+   *
+   * A catalogue plan carries far more than the seven fields here — buffer,
+   * minimum payout, contract ceilings, daily loss limit, activation and reset
+   * fees, payout frequency, the notes. Rebuilding each plan from the drafts
+   * alone silently discarded all of it, so opening this editor to type a price
+   * erased the rest of the firm's rules.
+   */
+  source: FirmPlan | null
 }
 
 const blank: Draft = {
@@ -35,6 +46,7 @@ const blank: Draft = {
   consistencyPct: '',
   profitTarget: '',
   cost: '',
+  source: null,
 }
 
 function fromPlan(plan: FirmPlan): Draft {
@@ -48,6 +60,7 @@ function fromPlan(plan: FirmPlan): Draft {
       plan.consistencyPercent === null ? '' : String(Math.round(plan.consistencyPercent * 100)),
     profitTarget: plan.profitTarget === null ? '' : String(plan.profitTarget),
     cost: plan.cost === null ? '' : String(plan.cost),
+    source: plan,
   }
 }
 
@@ -80,6 +93,12 @@ export function FirmPlans({
     const payload = drafts
       .filter((draft) => draft.label.trim() !== '' && num(draft.size) !== null)
       .map((draft) => ({
+        // Everything the editor does not show, carried through untouched. A
+        // brand-new row has no source, so those fields start empty.
+        dailyLossLimit: null,
+        minWinningDays: null,
+        winningDayMinProfit: null,
+        ...(draft.source ?? {}),
         label: draft.label.trim(),
         phase: draft.phase,
         size: num(draft.size)!,
@@ -87,9 +106,6 @@ export function FirmPlans({
         drawdownType: draft.drawdownType,
         consistencyPercent: num(draft.consistencyPct) === null ? null : num(draft.consistencyPct)! / 100,
         profitTarget: num(draft.profitTarget),
-        dailyLossLimit: null,
-        minWinningDays: null,
-        winningDayMinProfit: null,
         cost: num(draft.cost),
       }))
 
@@ -142,7 +158,7 @@ export function FirmPlans({
       ) : (
         <div className="mt-2 space-y-2">
           {drafts.map((draft, index) => (
-            <div key={index} className="grid grid-cols-2 gap-1.5 rounded-md bg-[var(--surface-sunken)] p-2 sm:grid-cols-4 lg:grid-cols-8">
+            <div key={index} className="grid grid-cols-2 gap-1.5 rounded-md bg-[var(--surface-sunken)] p-2 sm:grid-cols-4 lg:grid-cols-9">
               <input
                 className="input col-span-2 py-1 text-xs"
                 placeholder="Label, e.g. Pro — $50k"
@@ -187,12 +203,19 @@ export function FirmPlans({
                 value={draft.consistencyPct}
                 onChange={(event) => update(index, { consistencyPct: event.target.value })}
               />
+              <input
+                className="input py-1 text-right text-xs tabular"
+                placeholder="Target"
+                value={draft.profitTarget}
+                onChange={(event) => update(index, { profitTarget: event.target.value })}
+              />
               <div className="flex items-center gap-1.5">
                 <input
                   className="input py-1 text-right text-xs tabular"
-                  placeholder="Target"
-                  value={draft.profitTarget}
-                  onChange={(event) => update(index, { profitTarget: event.target.value })}
+                  placeholder="Cost"
+                  title="What this plan costs to buy"
+                  value={draft.cost}
+                  onChange={(event) => update(index, { cost: event.target.value })}
                 />
                 <button
                   type="button"

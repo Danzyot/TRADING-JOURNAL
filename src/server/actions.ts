@@ -436,6 +436,9 @@ const bulkRowSchema = z.object({
   /** Whole percent from the grid, 0..100. */
   consistencyPercent: z.number().min(0).max(100).nullable(),
   profitTarget: z.number().positive().nullable(),
+  /** Contract ceilings, which firms quote separately for minis and micros. */
+  maxContracts: z.number().int().nonnegative().nullable(),
+  maxMicroContracts: z.number().int().nonnegative().nullable(),
   costBase: z.number().nonnegative(),
 })
 
@@ -464,6 +467,8 @@ export async function bulkUpdateAccounts(rows: unknown): Promise<ActionResult> {
             maxDrawdown: row.maxDrawdown,
             consistencyPercent: row.consistencyPercent === null ? null : row.consistencyPercent / 100,
             profitTarget: row.profitTarget,
+            maxContracts: row.maxContracts,
+            maxMicroContracts: row.maxMicroContracts,
             costBase: row.costBase,
           })
           .where(eq(accounts.id, row.id))
@@ -474,6 +479,21 @@ export async function bulkUpdateAccounts(rows: unknown): Promise<ActionResult> {
     return `Saved ${parsed.length} account${parsed.length === 1 ? '' : 's'}.`
   })
 }
+
+/**
+ * A plan as stored on a firm.
+ *
+ * Every field the catalogue can carry is listed, not only the ones the editor
+ * shows: a Zod object drops unknown keys, so a schema that stopped at `cost`
+ * quietly deleted the buffer, the payout minimum, the contract ceilings and
+ * the notes every time a plan was saved — which is what a trader does the
+ * moment they want to record what a plan actually cost them.
+ *
+ * The optional ones default to null rather than being required, so a plan
+ * written before a field existed still validates.
+ */
+const nullableNumber = z.number().nullable().optional().transform((value) => value ?? null)
+const nullableString = z.string().max(600).nullable().optional().transform((value) => value ?? null)
 
 const firmPlanSchema = z.object({
   label: z.string().min(1).max(120),
@@ -487,6 +507,17 @@ const firmPlanSchema = z.object({
   minWinningDays: z.number().int().positive().nullable(),
   winningDayMinProfit: z.number().positive().nullable(),
   cost: z.number().nonnegative().nullable(),
+
+  profitSplit: nullableNumber,
+  maxContracts: nullableNumber,
+  maxMicroContracts: nullableNumber,
+  activationFee: nullableNumber,
+  resetFee: nullableNumber,
+  buffer: nullableNumber,
+  minTradingDays: nullableNumber,
+  payoutFrequency: nullableString,
+  minPayout: nullableString,
+  notes: nullableString,
 })
 
 /** Replaces a firm's plan catalogue. Plans are templates; accounts keep copies. */

@@ -43,6 +43,9 @@ export type GridRow = {
   /** Whole percent, 0..100, or null. */
   consistencyPct: number | null
   profitTarget: number | null
+  /** Contract ceilings, quoted separately for minis and micros by every firm. */
+  maxContracts: number | null
+  maxMicroContracts: number | null
   costBase: number
   equity: number
   netPnl: number
@@ -73,6 +76,8 @@ type Edits = {
   maxDrawdown: string
   consistencyPct: string
   profitTarget: string
+  maxContracts: string
+  maxMicroContracts: string
   costBase: string
 }
 
@@ -93,6 +98,8 @@ function toEdits(row: GridRow): Edits {
     maxDrawdown: row.maxDrawdown === null ? '' : String(row.maxDrawdown),
     consistencyPct: row.consistencyPct === null ? '' : String(row.consistencyPct),
     profitTarget: row.profitTarget === null ? '' : String(row.profitTarget),
+    maxContracts: row.maxContracts === null ? '' : String(row.maxContracts),
+    maxMicroContracts: row.maxMicroContracts === null ? '' : String(row.maxMicroContracts),
     costBase: String(row.costBase),
   }
 }
@@ -108,6 +115,11 @@ function applyPlan(edits: Edits, plan: FirmPlan): Edits {
     consistencyPct:
       plan.consistencyPercent === null ? '' : String(Math.round(plan.consistencyPercent * 100)),
     profitTarget: plan.profitTarget === null ? '' : String(plan.profitTarget),
+    // A plan that does not state a ceiling leaves the account's own alone —
+    // blanking it would silently switch off the size-violation warning.
+    maxContracts: plan.maxContracts == null ? edits.maxContracts : String(plan.maxContracts),
+    maxMicroContracts:
+      plan.maxMicroContracts == null ? edits.maxMicroContracts : String(plan.maxMicroContracts),
     costBase: plan.cost === null ? edits.costBase : String(plan.cost),
   }
 }
@@ -117,6 +129,12 @@ const num = (value: string): number | null => {
   if (trimmed === '') return null
   const parsed = Number(trimmed)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+/** Contract counts are whole; 2.5 minis is a typo, not a position. */
+const int = (value: string): number | null => {
+  const parsed = num(value)
+  return parsed === null ? null : Math.round(parsed)
 }
 
 /**
@@ -146,6 +164,7 @@ const TABLE_COLUMNS = [
   { key: 'progress', label: 'Progress' },
   { key: 'target', label: 'To target / payout' },
   { key: 'consistency', label: 'Consistency' },
+  { key: 'contracts', label: 'Max mini / micro' },
   { key: 'balance', label: 'Balance' },
   { key: 'size', label: 'Size' },
   { key: 'cost', label: 'Cost' },
@@ -215,6 +234,8 @@ export function AccountsGrid({
     drawdownType: '',
     maxDrawdown: '',
     consistencyPct: '',
+    maxContracts: '',
+    maxMicroContracts: '',
   })
 
   const firmById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm])), [firms])
@@ -256,6 +277,8 @@ export function AccountsGrid({
         if (apply.drawdownType) value = { ...value, drawdownType: apply.drawdownType }
         if (apply.maxDrawdown) value = { ...value, maxDrawdown: apply.maxDrawdown }
         if (apply.consistencyPct) value = { ...value, consistencyPct: apply.consistencyPct }
+        if (apply.maxContracts) value = { ...value, maxContracts: apply.maxContracts }
+        if (apply.maxMicroContracts) value = { ...value, maxMicroContracts: apply.maxMicroContracts }
         next[row.id] = value
       }
       return next
@@ -274,6 +297,8 @@ export function AccountsGrid({
       consistencyPct: undefined, // never sent; kept explicit below
       consistencyPercent: num(value.consistencyPct),
       profitTarget: num(value.profitTarget),
+      maxContracts: int(value.maxContracts),
+      maxMicroContracts: int(value.maxMicroContracts),
       costBase: num(value.costBase) ?? 0,
     }))
 
@@ -559,6 +584,7 @@ export function AccountsGrid({
                   <th>Drawdown</th>
                   <th className="text-right">Max loss</th>
                   <th className="text-right">Consist. %</th>
+                  <th className="text-right">Mini / micro</th>
                   <th className="text-right">Target</th>
                   <th className="text-right">Cost</th>
                 </tr>
@@ -653,6 +679,24 @@ export function AccountsGrid({
                       onChange={(event) => setApply({ ...apply, consistencyPct: event.target.value })}
                     />
                   </td>
+                  <td>
+                    <div className="flex gap-1">
+                      <input
+                        className="input w-14 py-1 text-right text-xs"
+                        placeholder="mini"
+                        value={apply.maxContracts}
+                        onChange={(event) => setApply({ ...apply, maxContracts: event.target.value })}
+                      />
+                      <input
+                        className="input w-14 py-1 text-right text-xs"
+                        placeholder="micro"
+                        value={apply.maxMicroContracts}
+                        onChange={(event) =>
+                          setApply({ ...apply, maxMicroContracts: event.target.value })
+                        }
+                      />
+                    </div>
+                  </td>
                   <td />
                   <td />
                 </tr>
@@ -665,6 +709,7 @@ export function AccountsGrid({
                 {show('progress') && <th className="min-w-[220px]">Progress</th>}
                 {show('target') && <th className="text-right">To target / payout</th>}
                 {show('consistency') && <th className="text-right">Consistency</th>}
+                {show('contracts') && <th className="text-right">Max mini / micro</th>}
                 {show('balance') && <th className="text-right">Balance</th>}
                 {show('size') && <th className="text-right">Size</th>}
                 {show('cost') && <th className="text-right">Cost</th>}
@@ -782,6 +827,26 @@ export function AccountsGrid({
                       />
                     </td>
                     <td>
+                      <div className="flex gap-1">
+                        <input
+                          className="input w-14 py-1 text-right text-xs tabular"
+                          placeholder="—"
+                          title="Mini contracts the firm allows"
+                          value={value.maxContracts}
+                          onChange={(event) => setField(row, { maxContracts: event.target.value })}
+                        />
+                        <input
+                          className="input w-14 py-1 text-right text-xs tabular"
+                          placeholder="—"
+                          title="Micro contracts the firm allows"
+                          value={value.maxMicroContracts}
+                          onChange={(event) =>
+                            setField(row, { maxMicroContracts: event.target.value })
+                          }
+                        />
+                      </div>
+                    </td>
+                    <td>
                       <input
                         className="input py-1 text-right text-xs tabular"
                         placeholder="—"
@@ -866,6 +931,19 @@ export function AccountsGrid({
                         )}
                       >
                         {row.bestDayPct}% / {row.consistencyPct}%
+                      </span>
+                    )}
+                  </td>
+                  )}
+                  {show('contracts') && (
+                  <td className="tabular whitespace-nowrap text-right text-xs">
+                    {row.maxContracts == null && row.maxMicroContracts == null ? (
+                      <span className="text-[var(--ink-muted)]">—</span>
+                    ) : (
+                      <span title="Mini contracts / micro contracts the firm allows">
+                        {row.maxContracts ?? '—'}
+                        <span className="text-[var(--ink-muted)]"> / </span>
+                        {row.maxMicroContracts ?? '—'}
                       </span>
                     )}
                   </td>

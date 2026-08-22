@@ -1,11 +1,9 @@
 import Link from 'next/link'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
-import { FirmForm } from './firm-form'
-import { FirmPlans } from './firm-plans'
 import { PlanCatalogue } from '../firms/plan-catalogue'
 import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import { AccountsGrid, type GridFirm, type GridRow } from './accounts-grid'
-import { Card, EmptyState, KeyValue, PageHeader, Stat, StatGrid, clsx } from '@/components/ui'
+import { Card, EmptyState, PageHeader, Stat, StatGrid, clsx } from '@/components/ui'
 import { money, percent } from '@/lib/format'
 import { dailySeries } from '@/lib/analytics/metrics'
 import { accountEquity } from '@/lib/analytics/balance'
@@ -14,11 +12,8 @@ import {
   addAccountFromPlan,
   bulkUpdateAccounts,
   deleteAccount,
-  deleteFirm,
   rebuildAccountTrades,
   saveAccount,
-  saveFirm,
-  saveFirmPlans,
 } from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
 import { firmEconomics, listFirms } from '@/server/money'
@@ -120,6 +115,8 @@ export default async function AccountsPage({
       drawdownType: account.drawdownType,
       consistencyPct: account.consistencyPercent ? Math.round(account.consistencyPercent * 100) : null,
       profitTarget: account.profitTarget,
+      maxContracts: account.maxContracts,
+      maxMicroContracts: account.maxMicroContracts,
       costBase: account.costBase,
       equity,
       netPnl,
@@ -162,7 +159,7 @@ export default async function AccountsPage({
     <>
       <PageHeader
         title="Accounts"
-        subtitle="Every account across every firm, in one table. Firms are yours to define — plans are templates you apply per account."
+        subtitle="Every account you hold, in one table. Add one from a firm's plan and its rules come with it; edit any row inline, or apply one change across all of them."
       />
 
       <StatGrid columns={5}>
@@ -330,59 +327,6 @@ export default async function AccountsPage({
         </div>
       )}
 
-      {/* --- Firms ---------------------------------------------------------- */}
-      <div className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Prop firms</h2>
-          <Disclosure label="Add firm">
-            <FirmEditor />
-          </Disclosure>
-        </div>
-
-        {firms.length === 0 ? (
-          <Card>
-            <EmptyState
-              title="No firms yet"
-              body="Add the firms you actually trade with — nothing is created for you. The add form offers templates for common firms, and every value stays yours to edit."
-            />
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {firms.map((firm) => (
-              <Card key={firm.id} title={firm.name} description={firm.website ?? undefined}>
-                <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-                  <KeyValue label="Profit split" value={percent(firm.profitSplit, 0)} />
-                  <KeyValue
-                    label="Min days to payout"
-                    value={firm.minDaysToPayout ? String(firm.minDaysToPayout) : '—'}
-                  />
-                </div>
-                {firm.payoutPolicy && (
-                  <p className="mt-3 text-xs leading-relaxed text-[var(--ink-secondary)]">{firm.payoutPolicy}</p>
-                )}
-
-                <FirmPlansEditor firmId={firm.id} plans={firm.plans ?? []} />
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Disclosure label="Edit firm">
-                    <FirmEditor firm={firm} />
-                  </Disclosure>
-                  <ActionButton
-                    action={async () => {
-                      'use server'
-                      return deleteFirm(firm.id)
-                    }}
-                    className="btn btn-danger"
-                    confirm={`Delete ${firm.name}? Accounts stay but lose their firm link.`}
-                  >
-                    Delete
-                  </ActionButton>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
     </>
   )
 }
@@ -408,32 +352,7 @@ function FilterTab({ href, active, label }: { href: string; active: boolean; lab
 type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
 type AccountRow = Awaited<ReturnType<typeof listAccounts>>[number]
 
-function FirmEditor({ firm }: { firm?: FirmRow }) {
-  async function submit(formData: FormData) {
-    'use server'
-    return saveFirm(firm?.id ?? null, formData)
-  }
 
-  return (
-    <Card>
-      <FirmForm
-        action={submit}
-        firm={
-          firm ? { id: firm.id, name: firm.name, website: firm.website, notes: firm.notes } : undefined
-        }
-      />
-    </Card>
-  )
-}
-
-function FirmPlansEditor({ firmId, plans }: { firmId: number; plans: FirmRow['plans'] }) {
-  async function save(plans: unknown) {
-    'use server'
-    return saveFirmPlans(firmId, plans)
-  }
-
-  return <FirmPlans plans={plans ?? []} saveAction={save} />
-}
 
 function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; account?: AccountRow }) {
   async function submit(formData: FormData) {

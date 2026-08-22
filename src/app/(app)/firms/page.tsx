@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { PlanCatalogue } from './plan-catalogue'
-import { Card, KeyValue, PageHeader, Stat, StatGrid } from '@/components/ui'
+import { FirmForm } from './firm-form'
+import { FirmPlans } from './firm-plans'
+import { ActionButton, Disclosure } from '@/components/form'
+import { Card, EmptyState, KeyValue, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { Editable } from '@/components/site-text'
 import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
-import { addAccountFromPlan } from '@/server/actions'
+import { addAccountFromPlan, deleteFirm, saveFirm, saveFirmPlans } from '@/server/actions'
 import { listAccounts } from '@/server/trades'
 import { listFirms } from '@/server/money'
 
@@ -95,9 +98,93 @@ export default async function FirmsPage() {
         </Card>
       </div>
 
-      <div className="mt-6">
+      {/* --- The firms you actually trade ---------------------------------- */}
+      <div className="mt-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--ink)]">Your firms</h2>
+            <p className="text-xs text-[var(--ink-secondary)]">
+              The firms you hold accounts with, and the plan presets the accounts grid offers. This is
+              where a price goes once you know what you actually paid.
+            </p>
+          </div>
+          <Disclosure label="Add firm">
+            <FirmEditor />
+          </Disclosure>
+        </div>
+
+        {firms.length === 0 ? (
+          <Card>
+            <EmptyState
+              title="No firms yet"
+              body="Adding an account from the catalogue below creates its firm for you. Add one by hand only if you trade somewhere the catalogue does not cover."
+            />
+          </Card>
+        ) : (
+          // One per row: the plan editor is a wide table of rules and a cost,
+          // and squeezed into half a page its fields truncate to nothing.
+          <div className="space-y-4">
+            {firms.map((firm) => (
+              <Card key={firm.id} title={firm.name} description={firm.website ?? undefined}>
+                <FirmPlansEditor firmId={firm.id} plans={firm.plans ?? []} />
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Disclosure label="Edit firm">
+                    <FirmEditor firm={firm} />
+                  </Disclosure>
+                  <ActionButton
+                    action={async () => {
+                      'use server'
+                      return deleteFirm(firm.id)
+                    }}
+                    className="btn btn-danger"
+                    confirm={`Delete ${firm.name}? Accounts stay but lose their firm link.`}
+                  >
+                    Delete
+                  </ActionButton>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8 space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">The catalogue</h2>
+          <p className="text-xs text-[var(--ink-secondary)]">
+            Every plan every firm sells. Adding one creates the account with its rules already filled in.
+          </p>
+        </div>
         <PlanCatalogue catalogues={FIRM_CATALOGUES} addAction={add} />
       </div>
     </>
   )
+}
+
+type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
+
+function FirmEditor({ firm }: { firm?: FirmRow }) {
+  async function submit(formData: FormData) {
+    'use server'
+    return saveFirm(firm?.id ?? null, formData)
+  }
+
+  return (
+    <Card>
+      <FirmForm
+        action={submit}
+        firm={firm ? { id: firm.id, name: firm.name, website: firm.website, notes: firm.notes } : undefined}
+      />
+    </Card>
+  )
+}
+
+function FirmPlansEditor({ firmId, plans }: { firmId: number; plans: FirmRow['plans'] }) {
+  async function save(plans: unknown) {
+    'use server'
+    return saveFirmPlans(firmId, plans)
+  }
+
+  return <FirmPlans plans={plans ?? []} saveAction={save} />
 }
