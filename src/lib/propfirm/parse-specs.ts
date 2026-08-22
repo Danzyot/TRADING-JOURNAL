@@ -119,3 +119,27 @@ export function bufferProfit(buffer: number | null, size: number): number | null
   if (buffer === null) return null
   return buffer >= size ? buffer - size : buffer
 }
+
+/**
+ * A money field that must be a plain amount, or nothing.
+ *
+ * `parseMoney` is deliberately forgiving — it pulls the number out of
+ * "$1,600 (drawdown + $100)" — which is right for a field the firm always
+ * quotes as a figure and wrong for one they sometimes quote as a rule.
+ * Minimum payout is the latter: "$500" is a number to test a payout against,
+ * "1% of balance" is not, and reading it as $1 would tell the trader every
+ * payout clears a floor that is really a percentage.
+ *
+ * So this accepts only a bare currency amount and returns null for anything
+ * with words in it, leaving the phrasing to be shown as text instead.
+ */
+export function parsePlainMoney(value: string | null | undefined): number | null {
+  if (!value) return null
+  const match = value.trim().match(/^\$?\s*(\d[\d,]*(?:\.\d+)?)\s*([kK])?$/)
+  if (!match) return null
+  const amount = Number(match[1].replace(/,/g, ''))
+  if (!Number.isFinite(amount)) return null
+  // "$1K" is a thousand dollars, not one — parseMoney reads the digits and
+  // drops the suffix, which is fine where firms never use it and wrong here.
+  return match[2] ? amount * 1000 : amount
+}

@@ -46,6 +46,12 @@ export type GridRow = {
   costBase: number
   equity: number
   netPnl: number
+  /**
+   * Where the balance came from and what it already contains. A figure the
+   * trader cannot account for is one they will not trust, and this is what
+   * lets the column say "your $52,400 from the 14th, plus three trades since".
+   */
+  anchor: { source: 'start' | 'manual' | 'sync'; asOf: string | null; countedTrades: number }
   /** Equity at which the account is breached; null when no drawdown is set. */
   line: number | null
   roomPct: number | null
@@ -140,6 +146,7 @@ const TABLE_COLUMNS = [
   { key: 'progress', label: 'Progress' },
   { key: 'target', label: 'To target / payout' },
   { key: 'consistency', label: 'Consistency' },
+  { key: 'balance', label: 'Balance' },
   { key: 'size', label: 'Size' },
   { key: 'cost', label: 'Cost' },
 ] as const
@@ -658,6 +665,7 @@ export function AccountsGrid({
                 {show('progress') && <th className="min-w-[220px]">Progress</th>}
                 {show('target') && <th className="text-right">To target / payout</th>}
                 {show('consistency') && <th className="text-right">Consistency</th>}
+                {show('balance') && <th className="text-right">Balance</th>}
                 {show('size') && <th className="text-right">Size</th>}
                 {show('cost') && <th className="text-right">Cost</th>}
                 <th className="w-20" />
@@ -862,6 +870,27 @@ export function AccountsGrid({
                     )}
                   </td>
                   )}
+                  {show('balance') && (
+                  <td className="whitespace-nowrap text-right">
+                    <span className="tabular text-xs" title={anchorTitle(row, ccy)}>
+                      <span className="font-semibold text-[var(--ink)]">{money(row.equity, ccy, 0)}</span>
+                      <span
+                        className={clsx(
+                          'block text-[0.6875rem]',
+                          row.equity > row.size
+                            ? 'text-[var(--good-text)]'
+                            : row.equity < row.size
+                              ? 'text-[var(--critical)]'
+                              : 'text-[var(--ink-muted)]',
+                        )}
+                      >
+                        {row.equity === row.size
+                          ? 'at start'
+                          : `${row.equity > row.size ? '+' : ''}${money(row.equity - row.size, ccy, 0)}`}
+                      </span>
+                    </span>
+                  </td>
+                  )}
                   {show('size') && (
                   <td className="tabular whitespace-nowrap text-right text-xs">
                     {moneyCompact(row.size, ccy)}
@@ -902,6 +931,23 @@ export function AccountsGrid({
       )}
     </div>
   )
+}
+
+/**
+ * Explains a balance in a sentence: what it was anchored to, and what has been
+ * added since. Without this the figure is just an assertion — and one that
+ * quietly differs from the broker's screen when a trade is missing.
+ */
+function anchorTitle(row: GridRow, ccy: string): string {
+  const since =
+    row.anchor.countedTrades === 0
+      ? 'no trades since'
+      : `${row.anchor.countedTrades} trade${row.anchor.countedTrades === 1 ? '' : 's'} since, ${money(row.netPnl, ccy, 0)}`
+  if (row.anchor.source === 'start') {
+    return `${money(row.size, ccy, 0)} account size, ${since}`
+  }
+  const who = row.anchor.source === 'sync' ? 'Broker balance' : 'Balance you entered'
+  return `${who} at the close of ${row.anchor.asOf}, ${since}`
 }
 
 /**

@@ -16,6 +16,7 @@ import { drawdownState, evaluationProgress, type DrawdownState } from '@/lib/pro
 import { deploymentAdvice, type DeploymentSuggestion } from '@/lib/allocation'
 import { calculateIsraeliTax, reservePercentFor } from '@/lib/tax/israel'
 import { boundariesFor, hasOther, pnlByPeriod, type PnlPeriod } from '@/lib/analytics/pnl-windows'
+import { accountEquity } from '@/lib/analytics/balance'
 import { today } from '@/lib/time'
 import type { Account, Insight } from '@/db/schema'
 import { brokerConnections, emailEvents, payouts, pushSubscriptions, syncLog, tradingModels } from '@/db/schema'
@@ -195,7 +196,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       const history = equityByAccount[account.id] ?? []
       const accountTrades = trades.filter((trade) => trade.accountId === account.id)
       const netPnl = accountTrades.reduce((sum, trade) => sum + trade.netPnl, 0)
-      const equity = account.currentBalance ?? account.startingBalance + netPnl
+      // Anchored rather than `currentBalance ?? size + pnl`: a balance the
+      // trader or the broker stated is true as of a day, and the trades after
+      // that day still have to move it. Taking it as final froze equity at
+      // whatever was last entered, so a $1,200 day changed nothing on screen.
+      const { equity } = accountEquity(account, accountTrades)
       const tradingDays = new Set(accountTrades.map((trade) => trade.tradingDay)).size
 
       return {

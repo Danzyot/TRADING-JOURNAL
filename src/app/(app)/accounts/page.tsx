@@ -2,12 +2,16 @@ import Link from 'next/link'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { FirmForm } from './firm-form'
 import { FirmPlans } from './firm-plans'
+import { PlanCatalogue } from '../firms/plan-catalogue'
+import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import { AccountsGrid, type GridFirm, type GridRow } from './accounts-grid'
 import { Card, EmptyState, KeyValue, PageHeader, Stat, StatGrid, clsx } from '@/components/ui'
 import { money, percent } from '@/lib/format'
 import { dailySeries } from '@/lib/analytics/metrics'
+import { accountEquity } from '@/lib/analytics/balance'
 import { consistencyCheck, drawdownState, payoutEligibility } from '@/lib/propfirm/rules'
 import {
+  addAccountFromPlan,
   bulkUpdateAccounts,
   deleteAccount,
   deleteFirm,
@@ -67,7 +71,10 @@ export default async function AccountsPage({
     const accountTrades = dashboard.trades.filter((trade) => trade.accountId === account.id)
     const netPnl = accountTrades.reduce((sum, trade) => sum + trade.netPnl, 0)
     const card = cardsById.get(account.id)
-    const equity = card?.equity ?? account.currentBalance ?? account.startingBalance + netPnl
+    // Cards only cover active accounts, so the fallback has to reach the same
+    // answer rather than the old frozen `currentBalance`.
+    const balance = accountEquity(account, accountTrades)
+    const equity = card?.equity ?? balance.equity
     const dd = card?.drawdown ?? drawdownState(account, [{ day: fallbackDay, equity }])
     const tracksDrawdown = account.drawdownType !== 'none' && (account.maxDrawdown ?? 0) > 0
 
@@ -81,16 +88,22 @@ export default async function AccountsPage({
         currentEquity: equity,
         tradingDays: new Set(accountTrades.map((trade) => trade.tradingDay)).size,
         dailyPnls: daily,
-        profitSplit: firm?.profitSplit ?? 0.9,
+        profitSplit: account.profitSplit ?? firm?.profitSplit ?? 0.9,
       })
+      const split = account.profitSplit ?? firm?.profitSplit ?? 0.9
       payout = eligibility.eligible
         ? {
             state: 'eligible',
-            text: `≈ ${money(eligibility.netToTrader, ccy, 0)} to you after the ${percent(firm?.profitSplit ?? 0.9, 0)} split`,
+            text: `≈ ${money(eligibility.netToTrader, ccy, 0)} to you after the ${percent(split, 0)} split`,
           }
         : {
             state: 'blocked',
-            text: `${eligibility.blockers.length} blocker${eligibility.blockers.length === 1 ? '' : 's'} to payout`,
+            // The distance to the first payout is the actionable half of a
+            // blocker list; a count alone says nothing about how close it is.
+            text:
+              eligibility.toFirstPayout > 0
+                ? `${money(eligibility.toFirstPayout, ccy, 0)} more to a first payout`
+                : `${eligibility.blockers.length} blocker${eligibility.blockers.length === 1 ? '' : 's'} to payout`,
           }
     }
 
@@ -110,6 +123,11 @@ export default async function AccountsPage({
       costBase: account.costBase,
       equity,
       netPnl,
+      anchor: {
+        source: balance.anchor.source,
+        asOf: balance.anchor.asOf,
+        countedTrades: balance.countedTrades,
+      },
       line: tracksDrawdown && Number.isFinite(dd.line) ? dd.line : null,
       roomPct: tracksDrawdown && Number.isFinite(dd.line) ? dd.roomPercent : null,
       toTarget:
@@ -130,6 +148,11 @@ export default async function AccountsPage({
     name: firm.name,
     plans: firm.plans ?? [],
   }))
+
+  async function addFromPlan(formData: FormData) {
+    'use server'
+    return addAccountFromPlan(formData)
+  }
 
   const editId = params.edit ? Number(params.edit) : null
   const editing = editId === null ? undefined : accounts.find((account) => account.id === editId)
@@ -219,9 +242,17 @@ export default async function AccountsPage({
               <FilterTab href="/accounts?firm=none" active={firmFilter === 'none'} label="No firm" />
             )}
           </div>
-          <Disclosure label="Add account">
-            <AccountForm firms={firms} ccy={ccy} />
-          </Disclosure>
+          <div className="flex flex-wrap gap-2">
+            {/* The catalogue first: it fills in eighteen rule fields that the
+                blank form leaves to memory, and a blank drawdown silently
+                turns off every warning on the account. */}
+            <Disclosure label="Add from a plan">
+              <PlanCatalogue catalogues={FIRM_CATALOGUES} addAction={addFromPlan} compact />
+            </Disclosure>
+            <Disclosure label="Add blank account">
+              <AccountForm firms={firms} ccy={ccy} />
+            </Disclosure>
+          </div>
         </div>
 
         {accounts.length === 0 ? (
@@ -483,6 +514,35 @@ function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; a
           </Field>
           <Field label="Current equity" hint="Kept fresh by sync where available">
             <input name="currentBalance" type="number" step="any" defaultValue={account?.currentBalance ?? ''} className="input" />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <Field
+            label="Known balance"
+            hint="For an account you did not journal from day one. Trades before the date below are already inside this number; everything after it moves it."
+          >
+            <input
+              name="openingBalance"
+              type="number"
+              step="any"
+              defaultValue={account?.openingBalance ?? ''}
+              className="input"
+            />
+          </Field>
+          <Field label="…at the close of" hint="Both fields or neither — a balance with no date cannot say what it includes">
+            <input
+              name="openingBalanceAt"
+              type="date"
+              defaultValue={account?.openingBalanceAt ?? ''}
+              className="input"
+            />
+          </Field>
+          <Field label="Payout buffer" hint="Profit that must stay in the account. You can withdraw down to this line, not to the account size.">
+            <input name="buffer" type="number" step="any" defaultValue={account?.buffer ?? ''} className="input" />
+          </Field>
+          <Field label="Minimum payout" hint="The smallest request the firm will process">
+            <input name="minPayout" type="number" step="any" defaultValue={account?.minPayout ?? ''} className="input" />
           </Field>
         </div>
 

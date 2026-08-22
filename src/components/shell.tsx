@@ -11,6 +11,7 @@ const NAV = [
   { href: '/trades', label: 'Trades', glyph: '≡' },
   { href: '/analytics', label: 'Analytics', glyph: '◔' },
   { href: '/accounts', label: 'Accounts', glyph: '▤' },
+  { href: '/firms', label: 'Prop firms', glyph: '⌂' },
   { href: '/models', label: 'Models', glyph: '◇' },
   { href: '/money', label: 'Earnings', glyph: '$' },
   { href: '/tax', label: 'Tax', glyph: '%' },

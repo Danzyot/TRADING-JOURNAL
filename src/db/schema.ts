@@ -257,6 +257,29 @@ export const accounts = pgTable(
     currentBalance: money('current_balance'),
     balanceUpdatedAt: timestamp('balance_updated_at', { withTimezone: true }),
 
+    /**
+     * A balance the trader states, and the day it was true.
+     *
+     * An account rarely starts being tracked on the day it was bought. Without
+     * a way to say "it was at $52,300 at the close of the 14th", the only
+     * options are to back-fill months of fills or to accept an equity figure
+     * that is wrong by the whole untracked history. This anchors it: equity is
+     * this balance plus the P&L of trades after this day, so it keeps moving
+     * as new trades land instead of freezing the way a bare `currentBalance`
+     * did.
+     */
+    openingBalance: money('opening_balance'),
+    openingBalanceAt: date('opening_balance_at'),
+
+    /**
+     * Profit that must sit above the account size before a payout can be
+     * requested — the firm's buffer or safety net, quoted as profit rather
+     * than as a balance to reach.
+     */
+    buffer: money('buffer'),
+    /** Smallest payout the firm will process, e.g. 500. */
+    minPayout: money('min_payout'),
+
     startedOn: date('started_on'),
     endedOn: date('ended_on'),
     notes: text('notes'),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   bufferProfit,
+  parsePlainMoney,
   parseContracts,
   parseDays,
   parseDrawdownType,
@@ -128,5 +129,25 @@ describe('bufferProfit', () => {
 
   it('keeps absence absent', () => {
     expect(bufferProfit(null, 50000)).toBeNull()
+  })
+})
+
+describe('parsePlainMoney', () => {
+  it('reads a bare amount however the firm punctuates it', () => {
+    expect(parsePlainMoney('$500')).toBe(500)
+    expect(parsePlainMoney('$1,000')).toBe(1000)
+    expect(parsePlainMoney('250')).toBe(250)
+    expect(parsePlainMoney('$2.5k')).toBe(2500)
+  })
+
+  it('refuses anything that is a rule rather than a figure', () => {
+    // Read loosely, "1% of balance" becomes $1 — a payout floor of one dollar,
+    // which every payout clears.
+    expect(parsePlainMoney('1% of balance')).toBeNull()
+    expect(parsePlainMoney('From 1 day')).toBeNull()
+    expect(parsePlainMoney('$1,600 (drawdown + $100)')).toBeNull()
+    expect(parsePlainMoney('—')).toBeNull()
+    expect(parsePlainMoney(null)).toBeNull()
+    expect(parsePlainMoney('')).toBeNull()
   })
 })

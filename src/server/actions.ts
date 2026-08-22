@@ -44,6 +44,8 @@ import { runEmailIngest } from './email-ingest'
 import { forgetDevice, saveDevice, sendPush } from './push'
 import { setSiteText } from './site-text'
 import { isLogoId } from '@/lib/logos'
+import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
+import { parsePlainMoney } from '@/lib/propfirm/parse-specs'
 import { addressLooksValid, isCryptoCurrency, isStablecoin } from '@/lib/crypto-assets'
 import { deleteDocument, storeDocument } from './documents'
 
@@ -228,6 +230,10 @@ const accountSchema = z.object({
   costBase: num.default(0),
   commissionPerContract: num.default(0),
   currentBalance: optionalNum,
+  openingBalance: optionalNum,
+  openingBalanceAt: optionalText,
+  buffer: optionalNum,
+  minPayout: optionalNum,
   startedOn: optionalText,
   notes: optionalText,
   excludeFromStats: z.coerce.boolean().default(false),
@@ -255,6 +261,13 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
       consistencyPercent: values.consistencyPercent === null ? null : values.consistencyPercent / 100,
       currentBalance: values.currentBalance ?? null,
       balanceUpdatedAt: values.currentBalance !== null ? new Date() : undefined,
+      // A stated balance without its date cannot say which trades it already
+      // contains, so it is stored only as a pair — and clearing either clears
+      // both rather than leaving an anchor that silently does nothing.
+      openingBalance: values.openingBalanceAt === null ? null : (values.openingBalance ?? null),
+      openingBalanceAt: values.openingBalance === null ? null : values.openingBalanceAt,
+      buffer: values.buffer ?? null,
+      minPayout: values.minPayout ?? null,
     }
 
     if (id) {
@@ -293,6 +306,101 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
 
     revalidateAll()
     return `Saved ${values.label}.`
+  })
+}
+
+/**
+ * Creates an account from a catalogue plan.
+ *
+ * Typing eighteen rule fields by hand for every new evaluation is how those
+ * fields end up blank, and a blank drawdown or profit target silently turns
+ * off every warning the app exists to give. The catalogue already holds the
+ * firm's own numbers, so this copies them across and asks only for what the
+ * catalogue cannot know: what you call it, which stage it is at, and what you
+ * paid.
+ *
+ * The firm row is created on demand. Nothing is pre-seeded for the user, but
+ * an account has to belong to something, and making them add the firm first
+ * only to pick it again from a dropdown is a step with no decision in it.
+ */
+const fromPlanSchema = z.object({
+  firmSlug: z.string().min(1),
+  planLabel: z.string().min(1),
+  label: z.string().min(1, 'Give the account a label'),
+  phase: z.enum(['eval', 'funded', 'live', 'personal', 'demo']).default('eval'),
+  externalId: absentText,
+  platform: z.string().default('tradovate'),
+  startedOn: absentText,
+  costBase: absentNum,
+  openingBalance: absentNum,
+  openingBalanceAt: absentText,
+})
+
+export async function addAccountFromPlan(formData: FormData): Promise<ActionResult> {
+  return guard(async () => {
+    const values = fromPlanSchema.parse(Object.fromEntries(formData))
+
+    const catalogue = FIRM_CATALOGUES.find((entry) => entry.slug === values.firmSlug)
+    if (!catalogue) throw new Error(`No catalogue for "${values.firmSlug}".`)
+    const plan = catalogue.plans.find((entry) => entry.label === values.planLabel)
+    if (!plan) throw new Error(`${catalogue.name} has no plan called "${values.planLabel}".`)
+
+    // Match on name so a firm the user added by hand is reused rather than
+    // duplicated — they would then have two "MyFundedFutures" rows and their
+    // economics split across both.
+    const [existing] = await db
+      .select({ id: propFirms.id })
+      .from(propFirms)
+      .where(sql`lower(${propFirms.name}) = ${catalogue.name.toLowerCase()}`)
+      .limit(1)
+
+    const firmId =
+      existing?.id ??
+      (
+        await db
+          .insert(propFirms)
+          .values({ name: catalogue.name, website: catalogue.website, plans: catalogue.plans })
+          .returning({ id: propFirms.id })
+      )[0].id
+
+    // A profit target belongs to an evaluation. Carrying it onto a funded
+    // account would show a progress bar toward a bar that no longer exists.
+    const isEval = values.phase === 'eval'
+
+    await db.insert(accounts).values({
+      firmId,
+      label: values.label,
+      externalId: values.externalId,
+      platform: values.platform,
+      phase: values.phase,
+      planLabel: plan.label,
+      startingBalance: plan.size,
+      profitTarget: isEval ? plan.profitTarget : null,
+      maxDrawdown: plan.maxDrawdown,
+      drawdownType: plan.drawdownType,
+      dailyLossLimit: plan.dailyLossLimit,
+      maxContracts: plan.maxContracts ?? null,
+      maxMicroContracts: plan.maxMicroContracts ?? null,
+      profitSplit: plan.profitSplit ?? null,
+      minTradingDays: plan.minTradingDays ?? null,
+      minWinningDays: plan.minWinningDays,
+      winningDayMinProfit: plan.winningDayMinProfit,
+      consistencyPercent: plan.consistencyPercent,
+      buffer: plan.buffer ?? null,
+      // The catalogue keeps this as the firm writes it ("$500", "1% of
+      // balance"); only a plain figure becomes a number to test against.
+      minPayout: parsePlainMoney(plan.minPayout ?? null),
+      payoutPolicy: [plan.payoutFrequency, plan.minPayout ? `Minimum ${plan.minPayout}` : null, plan.notes]
+        .filter(Boolean)
+        .join(' · ') || null,
+      costBase: values.costBase ?? plan.cost ?? 0,
+      startedOn: values.startedOn,
+      openingBalance: values.openingBalanceAt === null ? null : values.openingBalance,
+      openingBalanceAt: values.openingBalance === null ? null : values.openingBalanceAt,
+    })
+
+    revalidateAll()
+    return `Added ${values.label} from ${catalogue.name} ${plan.label}.`
   })
 }
 

@@ -149,10 +149,15 @@ export function consistencyCheck(
 export type PayoutEligibility = {
   eligible: boolean
   blockers: string[]
-  /** Profit above the account's starting balance available to withdraw. */
+  /**
+   * Profit available to withdraw: everything above the account size, less the
+   * buffer the firm requires you to leave behind.
+   */
   withdrawable: number
   /** Trader's share after the profit split. */
   netToTrader: number
+  /** Profit still needed before the first dollar can be requested, 0 if none. */
+  toFirstPayout: number
 }
 
 export function payoutEligibility(
@@ -162,12 +167,22 @@ export function payoutEligibility(
     tradingDays: number
     dailyPnls: { day: string; netPnl: number }[]
     profitSplit: number
-    /** Firm requires this much profit above starting balance to withdraw. */
+    /**
+     * Buffer, when it is not on the account. The account's own value wins —
+     * this is only a fallback for callers that know the firm's rule and have
+     * an account predating the column.
+     */
     minProfit?: number
   },
 ): PayoutEligibility {
   const blockers: string[] = []
   const profit = options.currentEquity - account.startingBalance
+
+  // Profit the firm makes you leave in the account. Withdrawing is allowed
+  // down to this line, not down to the account size, so it comes off both the
+  // eligibility test and the figure quoted — a $2,300 profit on a $2,100
+  // buffer is $200 of payout, not $2,300.
+  const buffer = Math.max(0, account.buffer ?? options.minProfit ?? 0)
 
   if (account.phase !== 'funded' && account.phase !== 'live') {
     blockers.push('Account is still in evaluation — payouts apply to funded accounts only.')
@@ -196,9 +211,10 @@ export function payoutEligibility(
   }
   if (profit <= 0) {
     blockers.push('Account is not above its starting balance.')
-  }
-  if (options.minProfit && profit < options.minProfit) {
-    blockers.push(`Profit of ${profit.toFixed(0)} is below the firm's ${options.minProfit} minimum.`)
+  } else if (buffer > 0 && profit < buffer) {
+    blockers.push(
+      `Profit of ${profit.toFixed(0)} is below the ${buffer.toFixed(0)} buffer — ${(buffer - profit).toFixed(0)} more is needed before anything can be withdrawn.`,
+    )
   }
 
   const consistency = consistencyCheck(options.dailyPnls, account.consistencyPercent ?? null)
@@ -208,12 +224,22 @@ export function payoutEligibility(
     )
   }
 
-  const withdrawable = Math.max(0, profit)
+  const withdrawable = Math.max(0, profit - buffer)
+
+  // A firm that will not process less than $500 is not going to process $180,
+  // so an account over the buffer can still have nothing to request.
+  if (account.minPayout && withdrawable > 0 && withdrawable < account.minPayout) {
+    blockers.push(
+      `${withdrawable.toFixed(0)} is available but the firm's minimum payout is ${account.minPayout.toFixed(0)}.`,
+    )
+  }
+
   return {
     eligible: blockers.length === 0,
     blockers,
     withdrawable: round(withdrawable),
     netToTrader: round(withdrawable * options.profitSplit),
+    toFirstPayout: round(Math.max(0, buffer + Math.max(account.minPayout ?? 0, 0) - profit)),
   }
 }
 

@@ -31,6 +31,10 @@ function account(overrides: Partial<Account> = {}): Account {
     commissionPerContract: 0,
     currentBalance: null,
     balanceUpdatedAt: null,
+    openingBalance: null,
+    openingBalanceAt: null,
+    buffer: null,
+    minPayout: null,
     startedOn: null,
     endedOn: null,
     notes: null,
@@ -205,5 +209,72 @@ describe('payoutEligibility', () => {
     // Best day 600 of 2,000 total = 30%, above the 20% cap.
     expect(result.eligible).toBe(false)
     expect(result.blockers.join(' ')).toContain('Consistency')
+  })
+})
+
+describe('payoutEligibility — buffer and minimum payout', () => {
+  const base = {
+    tradingDays: 20,
+    dailyPnls: [
+      { day: '2026-08-03', netPnl: 900 },
+      { day: '2026-08-04', netPnl: 800 },
+      { day: '2026-08-05', netPnl: 700 },
+    ],
+    profitSplit: 0.9,
+  }
+
+  it('quotes only the profit above the buffer', () => {
+    // MyFundedFutures $50k: you may withdraw down to $52,100, not to $50,000.
+    const result = payoutEligibility(account({ buffer: 2_100 }), {
+      ...base,
+      currentEquity: 52_400,
+    })
+    expect(result.eligible).toBe(true)
+    expect(result.withdrawable).toBe(300)
+    expect(result.netToTrader).toBe(270)
+  })
+
+  it('blocks below the buffer and says how much more is needed', () => {
+    const result = payoutEligibility(account({ buffer: 2_100 }), {
+      ...base,
+      currentEquity: 51_500,
+    })
+    expect(result.eligible).toBe(false)
+    expect(result.blockers.join(' ')).toContain('600 more is needed')
+    expect(result.withdrawable).toBe(0)
+  })
+
+  it('blocks an amount the firm is too small to process', () => {
+    const result = payoutEligibility(account({ buffer: 2_100, minPayout: 500 }), {
+      ...base,
+      currentEquity: 52_400,
+    })
+    expect(result.eligible).toBe(false)
+    expect(result.blockers.join(' ')).toContain('minimum payout is 500')
+  })
+
+  it('counts both the buffer and the minimum toward the first payout', () => {
+    // $50k account at $51,000: $1,100 short of the buffer, and $500 more to
+    // clear the firm's floor once there.
+    const result = payoutEligibility(account({ buffer: 2_100, minPayout: 500 }), {
+      ...base,
+      currentEquity: 51_000,
+    })
+    expect(result.toFirstPayout).toBe(1_600)
+  })
+
+  it('leaves an account with no buffer exactly as it was', () => {
+    const result = payoutEligibility(account(), { ...base, currentEquity: 52_400 })
+    expect(result.withdrawable).toBe(2_400)
+    expect(result.toFirstPayout).toBe(0)
+  })
+
+  it('prefers the account\'s own buffer over the caller\'s fallback', () => {
+    const result = payoutEligibility(account({ buffer: 2_100 }), {
+      ...base,
+      currentEquity: 52_400,
+      minProfit: 5_000,
+    })
+    expect(result.withdrawable).toBe(300)
   })
 })
