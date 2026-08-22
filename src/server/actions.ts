@@ -25,7 +25,6 @@ import {
   trades,
   tradingModels,
   type AllocationPlan,
-  type RiskRules,
   type TaxProfile,
   wallets,
   tradeSetups,
@@ -1205,23 +1204,6 @@ export async function saveAllocationPlan(formData: FormData): Promise<ActionResu
   })
 }
 
-export async function saveRiskRules(formData: FormData): Promise<ActionResult> {
-  return guard(async () => {
-    const rules: RiskRules = {
-      maxTradesPerDay: num.parse(formData.get('maxTradesPerDay') ?? 5),
-      maxLossPerDayBase: num.parse(formData.get('maxLossPerDayBase') ?? 500),
-      maxConsecutiveLosses: num.parse(formData.get('maxConsecutiveLosses') ?? 3),
-      maxDailyLossR: num.parse(formData.get('maxDailyLossR') ?? 3),
-      sessionStart: String(formData.get('sessionStart') ?? '15:30'),
-      sessionEnd: String(formData.get('sessionEnd') ?? '23:00'),
-      maxRiskPercentPerTrade: num.parse(formData.get('maxRiskPercentPerTrade') ?? 1) / 100,
-    }
-
-    await updateSettings({ riskRules: rules })
-    revalidatePath('/settings')
-    return 'Risk rules saved.'
-  })
-}
 
 export async function createConnection(formData: FormData): Promise<ActionResult> {
   return guard(async () => {

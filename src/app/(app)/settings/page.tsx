@@ -11,7 +11,6 @@ import { logoOrDefault } from '@/lib/logos'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
-import { DEFAULT_RISK_RULES } from '@/server/settings'
 import {
   checkInbox,
   createConnection,
@@ -23,7 +22,6 @@ import {
   refreshInsights,
   runSync,
   saveGeneralSettings,
-  saveRiskRules,
   syncAllBrokers,
 } from '@/server/actions'
 import { getSettings } from '@/server/settings'
@@ -55,7 +53,6 @@ export default async function SettingsPage() {
   const inboxes = mailboxes()
   const inboxProblems = mailboxProblems()
 
-  const rules = settings.riskRules ?? DEFAULT_RISK_RULES
 
   return (
     <>
@@ -112,60 +109,6 @@ export default async function SettingsPage() {
             </Field>
 
             <SubmitButton>Save settings</SubmitButton>
-          </ActionForm>
-        </Card>
-
-        <Card title="Risk rules" description="What the insights engine measures your behaviour against.">
-          <ActionForm action={saveRiskRules} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Max trades per day">
-                <input name="maxTradesPerDay" type="number" defaultValue={rules.maxTradesPerDay} className="input" />
-              </Field>
-              <Field label="Max daily loss">
-                <input
-                  name="maxLossPerDayBase"
-                  type="number"
-                  step="any"
-                  defaultValue={rules.maxLossPerDayBase}
-                  className="input"
-                />
-              </Field>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Max consecutive losses" hint="Stop for the day at this many.">
-                <input
-                  name="maxConsecutiveLosses"
-                  type="number"
-                  defaultValue={rules.maxConsecutiveLosses}
-                  className="input"
-                />
-              </Field>
-              <Field label="Max daily loss in R">
-                <input name="maxDailyLossR" type="number" step="0.5" defaultValue={rules.maxDailyLossR} className="input" />
-              </Field>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Session start" hint="Local time">
-                <input name="sessionStart" type="time" defaultValue={rules.sessionStart} className="input" />
-              </Field>
-              <Field label="Session end">
-                <input name="sessionEnd" type="time" defaultValue={rules.sessionEnd} className="input" />
-              </Field>
-            </div>
-
-            <Field label="Max risk per trade (%)" hint="As a share of account size.">
-              <input
-                name="maxRiskPercentPerTrade"
-                type="number"
-                step="0.1"
-                defaultValue={rules.maxRiskPercentPerTrade * 100}
-                className="input"
-              />
-            </Field>
-
-            <SubmitButton>Save rules</SubmitButton>
           </ActionForm>
         </Card>
       </div>

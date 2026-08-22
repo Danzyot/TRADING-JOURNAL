@@ -8,15 +8,6 @@ import { DEFAULT_ALLOCATION_PLAN } from '@/lib/allocation'
 import { DEFAULT_TAX_PROFILE } from '@/lib/tax/israel'
 import { DEFAULT_TIMEZONE } from '@/lib/time'
 
-export const DEFAULT_RISK_RULES = {
-  maxTradesPerDay: 5,
-  maxLossPerDayBase: 500,
-  maxConsecutiveLosses: 3,
-  maxDailyLossR: 3,
-  sessionStart: '15:30',
-  sessionEnd: '23:00',
-  maxRiskPercentPerTrade: 0.01,
-}
 
 /**
  * Reads the single settings row, creating it on first run.
@@ -44,7 +35,6 @@ export const getSettings = cache(async (): Promise<Settings> => {
       timezone: DEFAULT_TIMEZONE,
       taxProfile: DEFAULT_TAX_PROFILE,
       allocationPlan: DEFAULT_ALLOCATION_PLAN,
-      riskRules: DEFAULT_RISK_RULES,
     })
     .onConflictDoNothing()
     .returning()
@@ -62,7 +52,6 @@ function withDefaults(row: Settings): Settings {
     ...row,
     taxProfile: row.taxProfile ?? DEFAULT_TAX_PROFILE,
     allocationPlan: row.allocationPlan ?? DEFAULT_ALLOCATION_PLAN,
-    riskRules: row.riskRules ?? DEFAULT_RISK_RULES,
   }
 }
 

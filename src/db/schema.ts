@@ -66,7 +66,14 @@ export const settings = pgTable('settings', {
   /** Payout allocation waterfall — see src/lib/allocation.ts. */
   allocationPlan: jsonb('allocation_plan').$type<AllocationPlan>(),
   /** Personal risk guardrails the insights engine checks trades against. */
-  riskRules: jsonb('risk_rules').$type<RiskRules>(),
+  /**
+   * Vestigial. Held a set of self-imposed limits the settings page collected
+   * and nothing ever read — the card claimed the insights engine measured
+   * behaviour against them, and the engine never received them. The form is
+   * gone; the column stays because migrations here are additive and never
+   * edited, and dropping it would destroy whatever was typed in.
+   */
+  riskRules: jsonb('risk_rules'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
@@ -101,18 +108,6 @@ export type AllocationPlan = {
   buckets: AllocationBucket[]
 }
 
-export type RiskRules = {
-  maxTradesPerDay: number
-  maxLossPerDayBase: number
-  maxConsecutiveLosses: number
-  /** Stop trading for the day after this many R lost. */
-  maxDailyLossR: number
-  /** Flag trades taken outside these hours (local `timezone`), "HH:MM". */
-  sessionStart: string
-  sessionEnd: string
-  /** Flag trades whose risk exceeds this fraction of account size. */
-  maxRiskPercentPerTrade: number
-}
 
 // ---------------------------------------------------------------------------
 // Prop firms & accounts
@@ -222,7 +217,7 @@ export const accounts = pgTable(
     /** Trailing drawdown stops trailing once it reaches this equity. */
     drawdownLocksAt: money('drawdown_locks_at'),
     dailyLossLimit: money('daily_loss_limit'),
-    /** Max contracts the firm allows. Used to flag size violations. */
+    /** Max contracts the firm allows, as the plan states it. Shown, not enforced. */
     maxContracts: integer('max_contracts'),
   /** Micro ceiling, quoted separately from minis by most firms. */
   maxMicroContracts: integer('max_micro_contracts'),
