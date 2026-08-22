@@ -160,9 +160,65 @@
   "lucid": {
     "name": "Lucid Trading",
     "website": "https://lucidtrading.com",
+    "patch": [
+      {
+        "labelPrefix": "LucidPro ",
+        "bySize": {
+          "25000": {
+            "dailyLossLimit": 600
+          },
+          "50000": {
+            "dailyLossLimit": 1200
+          },
+          "100000": {
+            "dailyLossLimit": 1800
+          },
+          "150000": {
+            "dailyLossLimit": 2700
+          }
+        },
+        "appendNotes": "Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
+      },
+      {
+        "labelPrefix": "LucidFlex ",
+        "bySize": {
+          "25000": {
+            "dailyLossLimit": 600
+          },
+          "50000": {
+            "dailyLossLimit": 1200
+          },
+          "100000": {
+            "dailyLossLimit": 1800
+          },
+          "150000": {
+            "dailyLossLimit": 2700
+          }
+        },
+        "appendNotes": "Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
+      },
+      {
+        "labelPrefix": "LucidDirect ",
+        "bySize": {
+          "25000": {
+            "dailyLossLimit": 600
+          },
+          "50000": {
+            "dailyLossLimit": 1200
+          },
+          "100000": {
+            "dailyLossLimit": 1800
+          },
+          "150000": {
+            "dailyLossLimit": 2700
+          }
+        },
+        "appendNotes": "Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
+      }
+    ],
     "plans": [
       {
-        "family": "LucidDaily",
+        "family": "LucidDaily (Intraday)",
         "sizes": [
           {
             "size": 25000,
@@ -170,7 +226,9 @@
             "maxDrawdown": 1000,
             "maxContracts": 2,
             "buffer": 1100,
-            "dailyLossLimit": 600
+            "dailyLossLimit": 600,
+            "cost": 100,
+            "notes": "List price from a secondary source, August 2026 — check it against the firm's own checkout"
           },
           {
             "size": 50000,
@@ -194,16 +252,67 @@
             "maxDrawdown": 4500,
             "maxContracts": 10,
             "buffer": 4600,
-            "dailyLossLimit": 2700
+            "dailyLossLimit": 2700,
+            "cost": 322,
+            "notes": "List price from a secondary source, August 2026 — check it against the firm's own checkout"
           }
         ],
         "common": {
-          "drawdownType": "trailing_eod",
           "consistencyPercent": 0.5,
           "activationFee": 0,
           "profitSplit": 0.9,
           "microRatio": 10,
-          "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
+          "drawdownType": "trailing_intraday",
+          "notes": "Evaluation drawdown is intraday — the cheaper of the two choices at checkout · Funded is intraday whichever evaluation you buy · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded"
+        }
+      },
+      {
+        "family": "LucidDaily (EOD)",
+        "sizes": [
+          {
+            "size": 25000,
+            "profitTarget": 1250,
+            "maxDrawdown": 1000,
+            "maxContracts": 2,
+            "buffer": 1100,
+            "dailyLossLimit": 600,
+            "cost": 122,
+            "notes": "List price from a secondary source, August 2026 — check it against the firm's own checkout"
+          },
+          {
+            "size": 50000,
+            "profitTarget": 3000,
+            "maxDrawdown": 2000,
+            "maxContracts": 4,
+            "buffer": 2100,
+            "dailyLossLimit": 1200
+          },
+          {
+            "size": 100000,
+            "profitTarget": 6000,
+            "maxDrawdown": 3000,
+            "maxContracts": 6,
+            "buffer": 3100,
+            "dailyLossLimit": 1800
+          },
+          {
+            "size": 150000,
+            "profitTarget": 9000,
+            "maxDrawdown": 4500,
+            "maxContracts": 10,
+            "buffer": 4600,
+            "dailyLossLimit": 2700,
+            "cost": 386,
+            "notes": "List price from a secondary source, August 2026 — check it against the firm's own checkout"
+          }
+        ],
+        "common": {
+          "consistencyPercent": 0.5,
+          "activationFee": 0,
+          "profitSplit": 0.9,
+          "microRatio": 10,
+          "drawdownType": "trailing_eod",
+          "notes": "Evaluation drawdown is end-of-day — the more expensive of the two choices at checkout · Funded reverts to intraday regardless, so this buys a softer evaluation only · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded"
         }
       }
     ]

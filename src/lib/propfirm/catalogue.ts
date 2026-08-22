@@ -31,7 +31,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": null,
         "profitTarget": 1250,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 600,
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
@@ -44,7 +44,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 1100,
         "payoutFrequency": "Every 3 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: $26,100 · Max payout: 1st $1,000 · 2+ $1,500 · Min balance to request: $26,100+"
+        "notes": "Buffer: $26,100 · Max payout: 1st $1,000 · 2+ $1,500 · Min balance to request: $26,100+ · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidPro $50k",
@@ -67,7 +67,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 2100,
         "payoutFrequency": "Every 3 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: $52,100 · Max payout: 1st $2,000 · 2+ $2,500 · Min balance to request: $52,100+"
+        "notes": "Buffer: $52,100 · Max payout: 1st $2,000 · 2+ $2,500 · Min balance to request: $52,100+ · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidPro $100k",
@@ -90,7 +90,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 3100,
         "payoutFrequency": "Every 3 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: $103,100 · Max payout: 1st $2,500 · 2+ $3,000 · Min balance to request: $103,100+"
+        "notes": "Buffer: $103,100 · Max payout: 1st $2,500 · 2+ $3,000 · Min balance to request: $103,100+ · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidPro $150k",
@@ -113,7 +113,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 4600,
         "payoutFrequency": "Every 3 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: $154,600 · Max payout: 1st $3,000 · 2+ $3,500 · Min balance to request: $154,600+"
+        "notes": "Buffer: $154,600 · Max payout: 1st $3,000 · 2+ $3,500 · Min balance to request: $154,600+ · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidFlex $25k",
@@ -123,7 +123,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": 0.5,
         "profitTarget": 1250,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 600,
         "minTradingDays": 2,
         "minWinningDays": 5,
         "winningDayMinProfit": 100,
@@ -136,7 +136,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 winning days",
         "minPayout": "$500",
-        "notes": "Max payout: 50% of profit, up to $1,000 · Scaling: Yes (LucidScale)"
+        "notes": "Max payout: 50% of profit, up to $1,000 · Scaling: Yes (LucidScale) · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidFlex $50k",
@@ -146,7 +146,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": 0.5,
         "profitTarget": 3000,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 1200,
         "minTradingDays": 2,
         "minWinningDays": 5,
         "winningDayMinProfit": 150,
@@ -159,7 +159,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 winning days",
         "minPayout": "$500",
-        "notes": "Max payout: 50% of profit, up to $2,000 · Scaling: Yes (LucidScale)"
+        "notes": "Max payout: 50% of profit, up to $2,000 · Scaling: Yes (LucidScale) · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidFlex $100k",
@@ -169,7 +169,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": 0.5,
         "profitTarget": 6000,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 1800,
         "minTradingDays": 2,
         "minWinningDays": 5,
         "winningDayMinProfit": 200,
@@ -182,7 +182,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 winning days",
         "minPayout": "$500",
-        "notes": "Max payout: 50% of profit, up to $2,500 · Scaling: Yes (LucidScale)"
+        "notes": "Max payout: 50% of profit, up to $2,500 · Scaling: Yes (LucidScale) · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidFlex $150k",
@@ -192,7 +192,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": 0.5,
         "profitTarget": 9000,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 2700,
         "minTradingDays": 2,
         "minWinningDays": 5,
         "winningDayMinProfit": 250,
@@ -205,7 +205,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 winning days",
         "minPayout": "$500",
-        "notes": "Max payout: 50% of profit, up to $3,000 · Scaling: Yes (LucidScale)"
+        "notes": "Max payout: 50% of profit, up to $3,000 · Scaling: Yes (LucidScale) · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidDirect $25k",
@@ -215,7 +215,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "none",
         "consistencyPercent": null,
         "profitTarget": null,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 600,
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
@@ -228,7 +228,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: — · Max payout: 1–3 $1,000 · 4–5 $1,000"
+        "notes": "Buffer: — · Max payout: 1–3 $1,000 · 4–5 $1,000 · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidDirect $50k",
@@ -238,7 +238,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": null,
         "profitTarget": null,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 1200,
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
@@ -251,7 +251,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: — · Max payout: 1–3 $2,000 · 4–5 $2,500"
+        "notes": "Buffer: — · Max payout: 1–3 $2,000 · 4–5 $2,500 · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidDirect $100k",
@@ -261,7 +261,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": null,
         "profitTarget": null,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 1800,
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
@@ -274,7 +274,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: — · Max payout: 1–3 $2,500 · 4–5 $3,000"
+        "notes": "Buffer: — · Max payout: 1–3 $2,500 · 4–5 $3,000 · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
         "label": "LucidDirect $150k",
@@ -284,7 +284,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "drawdownType": "trailing_eod",
         "consistencyPercent": null,
         "profitTarget": null,
-        "dailyLossLimit": null,
+        "dailyLossLimit": 2700,
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
@@ -297,10 +297,102 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": null,
         "payoutFrequency": "Every 5 trading days",
         "minPayout": "$500",
-        "notes": "Buffer: — · Max payout: 1–3 $3,000 · 4–5 $3,500"
+        "notes": "Buffer: — · Max payout: 1–3 $3,000 · 4–5 $3,500 · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without."
       },
       {
-        "label": "LucidDaily $25k",
+        "label": "LucidDaily (Intraday) $25k",
+        "phase": "eval",
+        "size": 25000,
+        "maxDrawdown": 1000,
+        "drawdownType": "trailing_intraday",
+        "consistencyPercent": 0.5,
+        "profitTarget": 1250,
+        "dailyLossLimit": 600,
+        "minTradingDays": null,
+        "minWinningDays": null,
+        "winningDayMinProfit": null,
+        "cost": 100,
+        "profitSplit": 0.9,
+        "maxContracts": 2,
+        "maxMicroContracts": 20,
+        "activationFee": 0,
+        "resetFee": null,
+        "buffer": 1100,
+        "payoutFrequency": null,
+        "minPayout": null,
+        "notes": "Evaluation drawdown is intraday — the cheaper of the two choices at checkout · Funded is intraday whichever evaluation you buy · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded · List price from a secondary source, August 2026 — check it against the firm's own checkout"
+      },
+      {
+        "label": "LucidDaily (Intraday) $50k",
+        "phase": "eval",
+        "size": 50000,
+        "maxDrawdown": 2000,
+        "drawdownType": "trailing_intraday",
+        "consistencyPercent": 0.5,
+        "profitTarget": 3000,
+        "dailyLossLimit": 1200,
+        "minTradingDays": null,
+        "minWinningDays": null,
+        "winningDayMinProfit": null,
+        "cost": null,
+        "profitSplit": 0.9,
+        "maxContracts": 4,
+        "maxMicroContracts": 40,
+        "activationFee": 0,
+        "resetFee": null,
+        "buffer": 2100,
+        "payoutFrequency": null,
+        "minPayout": null,
+        "notes": "Evaluation drawdown is intraday — the cheaper of the two choices at checkout · Funded is intraday whichever evaluation you buy · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded"
+      },
+      {
+        "label": "LucidDaily (Intraday) $100k",
+        "phase": "eval",
+        "size": 100000,
+        "maxDrawdown": 3000,
+        "drawdownType": "trailing_intraday",
+        "consistencyPercent": 0.5,
+        "profitTarget": 6000,
+        "dailyLossLimit": 1800,
+        "minTradingDays": null,
+        "minWinningDays": null,
+        "winningDayMinProfit": null,
+        "cost": null,
+        "profitSplit": 0.9,
+        "maxContracts": 6,
+        "maxMicroContracts": 60,
+        "activationFee": 0,
+        "resetFee": null,
+        "buffer": 3100,
+        "payoutFrequency": null,
+        "minPayout": null,
+        "notes": "Evaluation drawdown is intraday — the cheaper of the two choices at checkout · Funded is intraday whichever evaluation you buy · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded"
+      },
+      {
+        "label": "LucidDaily (Intraday) $150k",
+        "phase": "eval",
+        "size": 150000,
+        "maxDrawdown": 4500,
+        "drawdownType": "trailing_intraday",
+        "consistencyPercent": 0.5,
+        "profitTarget": 9000,
+        "dailyLossLimit": 2700,
+        "minTradingDays": null,
+        "minWinningDays": null,
+        "winningDayMinProfit": null,
+        "cost": 322,
+        "profitSplit": 0.9,
+        "maxContracts": 10,
+        "maxMicroContracts": 100,
+        "activationFee": 0,
+        "resetFee": null,
+        "buffer": 4600,
+        "payoutFrequency": null,
+        "minPayout": null,
+        "notes": "Evaluation drawdown is intraday — the cheaper of the two choices at checkout · Funded is intraday whichever evaluation you buy · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded · List price from a secondary source, August 2026 — check it against the firm's own checkout"
+      },
+      {
+        "label": "LucidDaily (EOD) $25k",
         "phase": "eval",
         "size": 25000,
         "maxDrawdown": 1000,
@@ -311,7 +403,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
-        "cost": null,
+        "cost": 122,
         "profitSplit": 0.9,
         "maxContracts": 2,
         "maxMicroContracts": 20,
@@ -320,10 +412,10 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 1100,
         "payoutFrequency": null,
         "minPayout": null,
-        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
+        "notes": "Evaluation drawdown is end-of-day — the more expensive of the two choices at checkout · Funded reverts to intraday regardless, so this buys a softer evaluation only · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded · List price from a secondary source, August 2026 — check it against the firm's own checkout"
       },
       {
-        "label": "LucidDaily $50k",
+        "label": "LucidDaily (EOD) $50k",
         "phase": "eval",
         "size": 50000,
         "maxDrawdown": 2000,
@@ -343,10 +435,10 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 2100,
         "payoutFrequency": null,
         "minPayout": null,
-        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
+        "notes": "Evaluation drawdown is end-of-day — the more expensive of the two choices at checkout · Funded reverts to intraday regardless, so this buys a softer evaluation only · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded"
       },
       {
-        "label": "LucidDaily $100k",
+        "label": "LucidDaily (EOD) $100k",
         "phase": "eval",
         "size": 100000,
         "maxDrawdown": 3000,
@@ -366,10 +458,10 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 3100,
         "payoutFrequency": null,
         "minPayout": null,
-        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
+        "notes": "Evaluation drawdown is end-of-day — the more expensive of the two choices at checkout · Funded reverts to intraday regardless, so this buys a softer evaluation only · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded"
       },
       {
-        "label": "LucidDaily $150k",
+        "label": "LucidDaily (EOD) $150k",
         "phase": "eval",
         "size": 150000,
         "maxDrawdown": 4500,
@@ -380,7 +472,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "minTradingDays": null,
         "minWinningDays": null,
         "winningDayMinProfit": null,
-        "cost": null,
+        "cost": 386,
         "profitSplit": 0.9,
         "maxContracts": 10,
         "maxMicroContracts": 100,
@@ -389,7 +481,7 @@ export const FIRM_CATALOGUES: FirmCatalogue[] = [
         "buffer": 4600,
         "payoutFrequency": null,
         "minPayout": null,
-        "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
+        "notes": "Evaluation drawdown is end-of-day — the more expensive of the two choices at checkout · Funded reverts to intraday regardless, so this buys a softer evaluation only · Daily loss limit is optional and chosen at checkout — none of Lucid's plans make it mandatory, and switching it on makes the account cheaper. The figure here is the limit you get if you take it; clear it on the account if you bought without. · Micro scaling 10:1 · 50% consistency in evaluation, none once funded · List price from a secondary source, August 2026 — check it against the firm's own checkout"
       }
     ]
   },

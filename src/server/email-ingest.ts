@@ -197,6 +197,10 @@ export async function applyEmailEvents(
         fxRate: 1,
         amountBase: draft.amount,
         firmId: firm?.id ?? null,
+        // Attribute the fee to the account it bought whenever the email names
+        // one. Without this every evaluation fee sat against the firm alone,
+        // and "cost per funded account" counted spend it could not place.
+        accountId: account?.id ?? null,
         deductiblePercent: defaultDeductibleFor('eval_fee'),
         notes: 'Logged automatically from email',
         source: 'email',

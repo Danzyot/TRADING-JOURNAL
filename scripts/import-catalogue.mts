@@ -141,17 +141,50 @@ type ManualFamily = {
   common: Record<string, unknown> & { microRatio?: number }
 }
 
+/**
+ * A correction to plans that came from the spec sheets.
+ *
+ * Firms change terms without reissuing a sheet — Lucid made the daily loss
+ * limit optional across every plan long after the sheets were written. Adding
+ * a corrected copy would leave the stale one beside it, so a patch edits the
+ * plan in place, matched on its label prefix and keyed by size.
+ */
+type ManualPatch = {
+  labelPrefix: string
+  bySize?: Record<string, Partial<FirmPlan>>
+  set?: Partial<FirmPlan>
+  appendNotes?: string
+}
+
 const manualPath = 'scripts/manual-catalogues.json'
 if (existsSync(manualPath)) {
-  const manual: Record<string, { name: string; website: string; plans: ManualFamily[] }> = JSON.parse(
-    readFileSync(manualPath, 'utf8'),
-  )
+  const manual: Record<
+    string,
+    { name: string; website: string; plans?: ManualFamily[]; patch?: ManualPatch[] }
+  > = JSON.parse(readFileSync(manualPath, 'utf8'))
 
   for (const [slug, firm] of Object.entries(manual)) {
     if (slug.startsWith('_')) continue
+
+    // Corrections first, so a patched plan is in place before anything new is
+    // appended beside it.
+    const target = catalogues.find((entry) => entry.slug === slug)
+    for (const patch of firm.patch ?? []) {
+      const matched = (target?.plans ?? []).filter((plan) => plan.label.startsWith(patch.labelPrefix))
+      if (matched.length === 0) {
+        console.warn(`  ! patch matched nothing: ${slug} "${patch.labelPrefix}"`)
+      }
+      for (const plan of matched) {
+        Object.assign(plan, patch.set ?? {}, patch.bySize?.[String(plan.size)] ?? {})
+        if (patch.appendNotes) {
+          plan.notes = [plan.notes, patch.appendNotes].filter(Boolean).join(' · ')
+        }
+      }
+    }
+
     const plans: FirmPlan[] = []
 
-    for (const family of firm.plans) {
+    for (const family of firm.plans ?? []) {
       const { microRatio, ...common } = family.common
       for (const size of family.sizes) {
         plans.push({
@@ -185,8 +218,8 @@ if (existsSync(manualPath)) {
       }
     }
 
-    const existing = catalogues.find((entry) => entry.slug === slug)
-    if (existing) existing.plans.push(...plans)
+    if (plans.length === 0) continue
+    if (target) target.plans.push(...plans)
     else catalogues.push({ slug, name: firm.name, website: firm.website, plans })
   }
 }

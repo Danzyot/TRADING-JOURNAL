@@ -13,6 +13,11 @@ Values a source does not state stay `null`. They are never inferred, because a
 missing drawdown that reads as zero turns off every warning the app exists to
 give.
 
+`manual-catalogues.json` does two things: `plans` adds families the sheets do
+not cover, and `patch` corrects plans that came from a sheet since gone stale.
+A patch matches on label prefix and is keyed by size, so a term the firm has
+changed is edited in place rather than left beside a corrected copy.
+
 Regenerate with:
 
 ```bash
@@ -92,3 +97,18 @@ history can say.
 
 `toFirstPayout` is the two combined: how much more profit is needed before the
 first dollar can be requested.
+
+## Prices
+
+**Expense tracking does not depend on these.** A purchase email carries the
+amount actually paid — discount codes included — and `applyEmailEvents` logs
+that figure. A catalogue price only pre-fills `costBase` when an account is
+created from a plan, and feeds the planning figures on `/firms`.
+
+So a missing price costs nothing that matters, and a wrong one is corrected on
+the account. Prices are recorded only from a source that stated them, with the
+source and date in the plan's notes; where no source stated one it stays null
+rather than being interpolated from its neighbours.
+
+To fill them in bulk: add the firm, then use the plan catalogue editor on the
+Accounts page — one row per plan with a cost column, saved in one go.
