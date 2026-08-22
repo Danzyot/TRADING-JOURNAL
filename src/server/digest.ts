@@ -3,6 +3,7 @@ import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { accounts, emailEvents, expenses, payouts, trades } from '@/db/schema'
 import { buildDigest, type DayStats, type WeekStats } from '@/lib/analytics/digest'
+import { splitFor } from '@/lib/analytics/pnl-windows'
 import { today } from '@/lib/time'
 import { notify } from './push'
 import { getSettings } from './settings'
@@ -118,16 +119,18 @@ export async function weekSummary(from: string, to: string): Promise<WeekStats> 
       ),
   ])
 
-  const funded = new Set(['funded', 'live'])
   const statuses = statusRows.map((row) => String(row.payload?.status ?? ''))
 
+  // The same classifier the dashboard uses. Counting phases separately in two
+  // places is how a Friday notification ends up disagreeing with the page it
+  // links to — the numbers have to come from one definition.
+  const split = splitFor(
+    tradeRows.map((row) => ({ tradingDay: '', netPnl: row.netPnl, phase: row.phase })),
+  )
+
   return {
-    evalPnl: tradeRows
-      .filter((row) => !funded.has(row.phase))
-      .reduce((sum, row) => sum + row.netPnl, 0),
-    fundedPnl: tradeRows
-      .filter((row) => funded.has(row.phase))
-      .reduce((sum, row) => sum + row.netPnl, 0),
+    evalPnl: split.evaluation,
+    fundedPnl: split.funded,
     wins: tradeRows.filter((row) => row.netPnl > 0).length,
     losses: tradeRows.filter((row) => row.netPnl < 0).length,
     passed: statuses.filter((status) => status === 'passed').length,
