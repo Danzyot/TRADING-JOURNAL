@@ -41,6 +41,31 @@ export function decrypt(payload: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
 }
 
+/**
+ * The same envelope for binary data.
+ *
+ * Documents — payout confirmations, statements, ID scans — cannot go through
+ * the string functions: those decode as UTF-8, which silently mangles any byte
+ * sequence that is not valid UTF-8, and a corrupted passport scan would only
+ * be discovered the day it is needed. These keep bytes as bytes.
+ */
+export function encryptBytes(plaintext: Buffer): Buffer {
+  const iv = randomBytes(IV_BYTES)
+  const cipher = createCipheriv(ALGO, key(), iv)
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()])
+  return Buffer.concat([iv, ciphertext, cipher.getAuthTag()])
+}
+
+export function decryptBytes(payload: Buffer): Buffer {
+  if (payload.length < IV_BYTES + TAG_BYTES) throw new Error('Ciphertext is malformed or truncated')
+  const iv = payload.subarray(0, IV_BYTES)
+  const tag = payload.subarray(payload.length - TAG_BYTES)
+  const ciphertext = payload.subarray(IV_BYTES, payload.length - TAG_BYTES)
+  const decipher = createDecipheriv(ALGO, key(), iv)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()])
+}
+
 export function encryptJson(value: unknown): string {
   return encrypt(JSON.stringify(value))
 }

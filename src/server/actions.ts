@@ -43,6 +43,7 @@ import { runEmailIngest } from './email-ingest'
 import { forgetDevice, saveDevice, sendPush } from './push'
 import { setSiteText } from './site-text'
 import { isLogoId } from '@/lib/logos'
+import { deleteDocument, storeDocument } from './documents'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
@@ -976,6 +977,53 @@ export async function sendTestNotification(): Promise<ActionResult> {
  * phone reads — resolves it from this one value, so the whole app follows in
  * one step. The id is validated against the catalogue, never trusted.
  */
+const documentSchema = z.object({
+  kind: z
+    .enum(['payout_confirmation', 'statement', 'id_document', 'invoice', 'contract', 'other'])
+    .default('other'),
+  label: z.string().max(200).default(''),
+  firmId: optionalNum,
+  accountId: optionalNum,
+  documentDate: optionalText,
+  notes: optionalText,
+})
+
+/**
+ * Adds a document to the vault.
+ *
+ * The file never touches disk and is encrypted before the insert — see
+ * src/server/documents.ts for why that matters more here than anywhere else
+ * in the app.
+ */
+export async function uploadDocument(formData: FormData): Promise<ActionResult> {
+  return guard(async () => {
+    const file = formData.get('file')
+    if (!(file instanceof File)) throw new Error('Choose a file to upload.')
+
+    const values = documentSchema.parse(Object.fromEntries(formData))
+    const message = await storeDocument({
+      file,
+      kind: values.kind,
+      label: values.label,
+      firmId: values.firmId ?? null,
+      accountId: values.accountId ?? null,
+      documentDate: values.documentDate,
+      notes: values.notes,
+    })
+
+    revalidatePath('/documents')
+    return message
+  })
+}
+
+export async function removeDocument(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    await deleteDocument(id)
+    revalidatePath('/documents')
+    return 'Document deleted.'
+  })
+}
+
 export async function saveLogo(id: string): Promise<ActionResult> {
   return guard(async () => {
     if (!isLogoId(id)) throw new Error('Unknown logo.')

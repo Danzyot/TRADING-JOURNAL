@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { decrypt, decryptJson, encrypt, encryptJson, safeEqual, secretsMatch } from './crypto'
+import { decrypt, decryptJson, encrypt, encryptJson, safeEqual, secretsMatch, decryptBytes, encryptBytes } from './crypto'
 import { safeRedirectPath } from './auth'
 
 beforeAll(() => {
@@ -107,5 +107,30 @@ describe('safeRedirectPath', () => {
     expect(safeRedirectPath('')).toBe('/')
     expect(safeRedirectPath(null)).toBe('/')
     expect(safeRedirectPath(undefined)).toBe('/')
+  })
+})
+
+describe('encryptBytes / decryptBytes', () => {
+  it('round-trips arbitrary binary without corrupting it', () => {
+    // Every byte value, including sequences that are invalid UTF-8 — which is
+    // exactly what a JPEG or a PDF looks like.
+    const original = Buffer.from(Array.from({ length: 256 }, (_, index) => index))
+    const restored = decryptBytes(encryptBytes(original))
+    expect(restored.equals(original)).toBe(true)
+  })
+
+  it('produces different ciphertext each time, so identical files do not match', () => {
+    const file = Buffer.from('same document contents')
+    expect(encryptBytes(file).equals(encryptBytes(file))).toBe(false)
+  })
+
+  it('refuses tampered ciphertext rather than returning wrong bytes', () => {
+    const sealed = encryptBytes(Buffer.from('statement.pdf contents'))
+    sealed[sealed.length - 20] ^= 0xff
+    expect(() => decryptBytes(sealed)).toThrow()
+  })
+
+  it('refuses a truncated payload', () => {
+    expect(() => decryptBytes(Buffer.from([1, 2, 3]))).toThrow(/malformed|truncated/i)
   })
 })

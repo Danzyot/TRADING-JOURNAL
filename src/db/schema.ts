@@ -38,6 +38,11 @@ const price = numericAsNumber(20, 8)
 /** Ratios, R-multiples, percentages. */
 const ratio = numericAsNumber(12, 6)
 
+/** Raw bytes — encrypted document blobs. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+})
+
 // ---------------------------------------------------------------------------
 // Settings — single row, id = 1
 // ---------------------------------------------------------------------------
@@ -714,6 +719,46 @@ export const siteText = pgTable(
   (t) => [uniqueIndex('site_text_key_idx').on(t.key)],
 )
 
+/**
+ * Documents — payout confirmations, account statements, ID scans.
+ *
+ * Sooner or later a bank asks where the money came from, and the difference
+ * between a two-day hold and a three-week one is answering within the hour
+ * with the paperwork attached. That means the paperwork has to be somewhere
+ * findable, which for most people means a phone camera roll.
+ *
+ * Stored encrypted with AES-256-GCM under `ENCRYPTION_KEY`, which lives in the
+ * environment and never in the database — so a leaked database dump is
+ * ciphertext, not a passport scan. Bytes are only ever served through an
+ * authenticated route that sets no-store; nothing here is reachable by URL.
+ */
+export const documents = pgTable(
+  'documents',
+  {
+    id: serial('id').primaryKey(),
+    kind: text('kind', {
+      enum: ['payout_confirmation', 'statement', 'id_document', 'invoice', 'contract', 'other'],
+    })
+      .default('other')
+      .notNull(),
+    label: text('label').notNull(),
+    /** Original filename, for the download and for recognising it in a list. */
+    filename: text('filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    /** Size of the *plaintext*, so the list can show a real figure. */
+    sizeBytes: integer('size_bytes').notNull(),
+    /** iv || ciphertext || authTag. */
+    data: bytea('data').notNull(),
+    firmId: integer('firm_id').references(() => propFirms.id, { onDelete: 'set null' }),
+    accountId: integer('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    /** The date the document is *about*, which is rarely the day it was added. */
+    documentDate: date('document_date'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('documents_kind_idx').on(t.kind, t.createdAt)],
+)
+
 // ---------------------------------------------------------------------------
 // Journal, insights, imports
 // ---------------------------------------------------------------------------
@@ -864,3 +909,4 @@ export type ModelReview = typeof modelReviews.$inferSelect
 export type EmailEvent = typeof emailEvents.$inferSelect
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
 export type SiteText = typeof siteText.$inferSelect
+export type DocumentRow = typeof documents.$inferSelect

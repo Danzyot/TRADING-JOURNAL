@@ -80,6 +80,7 @@ Environment variables, all set once in Vercel:
 |---|---|
 | **[SETUP.md](docs/SETUP.md)** | Deploy to Vercel or Docker, first-run checklist, troubleshooting |
 | **[INTEGRATIONS.md](docs/INTEGRATIONS.md)** | Tradovate, Rithmic, Tradecopia, TradingView — what connects and what honestly doesn't |
+| **[DOCUMENTS.md](docs/DOCUMENTS.md)** | The encrypted document vault — what it protects against, and what it does not |
 | **[EDITING.md](docs/EDITING.md)** | Correcting any value, and rewriting the interface's own wording |
 | **[NOTIFICATIONS.md](docs/NOTIFICATIONS.md)** | Installing the app on an iPhone, and the push notifications it sends |
 | **[EMAIL.md](docs/EMAIL.md)** | Reading prop-firm mail on the server: payouts, fees, passes, fails and balances logging themselves |
