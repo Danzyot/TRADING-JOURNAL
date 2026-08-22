@@ -13,6 +13,7 @@
  */
 import { writeFileSync, readFileSync, existsSync } from 'node:fs'
 import {
+  bufferProfit,
   parseContracts,
   parseDays,
   parseDrawdownType,
@@ -96,7 +97,7 @@ for (const row of rows) {
     maxMicroContracts: evalContracts.micro ?? fundedContracts.micro,
     activationFee: parseMoney(v['Activation fee']),
     resetFee: parseMoney(v['Reset fee']),
-    buffer: parseMoney(v['Buffer (safety net)']),
+    buffer: bufferProfit(parseMoney(v['Buffer (safety net)']), size),
     payoutFrequency: v['Payout frequency'] && v['Payout frequency'] !== '—' ? v['Payout frequency'] : null,
     minPayout: v['Min payout'] && v['Min payout'] !== '—' ? v['Min payout'] : null,
     notes: notes || null,

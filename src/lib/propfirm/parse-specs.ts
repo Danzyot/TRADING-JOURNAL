@@ -100,3 +100,22 @@ export function parseSize(raw: string | undefined | null): number | null {
   const plain = /^(\d+(?:\.\d+)?)$/.exec(text)
   return plain ? Number(plain[1]) : null
 }
+
+/**
+ * Normalises a buffer quoted as a balance into profit above the starting one.
+ *
+ * Firms state the same rule two ways. Take Profit Trader writes "$1,600", the
+ * profit you must be up; Lucid and Apex write "$26,100", the balance a $25k
+ * account must reach. The column means the first, so the second has to have
+ * the account size taken off it — otherwise a payout check tells the trader
+ * they need $26,100 of profit when the real bar is $1,100, twenty-three times
+ * the account's own profit target.
+ *
+ * The test is safe because no published buffer approaches the account size:
+ * every real one is a few percent of it, while a balance-style figure is
+ * always the size plus that few percent.
+ */
+export function bufferProfit(buffer: number | null, size: number): number | null {
+  if (buffer === null) return null
+  return buffer >= size ? buffer - size : buffer
+}

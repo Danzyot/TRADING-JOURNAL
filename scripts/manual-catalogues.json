@@ -15,10 +15,34 @@
       {
         "family": "Rapid",
         "sizes": [
-          { "size": 25000, "profitTarget": 1500, "maxDrawdown": 1000, "maxContracts": 3, "buffer": 1100 },
-          { "size": 50000, "profitTarget": 3000, "maxDrawdown": 2000, "maxContracts": 5, "buffer": 2100 },
-          { "size": 100000, "profitTarget": 6000, "maxDrawdown": 3000, "maxContracts": 8, "buffer": 3100 },
-          { "size": 150000, "profitTarget": 9000, "maxDrawdown": 4500, "maxContracts": 10, "buffer": 4600 }
+          {
+            "size": 25000,
+            "profitTarget": 1500,
+            "maxDrawdown": 1000,
+            "maxContracts": 3,
+            "buffer": 1100
+          },
+          {
+            "size": 50000,
+            "profitTarget": 3000,
+            "maxDrawdown": 2000,
+            "maxContracts": 5,
+            "buffer": 2100
+          },
+          {
+            "size": 100000,
+            "profitTarget": 6000,
+            "maxDrawdown": 3000,
+            "maxContracts": 8,
+            "buffer": 3100
+          },
+          {
+            "size": 150000,
+            "profitTarget": 9000,
+            "maxDrawdown": 4500,
+            "maxContracts": 10,
+            "buffer": 4600
+          }
         ],
         "common": {
           "drawdownType": "trailing_eod",
@@ -36,7 +60,13 @@
       {
         "family": "Rapid EOD",
         "sizes": [
-          { "size": 50000, "profitTarget": 3000, "maxDrawdown": 2000, "maxContracts": 3, "buffer": 2100 }
+          {
+            "size": 50000,
+            "profitTarget": 3000,
+            "maxDrawdown": 2000,
+            "maxContracts": 3,
+            "buffer": 2100
+          }
         ],
         "common": {
           "drawdownType": "trailing_eod",
@@ -53,9 +83,30 @@
       {
         "family": "Pro",
         "sizes": [
-          { "size": 50000, "profitTarget": 3000, "maxDrawdown": 2000, "maxContracts": 3, "buffer": 2100, "notes": "Funded: 5 contracts" },
-          { "size": 100000, "profitTarget": 6000, "maxDrawdown": 3000, "maxContracts": 6, "buffer": 3100, "notes": "Funded: 10 contracts" },
-          { "size": 150000, "profitTarget": 9000, "maxDrawdown": 4500, "maxContracts": 9, "buffer": 4600, "notes": "Funded: 15 contracts" }
+          {
+            "size": 50000,
+            "profitTarget": 3000,
+            "maxDrawdown": 2000,
+            "maxContracts": 3,
+            "buffer": 2100,
+            "notes": "Funded: 5 contracts"
+          },
+          {
+            "size": 100000,
+            "profitTarget": 6000,
+            "maxDrawdown": 3000,
+            "maxContracts": 6,
+            "buffer": 3100,
+            "notes": "Funded: 10 contracts"
+          },
+          {
+            "size": 150000,
+            "profitTarget": 9000,
+            "maxDrawdown": 4500,
+            "maxContracts": 9,
+            "buffer": 4600,
+            "notes": "Funded: 15 contracts"
+          }
         ],
         "common": {
           "drawdownType": "trailing_eod",
@@ -102,6 +153,59 @@
           "payoutFrequency": "From 2 days",
           "microRatio": 10,
           "notes": "EOD drawdown · Micro scaling 10:1 · No evaluation consistency rule, but 50% consistency applies once funded · No activation fee"
+        }
+      }
+    ]
+  },
+  "lucid": {
+    "name": "Lucid Trading",
+    "website": "https://lucidtrading.com",
+    "plans": [
+      {
+        "family": "LucidDaily",
+        "sizes": [
+          {
+            "size": 25000,
+            "profitTarget": 1250,
+            "maxDrawdown": 1000,
+            "maxContracts": 2,
+            "buffer": 1100,
+            "dailyLossLimit": 600
+          },
+          {
+            "size": 50000,
+            "profitTarget": 3000,
+            "maxDrawdown": 2000,
+            "maxContracts": 4,
+            "buffer": 2100,
+            "dailyLossLimit": 1200
+          },
+          {
+            "size": 100000,
+            "profitTarget": 6000,
+            "maxDrawdown": 3000,
+            "maxContracts": 6,
+            "buffer": 3100,
+            "dailyLossLimit": 1800,
+            "notes": "Target, drawdown, contracts and daily loss follow Lucid's published ladder — confirmed against LucidPro and LucidFlex at this size, not read off a Daily rules card"
+          },
+          {
+            "size": 150000,
+            "profitTarget": 9000,
+            "maxDrawdown": 4500,
+            "maxContracts": 10,
+            "buffer": 4600,
+            "dailyLossLimit": 2700,
+            "notes": "Target, drawdown, contracts and daily loss follow Lucid's published ladder — confirmed against LucidPro and LucidFlex at this size, not read off a Daily rules card"
+          }
+        ],
+        "common": {
+          "drawdownType": "trailing_eod",
+          "consistencyPercent": 0.5,
+          "activationFee": 0,
+          "profitSplit": 0.9,
+          "microRatio": 10,
+          "notes": "Evaluation drawdown defaults to EOD but is switchable to intraday when you buy, and the daily loss limit can be switched off — set both on the account to match what you actually bought · Funded drawdown is intraday and the daily loss limit still applies · 50% consistency in evaluation, none once funded · Micro scaling 10:1"
         }
       }
     ]

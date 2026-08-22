@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bufferProfit,
   parseContracts,
   parseDays,
   parseDrawdownType,
@@ -101,5 +102,31 @@ describe('parseSize', () => {
     expect(parseSize('25K')).toBe(25000)
     expect(parseSize('150K')).toBe(150000)
     expect(parseSize('$50,000')).toBe(50000)
+  })
+})
+
+describe('bufferProfit', () => {
+  it('leaves a buffer already quoted as profit alone', () => {
+    // Take Profit Trader's phrasing: "$1,600 (drawdown + $100)".
+    expect(bufferProfit(1600, 25000)).toBe(1600)
+    expect(bufferProfit(4600, 150000)).toBe(4600)
+  })
+
+  it('turns a buffer quoted as a balance into profit above the start', () => {
+    // Lucid and Apex phrasing: the balance a $25k account must reach.
+    expect(bufferProfit(26100, 25000)).toBe(1100)
+    expect(bufferProfit(52100, 50000)).toBe(2100)
+    expect(bufferProfit(103100, 100000)).toBe(3100)
+    expect(bufferProfit(154600, 150000)).toBe(4600)
+  })
+
+  it('treats a buffer exactly equal to the size as a balance', () => {
+    // "Get back to break-even before withdrawing" — zero profit required, not
+    // a demand to double the account.
+    expect(bufferProfit(25000, 25000)).toBe(0)
+  })
+
+  it('keeps absence absent', () => {
+    expect(bufferProfit(null, 50000)).toBeNull()
   })
 })
