@@ -1403,6 +1403,7 @@ const documentSchema = z.object({
     .enum(['payout_confirmation', 'statement', 'id_document', 'invoice', 'contract', 'other'])
     .default('other'),
   label: z.string().max(200).default(''),
+  folderId: absentNum,
   firmId: optionalNum,
   accountId: optionalNum,
   documentDate: optionalText,
@@ -1426,6 +1427,7 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult> 
       file,
       kind: values.kind,
       label: values.label,
+      folderId: values.folderId ?? null,
       firmId: values.firmId ?? null,
       accountId: values.accountId ?? null,
       documentDate: values.documentDate,

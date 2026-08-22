@@ -1,5 +1,5 @@
 import { Shell } from '@/components/shell'
-import { SiteTextProvider } from '@/components/site-text'
+import { SiteTextProvider, TextLayer } from '@/components/site-text'
 import { saveSiteText } from '@/server/actions'
 import { getSiteText } from '@/server/site-text'
 import { getSettings } from '@/server/settings'
@@ -19,6 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <SiteTextProvider overrides={overrides} save={saveSiteText}>
       <Shell logo={logo}>{children}</Shell>
+      {/* Sweeps the rendered page so wording nobody wrapped is editable too. */}
+      <TextLayer />
     </SiteTextProvider>
   )
 }

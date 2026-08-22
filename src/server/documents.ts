@@ -1,7 +1,7 @@
 import 'server-only'
-import { desc, eq } from 'drizzle-orm'
+import { asc, desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { documents } from '@/db/schema'
+import { documentFolders, documents } from '@/db/schema'
 import { decryptBytes, encryptBytes } from '@/lib/crypto'
 
 /**
@@ -38,6 +38,11 @@ const ALLOWED_TYPES = new Set([
 
 export type DocumentSummary = Omit<typeof documents.$inferSelect, 'data'>
 
+/** Folders, newest last — a vault is filed by hand, so name order reads best. */
+export async function listFolders() {
+  return db.select().from(documentFolders).orderBy(asc(documentFolders.name))
+}
+
 /** The list never loads the blobs — one statement would dwarf the whole page. */
 export async function listDocuments(): Promise<DocumentSummary[]> {
   return db
@@ -63,6 +68,7 @@ export type StoreInput = {
   file: File
   kind: (typeof documents.$inferSelect)['kind']
   label: string
+  folderId: number | null
   firmId: number | null
   accountId: number | null
   documentDate: string | null
@@ -90,6 +96,7 @@ export async function storeDocument(input: StoreInput): Promise<string> {
     mimeType: file.type,
     sizeBytes: plaintext.length,
     data: encryptBytes(plaintext),
+    folderId: input.folderId ?? null,
     firmId: input.firmId,
     accountId: input.accountId,
     documentDate: input.documentDate,
