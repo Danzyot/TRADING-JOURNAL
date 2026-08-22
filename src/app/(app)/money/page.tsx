@@ -1,5 +1,6 @@
 import { CashflowChart } from '@/components/charts'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
+import { EditableRow } from '@/components/editable-row'
 import { BarRow, Badge, Card, EmptyState, KeyValue, Meter, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { CATEGORY_LABELS, money, percent, relativeDays, shortDate, signed, titleCase } from '@/lib/format'
 import { EXPENSE_CATEGORIES } from '@/db/schema'
@@ -231,10 +232,34 @@ export default async function MoneyPage() {
                 </thead>
                 <tbody>
                   {payouts.map((payout) => (
-                    <tr key={payout.id}>
+                    <EditableRow
+                      key={payout.id}
+                      columns={10}
+                      editor={
+                        <PayoutForm accounts={accounts} firms={firms} ccy={ccy} payout={payout} />
+                      }
+                      actions={
+                        <ActionButton
+                          action={async () => {
+                            'use server'
+                            return deletePayout(payout.id)
+                          }}
+                          className="btn btn-danger px-2 py-1"
+                          confirm="Delete this payout?"
+                        >
+                          ✕
+                        </ActionButton>
+                      }
+                      cells={
+                        <>
                       <td className="tabular whitespace-nowrap">{shortDate(payout.requestedOn)}</td>
                       <td className="tabular whitespace-nowrap">{payout.paidOn ? shortDate(payout.paidOn) : '—'}</td>
-                      <td className="max-w-[160px] truncate">{accountName(payout.accountId)}</td>
+                      <td className="max-w-[160px] truncate">
+                        <span className="flex items-center gap-1.5">
+                          {accountName(payout.accountId)}
+                          <SourceBadge source={payout.source} />
+                        </span>
+                      </td>
                       <td>
                         <Badge
                           tone={
@@ -255,19 +280,9 @@ export default async function MoneyPage() {
                         {money(payout.netAmount, payout.currency)}
                       </td>
                       <td className="tabular text-right">{money(payout.taxReserved, ccy, 0)}</td>
-                      <td className="text-right">
-                        <ActionButton
-                          action={async () => {
-                            'use server'
-                            return deletePayout(payout.id)
-                          }}
-                          className="btn btn-danger px-2 py-1"
-                          confirm="Delete this payout?"
-                        >
-                          ✕
-                        </ActionButton>
-                      </td>
-                    </tr>
+                        </>
+                      }
+                    />
                   ))}
                 </tbody>
               </table>
@@ -314,7 +329,37 @@ export default async function MoneyPage() {
                 </thead>
                 <tbody>
                   {subscriptions.map((subscription) => (
-                    <tr key={subscription.id}>
+                    <EditableRow
+                      key={subscription.id}
+                      columns={8}
+                      editor={<SubscriptionForm accounts={accounts} subscription={subscription} />}
+                      actions={
+                        <>
+                          {subscription.active && (
+                            <ActionButton
+                              action={async () => {
+                                'use server'
+                                return cancelSubscription(subscription.id)
+                              }}
+                              className="btn px-2 py-1 text-xs"
+                            >
+                              Cancel
+                            </ActionButton>
+                          )}
+                          <ActionButton
+                            action={async () => {
+                              'use server'
+                              return deleteSubscription(subscription.id)
+                            }}
+                            className="btn btn-danger px-2 py-1"
+                            confirm="Delete this subscription? Past charges stay in your expenses."
+                          >
+                            ✕
+                          </ActionButton>
+                        </>
+                      }
+                      cells={
+                        <>
                       <td className="font-medium text-[var(--ink)]">{subscription.vendor}</td>
                       <td>{CATEGORY_LABELS[subscription.category] ?? titleCase(subscription.category)}</td>
                       <td className="tabular text-right">{money(subscription.amount, subscription.currency)}</td>
@@ -331,32 +376,9 @@ export default async function MoneyPage() {
                           {subscription.active ? 'Active' : 'Cancelled'}
                         </Badge>
                       </td>
-                      <td className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {subscription.active && (
-                            <ActionButton
-                              action={async () => {
-                                'use server'
-                                return cancelSubscription(subscription.id)
-                              }}
-                              className="btn px-2 py-1"
-                            >
-                              Cancel
-                            </ActionButton>
-                          )}
-                          <ActionButton
-                            action={async () => {
-                              'use server'
-                              return deleteSubscription(subscription.id)
-                            }}
-                            className="btn btn-danger px-2 py-1"
-                            confirm="Delete this subscription? Past charges stay in your expenses."
-                          >
-                            ✕
-                          </ActionButton>
-                        </div>
-                      </td>
-                    </tr>
+                        </>
+                      }
+                    />
                   ))}
                 </tbody>
               </table>
@@ -398,16 +420,11 @@ export default async function MoneyPage() {
                 </thead>
                 <tbody>
                   {expenses.slice(0, 200).map((expense) => (
-                    <tr key={expense.id}>
-                      <td className="tabular whitespace-nowrap">{shortDate(expense.spentOn)}</td>
-                      <td className="font-medium text-[var(--ink)]">{expense.vendor}</td>
-                      <td>{CATEGORY_LABELS[expense.category] ?? titleCase(expense.category)}</td>
-                      <td className="max-w-[140px] truncate text-xs">{accountName(expense.accountId)}</td>
-                      <td className="tabular text-right">{money(expense.amount, expense.currency)}</td>
-                      <td className="tabular text-right">{money(expense.amountBase, ccy)}</td>
-                      <td className="tabular text-right">{percent(expense.deductiblePercent, 0)}</td>
-                      <td className="tabular text-right">{expense.vatAmount > 0 ? money(expense.vatAmount, 'ILS') : '—'}</td>
-                      <td className="text-right">
+                    <EditableRow
+                      key={expense.id}
+                      columns={9}
+                      editor={<ExpenseForm accounts={accounts} firms={firms} expense={expense} />}
+                      actions={
                         <ActionButton
                           action={async () => {
                             'use server'
@@ -418,8 +435,25 @@ export default async function MoneyPage() {
                         >
                           ✕
                         </ActionButton>
+                      }
+                      cells={
+                        <>
+                      <td className="tabular whitespace-nowrap">{shortDate(expense.spentOn)}</td>
+                      <td className="font-medium text-[var(--ink)]">
+                        <span className="flex items-center gap-1.5">
+                          {expense.vendor}
+                          <SourceBadge source={expense.source} />
+                        </span>
                       </td>
-                    </tr>
+                      <td>{CATEGORY_LABELS[expense.category] ?? titleCase(expense.category)}</td>
+                      <td className="max-w-[140px] truncate text-xs">{accountName(expense.accountId)}</td>
+                      <td className="tabular text-right">{money(expense.amount, expense.currency)}</td>
+                      <td className="tabular text-right">{money(expense.amountBase, ccy)}</td>
+                      <td className="tabular text-right">{percent(expense.deductiblePercent, 0)}</td>
+                      <td className="tabular text-right">{expense.vatAmount > 0 ? money(expense.vatAmount, 'ILS') : '—'}</td>
+                        </>
+                      }
+                    />
                   ))}
                 </tbody>
               </table>
@@ -435,25 +469,57 @@ export default async function MoneyPage() {
 
 type AccountRow = Awaited<ReturnType<typeof listAccounts>>[number]
 type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
+type ExpenseRow = Awaited<ReturnType<typeof listExpenses>>[number]
+type PayoutRow = Awaited<ReturnType<typeof listPayouts>>[number]
+type SubscriptionRow = Awaited<ReturnType<typeof listSubscriptions>>[number]
 
-function ExpenseForm({ accounts, firms }: { accounts: AccountRow[]; firms: FirmRow[] }) {
+/**
+ * Marks a row the email automation created rather than a person.
+ *
+ * Automation misreads things — a firm changes a template, a total is taken
+ * from the wrong line — and the fix is only easy if the rows worth double
+ * checking are the ones you can see at a glance.
+ */
+function SourceBadge({ source }: { source: string | null }) {
+  if (source !== 'email') return null
+  return (
+    <span title="Logged automatically from your inbox — press Edit to correct it">
+      <Badge tone="neutral">Email</Badge>
+    </span>
+  )
+}
+
+/**
+ * One form for logging an expense and for correcting one.
+ *
+ * The same fields, validation and defaults either way — an edit screen that
+ * drifts from its create screen is how a field ends up uneditable.
+ */
+function ExpenseForm({
+  accounts,
+  firms,
+  expense,
+}: {
+  accounts: AccountRow[]
+  firms: FirmRow[]
+  expense?: ExpenseRow
+}) {
   async function submit(formData: FormData) {
     'use server'
-    return saveExpense(null, formData)
+    return saveExpense(expense?.id ?? null, formData)
   }
 
-  return (
-    <Card>
-      <ActionForm action={submit} className="space-y-3" resetOnSuccess>
+  const form = (
+      <ActionForm action={submit} className="space-y-3" resetOnSuccess={!expense}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Field label="Date">
-            <input name="spentOn" type="date" defaultValue={today()} className="input" required />
+            <input name="spentOn" type="date" defaultValue={expense?.spentOn ?? today()} className="input" required />
           </Field>
           <Field label="Vendor">
-            <input name="vendor" className="input" required placeholder="Apex, TradingView…" />
+            <input name="vendor" className="input" required placeholder="Apex, TradingView…" defaultValue={expense?.vendor} />
           </Field>
           <Field label="Category">
-            <select name="category" className="select" defaultValue="eval_fee">
+            <select name="category" className="select" defaultValue={expense?.category ?? 'eval_fee'}>
               {EXPENSE_CATEGORIES.map((category) => (
                 <option key={category} value={category}>
                   {CATEGORY_LABELS[category] ?? titleCase(category)}
@@ -462,20 +528,20 @@ function ExpenseForm({ accounts, firms }: { accounts: AccountRow[]; firms: FirmR
             </select>
           </Field>
           <Field label="Amount">
-            <input name="amount" type="number" step="any" className="input" required />
+            <input name="amount" type="number" step="any" className="input" required defaultValue={expense?.amount} />
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Field label="Currency">
-            <select name="currency" className="select" defaultValue="USD">
+            <select name="currency" className="select" defaultValue={expense?.currency ?? 'USD'}>
               <option value="USD">USD</option>
               <option value="ILS">ILS</option>
               <option value="EUR">EUR</option>
             </select>
           </Field>
           <Field label="Account">
-            <select name="accountId" className="select" defaultValue="">
+            <select name="accountId" className="select" defaultValue={expense?.accountId ?? ''}>
               <option value="">Not account-specific</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -485,7 +551,7 @@ function ExpenseForm({ accounts, firms }: { accounts: AccountRow[]; firms: FirmR
             </select>
           </Field>
           <Field label="Firm">
-            <select name="firmId" className="select" defaultValue="">
+            <select name="firmId" className="select" defaultValue={expense?.firmId ?? ''}>
               <option value="">No firm</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
@@ -498,21 +564,30 @@ function ExpenseForm({ accounts, firms }: { accounts: AccountRow[]; firms: FirmR
             label="Deductible %"
             hint="Blank uses the category default"
           >
-            <input name="deductiblePercent" type="number" step="1" min="0" max="100" className="input" />
+            <input
+              name="deductiblePercent"
+              type="number"
+              step="1"
+              min="0"
+              max="100"
+              className="input"
+              defaultValue={expense ? Math.round(expense.deductiblePercent * 100) : ''}
+            />
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Israeli VAT paid (₪)" hint="Only on invoices from Israeli suppliers. Reclaimable as an osek murshe.">
-            <input name="vatAmount" type="number" step="any" defaultValue="0" className="input" />
+            <input name="vatAmount" type="number" step="any" defaultValue={expense?.vatAmount ?? 0} className="input" />
           </Field>
           <Field label="Description">
-            <input name="description" className="input" />
+            <input name="description" className="input" defaultValue={expense?.description ?? ''} />
           </Field>
         </div>
 
         <label className="flex items-center gap-2 text-xs text-[var(--ink-secondary)]">
-          <input type="checkbox" name="hasReceipt" />I have the receipt or invoice on file
+          <input type="checkbox" name="hasReceipt" defaultChecked={expense?.hasReceipt ?? false} />I have the
+          receipt or invoice on file
         </label>
 
         <details className="rounded-lg bg-[var(--surface-sunken)] p-3">
@@ -531,27 +606,40 @@ function ExpenseForm({ accounts, firms }: { accounts: AccountRow[]; firms: FirmR
           </dl>
         </details>
 
-        <SubmitButton>Log expense</SubmitButton>
+        <SubmitButton>{expense ? 'Save changes' : 'Log expense'}</SubmitButton>
       </ActionForm>
-    </Card>
   )
+
+  // Inside a table the editor is already framed by the row it belongs to.
+  return expense ? form : <Card>{form}</Card>
 }
 
-function SubscriptionForm({ accounts }: { accounts: AccountRow[] }) {
+function SubscriptionForm({
+  accounts,
+  subscription,
+}: {
+  accounts: AccountRow[]
+  subscription?: SubscriptionRow
+}) {
   async function submit(formData: FormData) {
     'use server'
-    return saveSubscription(null, formData)
+    return saveSubscription(subscription?.id ?? null, formData)
   }
 
-  return (
-    <Card>
-      <ActionForm action={submit} className="space-y-3" resetOnSuccess>
+  const form = (
+      <ActionForm action={submit} className="space-y-3" resetOnSuccess={!subscription}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Field label="Vendor">
-            <input name="vendor" className="input" required placeholder="TradingView, Tradecopia…" />
+            <input
+              name="vendor"
+              className="input"
+              required
+              placeholder="TradingView, Tradecopia…"
+              defaultValue={subscription?.vendor}
+            />
           </Field>
           <Field label="Category">
-            <select name="category" className="select" defaultValue="platform_subscription">
+            <select name="category" className="select" defaultValue={subscription?.category ?? 'platform_subscription'}>
               {EXPENSE_CATEGORIES.map((category) => (
                 <option key={category} value={category}>
                   {CATEGORY_LABELS[category] ?? titleCase(category)}
@@ -560,10 +648,10 @@ function SubscriptionForm({ accounts }: { accounts: AccountRow[] }) {
             </select>
           </Field>
           <Field label="Amount">
-            <input name="amount" type="number" step="any" className="input" required />
+            <input name="amount" type="number" step="any" className="input" required defaultValue={subscription?.amount} />
           </Field>
           <Field label="Currency">
-            <select name="currency" className="select" defaultValue="USD">
+            <select name="currency" className="select" defaultValue={subscription?.currency ?? 'USD'}>
               <option value="USD">USD</option>
               <option value="ILS">ILS</option>
               <option value="EUR">EUR</option>
@@ -573,7 +661,7 @@ function SubscriptionForm({ accounts }: { accounts: AccountRow[] }) {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Field label="Cadence">
-            <select name="cadence" className="select" defaultValue="monthly">
+            <select name="cadence" className="select" defaultValue={subscription?.cadence ?? 'monthly'}>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly</option>
@@ -581,13 +669,24 @@ function SubscriptionForm({ accounts }: { accounts: AccountRow[] }) {
             </select>
           </Field>
           <Field label="Started on">
-            <input name="startedOn" type="date" defaultValue={today()} className="input" required />
+            <input
+              name="startedOn"
+              type="date"
+              defaultValue={subscription?.startedOn ?? today()}
+              className="input"
+              required
+            />
           </Field>
           <Field label="Next renewal" hint="Blank puts it one period after the start">
-            <input name="nextRenewalOn" type="date" className="input" />
+            <input
+              name="nextRenewalOn"
+              type="date"
+              className="input"
+              defaultValue={subscription?.nextRenewalOn ?? ''}
+            />
           </Field>
           <Field label="Account">
-            <select name="accountId" className="select" defaultValue="">
+            <select name="accountId" className="select" defaultValue={subscription?.accountId ?? ''}>
               <option value="">Not account-specific</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -599,34 +698,50 @@ function SubscriptionForm({ accounts }: { accounts: AccountRow[] }) {
         </div>
 
         <label className="flex items-center gap-2 text-xs text-[var(--ink-secondary)]">
-          <input type="checkbox" name="autoLog" defaultChecked />
+          <input type="checkbox" name="autoLog" defaultChecked={subscription?.autoLog ?? true} />
           Log the charge automatically each time it falls due
         </label>
 
-        <SubmitButton>Add subscription</SubmitButton>
+        <SubmitButton>{subscription ? 'Save changes' : 'Add subscription'}</SubmitButton>
       </ActionForm>
-    </Card>
   )
+
+  return subscription ? form : <Card>{form}</Card>
 }
 
-function PayoutForm({ accounts, firms, ccy }: { accounts: AccountRow[]; firms: FirmRow[]; ccy: string }) {
+function PayoutForm({
+  accounts,
+  firms,
+  ccy,
+  payout,
+}: {
+  accounts: AccountRow[]
+  firms: FirmRow[]
+  ccy: string
+  payout?: PayoutRow
+}) {
   async function submit(formData: FormData) {
     'use server'
-    return savePayout(null, formData)
+    return savePayout(payout?.id ?? null, formData)
   }
 
-  return (
-    <Card>
-      <ActionForm action={submit} className="space-y-3" resetOnSuccess>
+  const form = (
+      <ActionForm action={submit} className="space-y-3" resetOnSuccess={!payout}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Field label="Requested on">
-            <input name="requestedOn" type="date" defaultValue={today()} className="input" required />
+            <input
+              name="requestedOn"
+              type="date"
+              defaultValue={payout?.requestedOn ?? today()}
+              className="input"
+              required
+            />
           </Field>
           <Field label="Paid on" hint="Blank until it lands">
-            <input name="paidOn" type="date" className="input" />
+            <input name="paidOn" type="date" className="input" defaultValue={payout?.paidOn ?? ''} />
           </Field>
           <Field label="Status">
-            <select name="status" className="select" defaultValue="requested">
+            <select name="status" className="select" defaultValue={payout?.status ?? 'requested'}>
               <option value="requested">Requested</option>
               <option value="approved">Approved</option>
               <option value="paid">Paid</option>
@@ -635,7 +750,7 @@ function PayoutForm({ accounts, firms, ccy }: { accounts: AccountRow[]; firms: F
             </select>
           </Field>
           <Field label="Currency">
-            <select name="currency" className="select" defaultValue={ccy}>
+            <select name="currency" className="select" defaultValue={payout?.currency ?? ccy}>
               <option value="USD">USD</option>
               <option value="ILS">ILS</option>
               <option value="EUR">EUR</option>
@@ -645,19 +760,40 @@ function PayoutForm({ accounts, firms, ccy }: { accounts: AccountRow[]; firms: F
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Gross amount" hint="Account profit before the split">
-            <input name="grossAmount" type="number" step="any" className="input" required />
+            <input
+              name="grossAmount"
+              type="number"
+              step="any"
+              className="input"
+              required
+              defaultValue={payout?.grossAmount}
+            />
           </Field>
           <Field label="Profit split" hint="Your share, e.g. 0.9">
-            <input name="profitSplit" type="number" step="0.01" min="0" max="1" defaultValue="0.9" className="input" />
+            <input
+              name="profitSplit"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              defaultValue={payout?.profitSplit ?? 0.9}
+              className="input"
+            />
           </Field>
           <Field label="Processing fee" hint="Wire or crypto fee the firm deducts">
-            <input name="processingFee" type="number" step="any" defaultValue="0" className="input" />
+            <input
+              name="processingFee"
+              type="number"
+              step="any"
+              defaultValue={payout?.processingFee ?? 0}
+              className="input"
+            />
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Field label="Account">
-            <select name="accountId" className="select" defaultValue="">
+            <select name="accountId" className="select" defaultValue={payout?.accountId ?? ''}>
               <option value="">No account</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -667,7 +803,7 @@ function PayoutForm({ accounts, firms, ccy }: { accounts: AccountRow[]; firms: F
             </select>
           </Field>
           <Field label="Firm">
-            <select name="firmId" className="select" defaultValue="">
+            <select name="firmId" className="select" defaultValue={payout?.firmId ?? ''}>
               <option value="">No firm</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
@@ -677,21 +813,22 @@ function PayoutForm({ accounts, firms, ccy }: { accounts: AccountRow[]; firms: F
             </select>
           </Field>
           <Field label="Method">
-            <input name="method" className="input" placeholder="Wire, Plane, crypto…" />
+            <input name="method" className="input" placeholder="Wire, Plane, crypto…" defaultValue={payout?.method ?? ''} />
           </Field>
           <Field label="Reference">
-            <input name="reference" className="input" />
+            <input name="reference" className="input" defaultValue={payout?.reference ?? ''} />
           </Field>
         </div>
 
         <Field label="Notes">
-          <textarea name="notes" rows={2} className="textarea" />
+          <textarea name="notes" rows={2} className="textarea" defaultValue={payout?.notes ?? ''} />
         </Field>
 
-        <SubmitButton>Record payout</SubmitButton>
+        <SubmitButton>{payout ? 'Save changes' : 'Record payout'}</SubmitButton>
       </ActionForm>
-    </Card>
   )
+
+  return payout ? form : <Card>{form}</Card>
 }
 
 /** Monthly totals for the cashflow chart. */

@@ -19,6 +19,10 @@ your computer, and nothing depends on a chat session being open.
 | Lucid Daily Wire (and similar snapshots) | The account's balance, if the email is newer than the balance already stored |
 | Subscription started, cancelled or due | Recorded in the log — no money moves until you say so |
 
+Every row it creates is marked **Email** on the Earnings page and stays fully
+editable: press **Edit** on the row to correct any value, or **✕** to remove it.
+The automation never revisits a row once written, so a correction sticks.
+
 Firms covered by name today: Apex, Topstep, Lucid, MyFundedFutures, Take Profit
 Trader, FundedNext, Alpha Futures, Tradeify, Bulenox, Elite. Any firm in that
 list is also covered by generic payout/pass/fail/receipt patterns, so a

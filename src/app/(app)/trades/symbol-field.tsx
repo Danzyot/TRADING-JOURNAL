@@ -5,8 +5,14 @@ import { useState } from 'react'
 /** The products actually traded here, one tap instead of typing. */
 const POPULAR = ['NQ', 'MNQ', 'ES', 'MES']
 
-export function SymbolField({ specs }: { specs: { root: string; name: string }[] }) {
-  const [value, setValue] = useState('')
+export function SymbolField({
+  specs,
+  defaultValue = '',
+}: {
+  specs: { root: string; name: string }[]
+  defaultValue?: string
+}) {
+  const [value, setValue] = useState(defaultValue)
 
   return (
     <div>

@@ -433,6 +433,14 @@ export const expenses = pgTable(
     firmId: integer('firm_id').references(() => propFirms.id, { onDelete: 'set null' }),
     subscriptionId: integer('subscription_id'),
 
+    /**
+     * Where the row came from: 'email' when the inbox automation created it, null
+     * when a person did. Automation gets things wrong, and a row you cannot tell
+     * apart from your own typing is a row you cannot audit — the money pages badge
+     * these so a wrong amount is findable rather than merely present.
+     */
+    source: text('source'),
+
     /** Fraction claimable against Israeli business income, 0..1. */
     deductiblePercent: ratio('deductible_percent').default(1).notNull(),
     /** Israeli VAT paid on the invoice, reclaimable by an osek murshe. */
@@ -499,6 +507,13 @@ export const payouts = pgTable(
 
     method: text('method'),
     reference: text('reference'),
+    /**
+     * Where the row came from: 'email' when the inbox automation created it, null
+     * when a person did. Automation gets things wrong, and a row you cannot tell
+     * apart from your own typing is a row you cannot audit — the money pages badge
+     * these so a wrong amount is findable rather than merely present.
+     */
+    source: text('source'),
     /** Tax reserved off this payout, per the tax profile. */
     taxReserved: money('tax_reserved').default(0).notNull(),
     /** Snapshot of how the allocation engine split this payout. */

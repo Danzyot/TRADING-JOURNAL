@@ -177,6 +177,7 @@ export async function applyEmailEvents(
         fxRate: 1,
         netAmountBase: draft.amount,
         notes: `From email: ${draft.summary}`,
+        source: 'email',
       })
       payoutEvents.push(draft)
       continue
@@ -195,6 +196,7 @@ export async function applyEmailEvents(
         firmId: firm?.id ?? null,
         deductiblePercent: defaultDeductibleFor('eval_fee'),
         notes: 'Logged automatically from email',
+        source: 'email',
       })
       expenseEvents.push(draft)
       continue
