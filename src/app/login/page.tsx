@@ -7,6 +7,7 @@ import {
   recordLoginFailure,
 } from '@/server/auth-guard'
 import { createSession, isAuthenticated, passwordMatches, safeRedirectPath } from '@/lib/auth'
+import { demoLink, demoMisconfigured, demoMode } from '@/lib/demo'
 
 export const metadata = { title: 'Sign in — Trading Journal' }
 
@@ -44,8 +45,12 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; next?: string; wait?: string }>
 }) {
+  // A demo deployment has no password to ask for.
+  if (demoMode()) redirect('/')
   if (await isAuthenticated()) redirect('/')
   const params = await searchParams
+  const demo = demoLink()
+  const demoBlocked = demoMisconfigured()
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -98,6 +103,33 @@ export default async function LoginPage({
             Sign in
           </button>
         </form>
+
+        {demo && (
+          <div className="mt-5">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-[var(--line)]" />
+              <span className="text-[0.6875rem] text-[var(--ink-muted)]">or</span>
+              <span className="h-px flex-1 bg-[var(--line)]" />
+            </div>
+            {/* Deliberately a plain link to another deployment rather than a
+                second way into this one: the demo runs on its own database, so
+                "look around" never means "look at my trades". */}
+            <a href={demo} className="btn mt-3 w-full justify-center">
+              View demo
+            </a>
+            <p className="mt-2 text-center text-[0.6875rem] text-[var(--ink-muted)]">
+              Sample data, no password, nothing you do there is saved.
+            </p>
+          </div>
+        )}
+
+        {demoBlocked && (
+          <p className="mt-4 rounded-lg border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] p-3 text-xs leading-relaxed text-[var(--serious)]">
+            <code>DEMO_MODE</code> is set on this deployment, but so is{' '}
+            <code>APP_PASSWORD</code> — so it is still asking for a password. A demo has no
+            password: remove <code>APP_PASSWORD</code> here, or unset <code>DEMO_MODE</code>.
+          </p>
+        )}
 
         <p className="mt-4 text-center text-xs text-[var(--ink-muted)]">
           Set <code>APP_PASSWORD</code> in your environment to change this.

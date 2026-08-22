@@ -64,6 +64,12 @@ through.
 - **Every statistic must be checkable.** Insights state their evidence;
   estimates say they are estimates. The tax module is arithmetic on published
   rates, not advice, and its docs carry sources.
+- **The demo is a separate deployment, never a request-time switch.**
+  `DEMO_MODE=1` makes a deployment public and read-only (`guard()` in
+  `actions.ts` refuses every mutation, the middleware skips the session gate,
+  and `bootstrap.ts` seeds that deployment's own empty database). The owner's
+  data is protected by the process boundary, not by a flag on the request —
+  keep it that way. See docs/DEMO.md.
 - **Email automation is rules-first.** `src/lib/email/parse.ts` is pure and
   tested against real messages; the AI pass only sees what the rules could not
   read. Every event is deduped on the email's Message-ID in `email_events`, so

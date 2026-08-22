@@ -4,6 +4,7 @@ import { saveSiteText } from '@/server/actions'
 import { getSiteText } from '@/server/site-text'
 import { getSettings } from '@/server/settings'
 import { logoOrDefault, logoPath } from '@/lib/logos'
+import { demoMode } from '@/lib/demo'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,9 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SiteTextProvider overrides={overrides} save={saveSiteText}>
-      <Shell logo={logo}>{children}</Shell>
-      {/* Sweeps the rendered page so wording nobody wrapped is editable too. */}
-      <TextLayer />
+      <Shell logo={logo} demo={demoMode()}>
+        {children}
+      </Shell>
+      {/* Sweeps the rendered page so wording nobody wrapped is editable too.
+          A demo cannot rewrite anything, so it does not need the sweep. */}
+      {!demoMode() && <TextLayer />}
     </SiteTextProvider>
   )
 }

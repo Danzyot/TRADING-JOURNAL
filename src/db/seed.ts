@@ -13,15 +13,33 @@
  * before you rely on any number in the app.
  */
 import { db } from './index'
-import { accounts, executions, expenses, propFirms, subscriptions } from './schema'
+import {
+  accounts,
+  executions,
+  expenses,
+  payouts,
+  propFirms,
+  subscriptions,
+  tradingModels,
+} from './schema'
 import { FIRM_PRESETS } from '../lib/propfirm/rules'
 import { rebuildTradesForAccount } from '../server/trades'
 import { tradingDayFor } from '../lib/time'
+import { DEFAULT_ALLOCATION_PLAN, allocatePayout } from '../lib/allocation'
 
-const DEMO = process.argv.includes('--demo')
-
-async function main() {
-  console.log('Seeding prop firm presets…')
+/**
+ * Seeds the database.
+ *
+ * Exported rather than run on import, because the demo deployment seeds itself
+ * on first boot (see `src/db/bootstrap.ts`) and importing a module must not
+ * write to anyone's database as a side effect.
+ */
+export async function seedDatabase({
+  demo = false,
+  log = () => {},
+}: { demo?: boolean; log?: (message: string) => void } = {}): Promise<void> {
+  const DEMO = demo
+  log('Seeding prop firm presets…')
 
   const firmIds = new Map<string, number>()
   for (const preset of FIRM_PRESETS) {
@@ -37,14 +55,14 @@ async function main() {
       .returning({ id: propFirms.id, name: propFirms.name })
     if (row) firmIds.set(row.name, row.id)
   }
-  console.log(`  ${firmIds.size} firms added.`)
+  log(`  ${firmIds.size} firms added.`)
 
   if (!DEMO) {
-    console.log('Done. Pass --demo to also generate sample trades.')
+    log('Done. Pass --demo to also generate sample trades.')
     return
   }
 
-  console.log('Generating demo data…')
+  log('Generating demo data…')
 
   const [account] = await db
     .insert(accounts)
@@ -148,7 +166,7 @@ async function main() {
 
   await db.insert(executions).values(fills)
   const built = await rebuildTradesForAccount(account.id)
-  console.log(`  ${fills.length} fills → ${built} trades.`)
+  log(`  ${fills.length} fills → ${built} trades.`)
 
   await db.insert(expenses).values([
     {
@@ -206,7 +224,61 @@ async function main() {
     },
   ])
 
-  console.log(
+  // A payout and a model, so the earnings and models pages demonstrate
+  // something too — an app shown with four empty pages demonstrates nothing.
+  const paidNet = 1_840
+  await db.insert(payouts).values([
+    {
+      accountId: account.id,
+      requestedOn: isoDaysAgo(38),
+      paidOn: isoDaysAgo(35),
+      status: 'paid',
+      grossAmount: 2_300,
+      profitSplit: 0.9,
+      processingFee: 30,
+      netAmount: paidNet,
+      currency: 'USD',
+      fxRate: 1,
+      netAmountBase: paidNet,
+      method: 'Wise',
+      taxReserved: Math.round(paidNet * 0.3),
+      allocation: Object.fromEntries(
+        allocatePayout(paidNet, DEFAULT_ALLOCATION_PLAN, {}).lines.map((line) => [
+          line.key,
+          line.assigned,
+        ]),
+      ),
+      notes: 'Sample payout.',
+    },
+    {
+      accountId: account.id,
+      requestedOn: isoDaysAgo(4),
+      status: 'requested',
+      grossAmount: 1_400,
+      profitSplit: 0.9,
+      processingFee: 0,
+      netAmount: 1_260,
+      currency: 'USD',
+      fxRate: 1,
+      netAmountBase: 1_260,
+      method: 'Wise',
+      notes: 'Sample payout, still pending.',
+    },
+  ])
+
+  await db.insert(tradingModels).values({
+    name: 'London sweep reversal',
+    description:
+      'Price takes out the Asian session high or low in the first hour of London, fails to continue, and reverses back through the level.',
+    timeframe: '5m, 1m',
+    instruments: 'MNQ, NQ',
+    entryRules:
+      'Sweep of the session extreme · displacement back inside the range · entry on the retrace into the displacement leg.',
+    invalidations:
+      'No displacement after the sweep · entry more than half way back to the opposite side of the range · news inside 10 minutes.',
+  })
+
+  log(
     '\nDone. The demo account IS counted in your statistics so the charts have something to show.\n' +
       'Delete "Demo 50k (sample data)" on the Accounts page before you rely on any number here.',
   )
@@ -218,9 +290,13 @@ function isoDaysAgo(days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error)
-    process.exit(1)
-  })
+// Run as a script (`npm run db:seed [-- --demo]`). Guarded so that importing
+// this module — which the demo bootstrap does — seeds nothing by itself.
+if (process.argv[1] && /[\\/]seed\.[cm]?ts$/.test(process.argv[1])) {
+  seedDatabase({ demo: process.argv.includes('--demo'), log: (line) => console.log(line) })
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error)
+      process.exit(1)
+    })
+}

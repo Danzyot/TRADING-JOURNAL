@@ -18,7 +18,16 @@ const NAV = [
   { href: '/settings', label: 'Settings', glyph: '⚙' },
 ]
 
-export function Shell({ children, logo }: { children: React.ReactNode; logo: string }) {
+export function Shell({
+  children,
+  logo,
+  demo = false,
+}: {
+  children: React.ReactNode
+  logo: string
+  /** A public read-only copy: no session to end, and no wording to rewrite. */
+  demo?: boolean
+}) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -80,15 +89,19 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
           className="border-t border-[var(--line)] p-3"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          <div className="mb-2">
-            <EditModeToggle />
-          </div>
+          {!demo && (
+            <div className="mb-2">
+              <EditModeToggle />
+            </div>
+          )}
           <ThemeToggle />
-          <form action="/api/logout" method="post" className="mt-2">
-            <button type="submit" className="btn w-full text-[var(--ink-secondary)]">
-              Sign out
-            </button>
-          </form>
+          {!demo && (
+            <form action="/api/logout" method="post" className="mt-2">
+              <button type="submit" className="btn w-full text-[var(--ink-secondary)]">
+                Sign out
+              </button>
+            </form>
+          )}
         </div>
       </aside>
 
@@ -118,10 +131,14 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
           <span className="text-sm font-semibold">Trading Journal</span>
           {/* On a phone the sidebar is a drawer, so the pencil also sits here
               where it is reachable without opening navigation first. */}
-          <div className="ml-auto w-auto">
-            <EditModeToggle />
-          </div>
+          {!demo && (
+            <div className="ml-auto w-auto">
+              <EditModeToggle />
+            </div>
+          )}
         </header>
+
+        {demo && <DemoBanner />}
 
         <main
           className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8"
@@ -130,6 +147,21 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
           <div className="mx-auto w-full max-w-[1400px]">{children}</div>
         </main>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Says what this copy is, on every page.
+ *
+ * A demo that looks exactly like the real thing is the point, and also the
+ * risk: without this strip, a visitor filling in a form and watching it refuse
+ * would reasonably conclude the app is broken.
+ */
+function DemoBanner() {
+  return (
+    <div className="border-b border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[var(--accent-soft)] px-4 py-2 text-center text-xs text-[var(--accent)] lg:px-8">
+      <strong className="font-semibold">Demo</strong> — sample data, and nothing you change is saved.
     </div>
   )
 }

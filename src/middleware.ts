@@ -1,19 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { isDemoDeployment } from './lib/demo'
+import { isPublicPath } from './lib/public-paths'
 
 const COOKIE = 'tj_session'
-
-/** Files a browser must be able to fetch before the user has signed in. */
-const PUBLIC_FILES = new Set([
-  '/manifest.webmanifest',
-  '/sw.js',
-  '/favicon.svg',
-  // Named by the service worker on every push notification.
-  '/icon-192.png',
-])
-
-/** The app marks, under /logos/<colour>/. Same reasoning as PUBLIC_FILES. */
-const PUBLIC_PREFIXES = ['/logos/']
 
 /**
  * Gate every page behind the session cookie.
@@ -35,28 +25,14 @@ export async function middleware(request: NextRequest) {
   request.headers.set('x-nonce', nonce)
   request.headers.set('Content-Security-Policy', policy)
 
-  const isPublic =
-    pathname === '/login' ||
-    pathname.startsWith('/api/login') ||
-    pathname.startsWith('/api/cron') ||
-    pathname.startsWith('/api/webhook') ||
-    // Machine upload + email ingest — carry their own bearer tokens.
-    pathname.startsWith('/api/upload') ||
-    pathname.startsWith('/api/ingest') ||
-    pathname.startsWith('/_next') ||
-    // The installable-app files. These have to be readable without a session:
-    // iOS fetches the manifest and the icon before anyone signs in, and a
-    // service worker that 302s to the login page cannot register at all —
-    // which would take push notifications down with it. None of them expose
-    // any data; sw.js caches only static assets and every page it fetches
-    // still passes through this same check.
-    PUBLIC_FILES.has(pathname) ||
-    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    pathname === '/favicon.ico'
-
   const proceed = () => NextResponse.next({ request: { headers: request.headers } })
 
-  if (isPublic) return harden(proceed(), policy)
+  // A demo deployment has no password and no data worth gating: the whole app
+  // is the public part. Its own database is the only one this process can
+  // reach, so there is nothing here to leak even if a route forgets to check.
+  if (isDemoDeployment(process.env)) return harden(proceed(), policy)
+
+  if (isPublicPath(pathname)) return harden(proceed(), policy)
 
   const token = request.cookies.get(COOKIE)?.value
   const secret = process.env.SESSION_SECRET ?? process.env.ENCRYPTION_KEY

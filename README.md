@@ -88,6 +88,7 @@ Environment variables, all set once in Vercel:
 | **[BANKING.md](docs/BANKING.md)** | Getting paid: which rail each firm uses, Wise vs Revolut vs an Israeli bank, and what a foreign account does and does not do |
 | **[TAX-RELOCATION.md](docs/TAX-RELOCATION.md)** | Why an S corp is a dead end, and the honest country-by-country comparison (Cyprus, Greece, Dubai, Bulgaria, Georgia, Thailand, Costa Rica…) |
 | **[PAYOUT-STRATEGY.md](docs/PAYOUT-STRATEGY.md)** | The allocation waterfall and the reasoning behind it |
+| **[DEMO.md](docs/DEMO.md)** | The public, read-only copy: a View demo button that opens the app with sample data and no password |
 
 ---
 

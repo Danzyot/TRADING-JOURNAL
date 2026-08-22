@@ -104,6 +104,13 @@ something to show. **Delete "Demo 50k (sample data)" on the Accounts page before
 you trust any number** — it is counted in your statistics like any other
 account.
 
+## Want to show the app to someone without giving them the password?
+
+Deploy a second copy in demo mode: no sign-in, every save refused, its own
+database seeded with the sample data above, and a **View demo** button under
+your own password field. It takes about five minutes and is written up in
+[DEMO.md](DEMO.md).
+
 ---
 
 ## Later

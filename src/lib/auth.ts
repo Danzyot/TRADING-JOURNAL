@@ -8,6 +8,7 @@
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
 import { secretsMatch } from './crypto'
+import { demoMode } from './demo'
 
 const COOKIE = 'tj_session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30
@@ -77,6 +78,11 @@ export async function verifyToken(token: string | undefined): Promise<boolean> {
 }
 
 export async function isAuthenticated(): Promise<boolean> {
+  // Everything a demo deployment holds is already public — it has its own
+  // database and no password. Saying so here keeps the API routes that serve
+  // pages (the day view, chart images) working without a SESSION_SECRET, which
+  // a demo has no reason to be given.
+  if (demoMode()) return true
   const store = await cookies()
   return verifyToken(store.get(COOKIE)?.value)
 }

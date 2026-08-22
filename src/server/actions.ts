@@ -12,6 +12,7 @@
 import { revalidatePath } from 'next/cache'
 import { and, eq, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { DEMO_REFUSAL, demoMode } from '@/lib/demo'
 import { db } from '@/db'
 import {
   accounts,
@@ -96,6 +97,12 @@ export type ActionResult = { ok: true; message: string } | { ok: false; message:
 
 /** Wraps an action so a thrown error becomes a message rather than a crash. */
 async function guard(run: () => Promise<string>): Promise<ActionResult> {
+  // Every mutation in this app is a Server Action, and every Server Action
+  // comes through here — which makes this the one place a demo has to be made
+  // read-only. A refusal rather than a hidden button: the forms are half of
+  // what there is to demonstrate, so they stay, they just do not write.
+  if (demoMode()) return { ok: false, message: DEMO_REFUSAL }
+
   try {
     return { ok: true, message: await run() }
   } catch (error) {

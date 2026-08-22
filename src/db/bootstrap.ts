@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { db } from './index'
+import { shouldSeedDemo } from '../lib/demo'
 
 /**
  * Brings an empty database up to date on its own.
@@ -32,6 +33,8 @@ import { db } from './index'
 // trip through JSON. Any other process using the same key would serialise
 // against us, which is why it is namespaced to this app.
 const LOCK_KEY = 8_140_233_907_115_442
+/** A second key, so seeding never contends with migrating. */
+const SEED_LOCK_KEY = 8_140_233_907_115_443
 
 let started: Promise<BootstrapResult> | null = null
 
@@ -48,11 +51,63 @@ export type BootstrapResult = {
  * blip would silently stop future migrations from ever applying.
  */
 export function bootstrapDatabase(): Promise<BootstrapResult> {
-  started ??= run().then((result) => {
-    if (!result.ok) started = null
-    return result
-  })
+  started ??= run()
+    .then(async (result) => {
+      if (result.ok) await seedDemoIfEmpty()
+      return result
+    })
+    .then((result) => {
+      if (!result.ok) started = null
+      return result
+    })
   return started
+}
+
+/**
+ * Fills a demo deployment's own database on first boot.
+ *
+ * A demo is worth nothing empty — every chart is a placeholder and there is no
+ * feature left to look at. This runs only when `DEMO_MODE=1`, only against
+ * whatever database that deployment was given, and only while it holds no
+ * accounts, so it can never touch or overwrite real data: the deployment that
+ * has the owner's data is a different deployment, with this switched off.
+ */
+async function seedDemoIfEmpty(): Promise<void> {
+  if (!shouldSeedDemo(process.env)) return
+
+  let locked = false
+  try {
+    const existing = await db.execute<{ count: number }>(
+      sql`select count(*)::int as count from accounts`,
+    )
+    if (Number(existing[0]?.count ?? 0) > 0) return
+
+    // Several cold starts can race on a first deploy; whoever loses simply
+    // leaves it to the winner rather than seeding a second copy.
+    const rows = await db.execute<{ locked: boolean }>(
+      sql`select pg_try_advisory_lock(${SEED_LOCK_KEY}) as locked`,
+    )
+    locked = Boolean(rows[0]?.locked)
+    if (!locked) return
+
+    const again = await db.execute<{ count: number }>(
+      sql`select count(*)::int as count from accounts`,
+    )
+    if (Number(again[0]?.count ?? 0) > 0) return
+
+    // Imported here rather than at module scope: the seeder pulls in the trade
+    // matcher and the firm presets, and a deployment that is not a demo should
+    // not carry any of it.
+    const { seedDatabase } = await import('./seed')
+    await seedDatabase({ demo: true })
+  } catch {
+    // A demo that fails to seed is an empty demo, not a broken app. The next
+    // cold start tries again.
+  } finally {
+    if (locked) {
+      await db.execute(sql`select pg_advisory_unlock(${SEED_LOCK_KEY})`).catch(() => {})
+    }
+  }
 }
 
 async function run(): Promise<BootstrapResult> {
