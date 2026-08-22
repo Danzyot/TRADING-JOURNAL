@@ -359,7 +359,7 @@ export default async function DashboardPage() {
       {/* --- Money ---------------------------------------------------------- */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card
-          title="Earnings"
+          title="Earnings and expenses"
           actions={
             <Link href="/money" className="text-xs text-[var(--accent)] hover:underline">
               Details →

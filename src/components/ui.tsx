@@ -79,6 +79,71 @@ export function Card({
   )
 }
 
+/**
+ * A card that folds away behind its own heading.
+ *
+ * Reference material earns its place on a page but not the whole page: the tax
+ * screen carries six long sections that are read once and then scrolled past
+ * every day afterwards. Folded, the numbers are visible without scrolling and
+ * the prose is one click away.
+ *
+ * `<details>` rather than React state, so it works before hydration, keeps the
+ * open/closed state out of the component tree, and stays keyboard-operable
+ * without any of that being written here.
+ */
+export function CollapsibleCard({
+  title,
+  description,
+  defaultOpen = false,
+  children,
+  className,
+  bodyClassName,
+}: {
+  title: string
+  description?: string
+  /** Sections worth reading every time start open. */
+  defaultOpen?: boolean
+  children: React.ReactNode
+  className?: string
+  bodyClassName?: string
+}) {
+  return (
+    <details
+      // `self-start` because a folded card sitting in a grid row would
+      // otherwise stretch to the height of whatever is beside it, leaving a
+      // tall empty box under its own heading.
+      className={clsx('card card-fold self-start overflow-hidden', className)}
+      open={defaultOpen}
+    >
+      <summary className="flex items-start justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <Editable as="h2" scope="card.title" className="text-sm font-semibold text-[var(--ink)]">
+            {title}
+          </Editable>
+          {description && (
+            <Editable
+              as="p"
+              scope="card.description"
+              className="mt-0.5 block text-xs text-[var(--ink-secondary)]"
+            >
+              {description}
+            </Editable>
+          )}
+        </div>
+        <span
+          aria-hidden
+          className="fold-chevron mt-0.5 shrink-0 text-lg leading-none text-[var(--ink-muted)]"
+        >
+          ›
+        </span>
+      </summary>
+      {/* The divider lives on the body, so a closed card is not left with a
+          line under its heading and nothing beneath it. */}
+      <div className={clsx('border-t border-[var(--line)]', bodyClassName ?? 'p-4')}>{children}</div>
+    </details>
+  )
+}
+
 export function EmptyState({
   title,
   body,

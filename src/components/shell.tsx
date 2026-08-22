@@ -13,7 +13,7 @@ const NAV = [
   { href: '/accounts', label: 'Accounts', glyph: '▤' },
   { href: '/firms', label: 'Prop firms', glyph: '⌂' },
   { href: '/models', label: 'Models', glyph: '◇' },
-  { href: '/money', label: 'Earnings', glyph: '$' },
+  { href: '/money', label: 'Earnings and expenses', glyph: '$' },
   { href: '/tax', label: 'Tax', glyph: '%' },
   { href: '/journal', label: 'Journal', glyph: '✎' },
   { href: '/documents', label: 'Documents', glyph: '🗎' },

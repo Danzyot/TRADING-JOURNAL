@@ -36,7 +36,7 @@ import { getSettings } from '@/server/settings'
 import { listAccounts } from '@/server/trades'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Earnings — Trading Journal' }
+export const metadata = { title: 'Earnings and expenses — Trading Journal' }
 
 export default async function MoneyPage() {
   const [settings, summary, expenses, payouts, subscriptions, accounts, firms, wallets] = await Promise.all([
@@ -71,7 +71,7 @@ export default async function MoneyPage() {
   return (
     <>
       <PageHeader
-        title="Earnings"
+        title="Earnings and expenses"
         subtitle="Payouts in, costs out, and where each payout should go."
         actions={
           <ActionButton action={runSubscriptionCatchUp} pendingLabel="Checking…">

@@ -1,5 +1,5 @@
 import { ActionForm, Field, SubmitButton } from '@/components/form'
-import { Badge, Card, KeyValue, PageHeader, Stat, StatGrid } from '@/components/ui'
+import { Badge, Card, CollapsibleCard, KeyValue, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { CATEGORY_LABELS, STATUS_LABELS, money, percent, titleCase } from '@/lib/format'
 import {
   advanceSchedule,
@@ -119,7 +119,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* --- Computation ------------------------------------------------- */}
-        <Card
+        <CollapsibleCard
           title="How it is calculated"
           description={`${STATUS_LABELS[breakdown.status]} · ${year} rates`}
           className="lg:col-span-2"
@@ -213,7 +213,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
               ))}
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
 
         {/* --- Profile ------------------------------------------------------ */}
         <Card title="Your tax profile" description="Drives every figure on this page.">
@@ -301,7 +301,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
 
       {/* --- Status comparison ---------------------------------------------- */}
       <div className="mt-6">
-        <Card
+        <CollapsibleCard
           title="Which status keeps the most"
           description="The same revenue and expenses run through every option. Ineligible ones are shown so the ceiling is visible."
           bodyClassName="p-0"
@@ -416,12 +416,12 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
               </span>
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- Reserving & advances -------------------------------------------- */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card
+        <CollapsibleCard
           title="Advance payments (מקדמות)"
           description="The Tax Authority sets these from your last filed return, so a first profitable year generates no advances — and then a very large balancing payment."
           bodyClassName="p-0"
@@ -451,7 +451,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
             materially lower than the year the advances were set from, you can apply to reduce them rather than
             lending the state money interest-free.
           </p>
-        </Card>
+        </CollapsibleCard>
 
         <Card title="Reserve status" description="Against payouts actually received.">
           <div className="space-y-0">
@@ -517,9 +517,9 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
 
       {/* --- What you can write off ---------------------------------------- */}
       <div className="mt-6">
-        <Card
+        <CollapsibleCard
           title="What you can write off"
-          description="Every one of these reduces taxable business income. Log them on the Earnings page as they happen — each unlogged expense is tax paid unnecessarily."
+          description="Every one of these reduces taxable business income. Log them on the Earnings and expenses page as they happen — each unlogged expense is tax paid unnecessarily."
           bodyClassName="p-0"
         >
           <ul className="divide-y divide-[var(--line)]">
@@ -530,12 +530,12 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
               </li>
             ))}
           </ul>
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- Structures ----------------------------------------------------- */}
       <div className="mt-6">
-        <Card
+        <CollapsibleCard
           title="Company structures — the short answer"
           description={`"Run it through an S corp / LLC and write everything off" — checked against the actual rules, ${RELOCATION_VERIFIED}.`}
         >
@@ -552,12 +552,12 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
               </div>
             ))}
           </div>
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- Relocation ----------------------------------------------------- */}
       <div className="mt-6">
-        <Card
+        <CollapsibleCard
           title="If you relocate — the honest comparison"
           description={`Rough all-in burden on ~$100k of prop payouts under each country's 2026 rules. Researched ${RELOCATION_VERIFIED}; full write-up with sources in docs/TAX-RELOCATION.md.`}
           bodyClassName="p-0"
@@ -605,7 +605,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
             These are published-rule summaries, not advice, and they rot — before acting, one session with an
             Israeli international-tax advisor for the exit and one with a local advisor in the destination.
           </p>
-        </Card>
+        </CollapsibleCard>
 
         <GettingPaid
           payoutsThisYear={summary.payoutsPaid}
@@ -648,10 +648,11 @@ function GettingPaid({
 
   return (
     <>
-      <Card
+      <CollapsibleCard
         title="Getting paid — where it lands, and what it costs to get there"
         description={`Four accounts, each guarding against a different failure. Verified ${BANKING_VERIFIED}.`}
         bodyClassName="p-0"
+        defaultOpen
       >
         <div className="scroll-x border-b border-[var(--line)]">
           <table className="data">
@@ -701,7 +702,7 @@ function GettingPaid({
             {measured ? '' : 'Illustrative until you record payouts here.'}
           </p>
         </div>
-      </Card>
+      </CollapsibleCard>
 
       <Card title="The rails, priced" bodyClassName="p-0">
         <div className="scroll-x">
