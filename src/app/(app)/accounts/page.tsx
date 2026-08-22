@@ -16,7 +16,7 @@ import {
   saveAccount,
 } from '@/server/actions'
 import { getDashboardData } from '@/server/dashboard'
-import { firmEconomics, listFirms } from '@/server/money'
+import { listFirms } from '@/server/money'
 import { getSettings } from '@/server/settings'
 import { listAccounts } from '@/server/trades'
 
@@ -28,12 +28,11 @@ export default async function AccountsPage({
 }: {
   searchParams: Promise<{ edit?: string; firm?: string }>
 }) {
-  const [params, settings, accounts, firms, economics, dashboard] = await Promise.all([
+  const [params, settings, accounts, firms, dashboard] = await Promise.all([
     searchParams,
     getSettings(),
     listAccounts(),
     listFirms(),
-    firmEconomics(),
     getDashboardData(),
   ])
 
@@ -269,63 +268,6 @@ export default async function AccountsPage({
           />
         )}
       </div>
-
-      {/* --- Firm economics ------------------------------------------------- */}
-      {/* A table of zeros teaches nothing; it appears once there is money in it. */}
-      {economics.some((row) => row.accountsTotal > 0 || row.spend > 0 || row.payouts > 0) && (
-        <div className="mt-6">
-          <Card
-            title="Firm economics"
-            description="What each firm has cost against what it has paid. This is what decides whether adding accounts is investment or gambling."
-            bodyClassName="p-0"
-          >
-            <div className="scroll-x">
-              <table className="data">
-                <thead>
-                  <tr>
-                    <th>Firm</th>
-                    <th className="text-right">Accounts</th>
-                    <th className="text-right">Passed</th>
-                    <th className="text-right">Pass rate</th>
-                    <th className="text-right">Spend</th>
-                    <th className="text-right">Payouts</th>
-                    <th className="text-right">Net</th>
-                    <th className="text-right">Cost per funded</th>
-                    <th className="text-right">Return on spend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {economics.map((row) => (
-                    <tr key={row.firmId}>
-                      <td className="font-medium text-[var(--ink)]">{row.name}</td>
-                      <td className="tabular text-right">{row.accountsTotal}</td>
-                      <td className="tabular text-right">{row.accountsPassed}</td>
-                      <td className="tabular text-right">
-                        {row.passRate === null ? '—' : percent(row.passRate, 0)}
-                      </td>
-                      <td className="tabular text-right">{money(row.spend, ccy, 0)}</td>
-                      <td className="tabular text-right">{money(row.payouts, ccy, 0)}</td>
-                      <td
-                        className={`tabular text-right font-medium ${
-                          row.net >= 0 ? 'text-[var(--good-text)]' : 'text-[var(--critical)]'
-                        }`}
-                      >
-                        {money(row.net, ccy, 0)}
-                      </td>
-                      <td className="tabular text-right">
-                        {row.costPerFunded === null ? '—' : money(row.costPerFunded, ccy, 0)}
-                      </td>
-                      <td className="tabular text-right">
-                        {row.roi === null ? '—' : `${row.roi.toFixed(1)}x`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
 
     </>
   )

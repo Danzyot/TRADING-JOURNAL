@@ -1473,7 +1473,7 @@ export async function saveSiteText(key: string, value: string): Promise<ActionRe
     await setSiteText(parsed.key, parsed.value)
     revalidateAll()
     revalidatePath('/settings')
-    revalidatePath('/import')
+    revalidatePath('/trades')
     revalidatePath('/trades')
     return parsed.value.trim() === '' ? 'Original wording restored.' : 'Saved.'
   })

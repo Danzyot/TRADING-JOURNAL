@@ -199,7 +199,7 @@ export async function importCsvFile(formData: FormData): Promise<ImportReport> {
       .set({ rowsImported: imported, rowsSkipped: parsed.rowsSkipped, tradesBuilt: built })
       .where(eq(importBatches.id, batch.id))
 
-    for (const path of ['/', '/trades', '/accounts', '/import']) revalidatePath(path)
+    for (const path of ['/', '/trades', '/accounts']) revalidatePath(path)
 
     const parts = [`Read ${parsed.rowsSeen} rows as ${SOURCE_LABELS[parsed.source]}.`]
     if (imported > 0) parts.push(`Imported ${imported}.`)
