@@ -1,6 +1,5 @@
 import 'server-only'
 import { db } from '@/db'
-import { journalEntries } from '@/db/schema'
 import { desc, eq, sql } from 'drizzle-orm'
 import {
   bySession,
@@ -99,7 +98,6 @@ export type DashboardData = {
   byWeekday: ReturnType<typeof byWeekday>
   timezone: string
   baseCurrency: string
-  journalToday: { plan: string | null; review: string | null } | null
 }
 
 /**
@@ -249,12 +247,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     evalPassRate: evaluationAccounts.length > 0 ? passedAccounts.length / evaluationAccounts.length : 0,
   })
 
-  const [journalRow] = await db
-    .select()
-    .from(journalEntries)
-    .orderBy(desc(journalEntries.entryDate))
-    .limit(1)
-
   const setup: SetupState = {
     firms: firms.length,
     accounts: accounts.length,
@@ -314,7 +306,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     byWeekday: byWeekday(trades, settings.timezone),
     timezone: settings.timezone,
     baseCurrency: settings.baseCurrency,
-    journalToday: journalRow?.entryDate === currentDay ? { plan: journalRow.plan, review: journalRow.review } : null,
   }
 }
 

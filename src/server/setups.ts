@@ -1,5 +1,5 @@
 import 'server-only'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { tradeSetups } from '@/db/schema'
 import { decryptBytes, encryptBytes } from '@/lib/crypto'
@@ -57,9 +57,40 @@ export async function listSetups(entryDate?: string): Promise<SetupSummary[]> {
     : query.orderBy(desc(tradeSetups.entryDate), desc(tradeSetups.createdAt)).limit(200)
 }
 
-export async function countSetups(): Promise<number> {
-  const rows = await db.select({ id: tradeSetups.id }).from(tradeSetups)
-  return rows.length
+/**
+ * Headline numbers for the journal, in one round trip.
+ *
+ * Counted in the database rather than over a page of rows: the list is capped
+ * at 200, so summing it would quietly understate the totals the day a
+ * two-hundred-and-first setup is logged.
+ */
+export async function setupStats(): Promise<{
+  total: number
+  withChart: number
+  avgRiskReward: number | null
+  days: string[]
+}> {
+  const [totals] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      withChart: sql<number>`count(${tradeSetups.screenshot})::int`,
+      avgRiskReward: sql<number | null>`avg(${tradeSetups.riskReward})`,
+    })
+    .from(tradeSetups)
+
+  const days = await db
+    .selectDistinct({ entryDate: tradeSetups.entryDate })
+    .from(tradeSetups)
+    .orderBy(desc(tradeSetups.entryDate))
+    .limit(400)
+
+  return {
+    total: totals?.total ?? 0,
+    withChart: totals?.withChart ?? 0,
+    // Postgres hands numeric averages back as strings through postgres.js.
+    avgRiskReward: totals?.avgRiskReward == null ? null : Number(totals.avgRiskReward),
+    days: days.map((row) => row.entryDate),
+  }
 }
 
 /** Validates and encrypts an uploaded chart. Returns null for "no file sent". */

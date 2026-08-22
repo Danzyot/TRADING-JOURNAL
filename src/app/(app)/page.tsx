@@ -412,32 +412,6 @@ export default async function DashboardPage() {
 
       </div>
 
-      {/* --- Today's journal ------------------------------------------------- */}
-      {(!data.journalToday || !data.journalToday.review) && (
-        <div className="mt-6">
-          <Card bodyClassName="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div className="flex items-start gap-3">
-              <SeverityIcon severity="info" />
-              <div>
-                <p className="text-sm font-medium text-[var(--ink)]">
-                  {data.journalToday?.plan
-                    ? 'Plan written — the review is still open'
-                    : 'No journal entry for today yet'}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--ink-secondary)]">
-                  {data.journalToday?.plan
-                    ? 'Three honest sentences before you close the laptop. The review is where the pattern gets found — the P&L only says it happened.'
-                    : 'A plan before the session is the cheapest discipline tool there is: it defines what a mistake means today.'}
-                </p>
-              </div>
-            </div>
-            <Link href="/journal" className="btn btn-primary shrink-0">
-              {data.journalToday?.plan ? 'Write the review' : 'Write the plan'}
-            </Link>
-          </Card>
-        </div>
-      )}
-
       {/* --- Next actions ---------------------------------------------------- */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card title="What to do with the money" description="Priority order, based on your reserves and evaluation economics.">

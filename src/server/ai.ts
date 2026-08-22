@@ -181,17 +181,37 @@ export async function reviewTradeAgainstModel(tradeId: number): Promise<ReviewOu
   if (!model) return { ok: false, error: 'That model no longer exists.' }
 
   const settings = await getSettings()
-  const [journalRow] = await db
-    .select({ plan: journalEntries.plan })
-    .from(journalEntries)
-    .where(eq(journalEntries.entryDate, trade.tradingDay))
-    .limit(1)
+  /**
+   * What the trader said they were doing that day.
+   *
+   * The setups logged against the day are the live record now — the levels
+   * they planned and the notes they wrote at the time. The old daily journal
+   * entry is still read as a fallback so reviews of older trades keep the
+   * context they were written with.
+   */
+  const daySetups = await db
+    .select({ notes: tradeSetups.notes, symbol: tradeSetups.symbol })
+    .from(tradeSetups)
+    .where(eq(tradeSetups.entryDate, trade.tradingDay))
+
+  const setupNotes = daySetups
+    .filter((row) => row.notes)
+    .map((row) => (row.symbol ? `${row.symbol}: ${row.notes}` : row.notes))
+    .join('\n')
+
+  const [journalRow] = setupNotes
+    ? []
+    : await db
+        .select({ plan: journalEntries.plan })
+        .from(journalEntries)
+        .where(eq(journalEntries.entryDate, trade.tradingDay))
+        .limit(1)
 
   const facts = tradeFacts(trade, settings.timezone)
   const prompt = buildReviewPrompt({
     model,
     trade: facts,
-    journalPlan: journalRow?.plan ?? null,
+    journalPlan: setupNotes || (journalRow?.plan ?? null),
     feedback: await feedbackExamples(model.id),
   })
 

@@ -18,7 +18,6 @@ import {
   brokerConnections,
   executions,
   expenses,
-  journalEntries,
   modelReviews,
   payouts,
   propFirms,
@@ -1107,38 +1106,6 @@ export async function moveDocument(id: number, folderId: number | null): Promise
   })
 }
 
-// ---------------------------------------------------------------------------
-// Journal
-// ---------------------------------------------------------------------------
-
-export async function saveJournalEntry(formData: FormData): Promise<ActionResult> {
-  return guard(async () => {
-    const entryDate = String(formData.get('entryDate') ?? '')
-    if (!entryDate) throw new Error('A date is required.')
-
-    const values = {
-      entryDate,
-      plan: optionalText.parse(formData.get('plan') ?? ''),
-      review: optionalText.parse(formData.get('review') ?? ''),
-      marketNotes: optionalText.parse(formData.get('marketNotes') ?? ''),
-      lessons: optionalText.parse(formData.get('lessons') ?? ''),
-      mood: optionalNum.parse(formData.get('mood') ?? ''),
-      discipline: optionalNum.parse(formData.get('discipline') ?? ''),
-      sleepHours: optionalNum.parse(formData.get('sleepHours') ?? ''),
-      tags: splitList(formData.get('tags')),
-      updatedAt: new Date(),
-    }
-
-    await db
-      .insert(journalEntries)
-      .values(values)
-      .onConflictDoUpdate({ target: journalEntries.entryDate, set: values })
-
-    revalidatePath('/journal')
-    revalidatePath('/')
-    return 'Journal entry saved.'
-  })
-}
 
 // ---------------------------------------------------------------------------
 // Settings & connections
