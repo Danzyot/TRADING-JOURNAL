@@ -47,11 +47,10 @@ import {
   refreshInsights,
   saveSetup,
 } from '@/server/actions'
-import { listSetups, setupStats } from '@/server/setups'
+import { setupStats } from '@/server/setups'
 import { aiConfigured } from '@/server/ai'
 import { ImportForm } from './import-form'
-import { PnlCalendar } from './pnl-calendar'
-import { Setups } from './setups'
+import { DayView } from './day-view'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Journal — Trading Journal' }
@@ -113,20 +112,14 @@ export default async function TradesPage({
 
   // --- The journalling half: a day, its calendar, and the setups on it -----
   const todayStr = today(settings.timezone)
+  // `?date=` still opens a specific month, so a shared link lands in the right
+  // place; the day itself is picked in the dialog.
   const day = params.date ?? todayStr
   const daily = dailySeries(allTrades)
-  const dayStats = daily.find((point) => point.day === day)
   const month = /^\d{4}-\d{2}$/.test(params.month ?? '') ? params.month! : day.slice(0, 7)
   const calendarDays = new Map(
     daily.map((point) => [point.day, { netPnl: point.netPnl, trades: point.trades }]),
   )
-  const setups = await listSetups(day)
-
-  const shiftDay = (offset: number): string => {
-    const date = new Date(`${day}T00:00:00Z`)
-    date.setUTCDate(date.getUTCDate() + offset)
-    return date.toISOString().slice(0, 10)
-  }
 
   async function saveSetupAction(id: number | null, formData: FormData) {
     'use server'
@@ -287,47 +280,12 @@ export default async function TradesPage({
       )}
 
       <div className="mt-6">
-        <PnlCalendar
+        <DayView
           month={month}
           days={calendarDays}
           journaled={new Set(stats.days)}
           today={todayStr}
           ccy={ccy}
-        />
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-[var(--ink)]">{day}</h2>
-        <div className="flex items-center gap-2">
-          <Link
-            prefetch={false}
-            href={query({ date: shiftDay(-1) })}
-            className="btn px-2.5"
-            aria-label="Previous day"
-          >
-            ‹
-          </Link>
-          <Link
-            href={query({ date: undefined })}
-            className={day === todayStr ? 'btn pointer-events-none opacity-50' : 'btn'}
-          >
-            Today
-          </Link>
-          <Link
-            prefetch={false}
-            href={query({ date: shiftDay(1) })}
-            className={day >= todayStr ? 'btn pointer-events-none px-2.5 opacity-50' : 'btn px-2.5'}
-            aria-label="Next day"
-          >
-            ›
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-3">
-        <Setups
-          day={day}
-          setups={setups}
           models={models}
           saveAction={saveSetupAction}
           deleteAction={deleteSetupAction}
@@ -486,19 +444,15 @@ export default async function TradesPage({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CollapsibleCard
-          title="R multiples"
-          description="The shape of the edge, not just its average."
-          summary={metrics.avgR === null ? "no stops recorded" : `avg ${number(metrics.avgR, 2)}R`}
-        >
-          {rDistribution.length === 0 ? (
-            <p className="py-8 text-center text-xs text-[var(--ink-muted)]">
-              No stops recorded yet. Add a stop price on trades to unlock this.
-            </p>
-          ) : (
+        {metrics.avgR !== null && (
+          <CollapsibleCard
+            title="R multiples"
+            description="Every trade measured against what it risked: a 2R win made twice what the stop would have cost."
+            summary={`avg ${number(metrics.avgR, 2)}R`}
+          >
             <RDistributionChart data={rDistribution} height={220} />
-          )}
-        </CollapsibleCard>
+          </CollapsibleCard>
+        )}
 
         <CollapsibleCard
           title="Overview"

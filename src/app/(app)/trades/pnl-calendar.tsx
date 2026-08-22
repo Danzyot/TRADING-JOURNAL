@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { moneyCompact } from '@/lib/format'
 
 export type CalendarDay = { netPnl: number; trades: number }
@@ -17,8 +16,9 @@ export type CalendarDay = { netPnl: number; trades: number }
  * just to draw a different grid of the same data made flicking back through
  * the year feel like a page load each time — which it was.
  *
- * Picking a *day* is still a link: that one genuinely needs the server, since
- * the setups logged on it are loaded per day.
+ * Picking a day does not navigate either — it hands the date upward, and the
+ * caller opens that day in place. Re-rendering the entire journal to show a
+ * handful of rows was the same waste as paging the months.
  */
 export function PnlCalendar({
   month,
@@ -26,6 +26,7 @@ export function PnlCalendar({
   journaled,
   today,
   ccy,
+  onPickDay,
 }: {
   /** YYYY-MM */
   month: string
@@ -35,6 +36,8 @@ export function PnlCalendar({
   journaled: Set<string>
   today: string
   ccy: string
+  /** Called with a YYYY-MM-DD when a day cell is pressed. */
+  onPickDay: (date: string) => void
 }) {
   // Seeded from the server's month, and re-synced whenever it changes — the
   // server decides the month when a day is picked or a link is opened.
@@ -144,10 +147,10 @@ export function PnlCalendar({
                       : undefined
                     return (
                       <td key={dayIndex} className="p-0.5 align-top">
-                        <Link
-                          prefetch={false}
-                          href={`/trades?date=${date}`}
-                          className="block h-[4.25rem] rounded-md border p-1.5 transition-transform hover:scale-[1.03]"
+                        <button
+                          type="button"
+                          onClick={() => onPickDay(date)}
+                          className="block h-[4.25rem] w-full rounded-md border p-1.5 text-left transition-transform hover:scale-[1.03]"
                           style={{
                             background: tint ?? 'var(--surface-sunken)',
                             borderColor: date === today ? 'var(--accent)' : 'var(--line)',
@@ -176,7 +179,7 @@ export function PnlCalendar({
                               </span>
                             </>
                           )}
-                        </Link>
+                        </button>
                       </td>
                     )
                   })}
