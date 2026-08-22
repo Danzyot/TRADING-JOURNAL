@@ -39,7 +39,7 @@ export async function GET() {
       shortcuts: [
         { name: 'Log a trade', url: '/trades/new' },
         { name: 'Earnings and expenses', url: '/money' },
-        { name: 'Journal', url: '/journal' },
+        { name: 'Journal', url: '/trades' },
       ],
     },
     {

@@ -1474,7 +1474,7 @@ export async function saveSiteText(key: string, value: string): Promise<ActionRe
     revalidateAll()
     revalidatePath('/settings')
     revalidatePath('/import')
-    revalidatePath('/journal')
+    revalidatePath('/trades')
     return parsed.value.trim() === '' ? 'Original wording restored.' : 'Saved.'
   })
 }

@@ -47,6 +47,18 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
 
   const profile = settings.taxProfile!
   const rate = settings.usdIls
+  /**
+   * How old the rate is.
+   *
+   * It refreshes in the daily job, but that job fails quietly by design — a
+   * provider that is down must not zero the rate. Without showing the age, a
+   * refresh that stopped months ago looks exactly like one that ran this
+   * morning, while every shekel figure on the page drifts.
+   */
+  const fxAgeDays =
+    settings.fxUpdatedAt === null
+      ? null
+      : Math.floor((Date.now() - new Date(settings.fxUpdatedAt).getTime()) / 86_400_000)
   const toIls = (value: number): number => (settings.baseCurrency === 'ILS' ? value : value * rate)
 
   const monthsActive = monthsActiveIn(year, profile.businessOpenedOn)
@@ -216,7 +228,11 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
         </CollapsibleCard>
 
         {/* --- Profile ------------------------------------------------------ */}
-        <Card title="Your tax profile" description="Drives every figure on this page.">
+        <CollapsibleCard
+          title="Your tax profile"
+          description="Drives every figure on this page."
+          defaultOpen
+        >
           <ActionForm action={saveTaxProfile} className="space-y-3">
             <Field label="Business status">
               <select name="status" defaultValue={profile.status} className="select">
@@ -276,7 +292,19 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           </ActionForm>
 
           <div className="mt-4 space-y-0 border-t border-[var(--line)] pt-3">
-            <KeyValue label="USD → ILS rate used" value={rate.toFixed(3)} />
+            <KeyValue
+              label="USD → ILS rate used"
+              value={rate.toFixed(3)}
+              hint={
+                fxAgeDays === null
+                  ? 'never refreshed — set it in Settings, or check the daily job'
+                  : fxAgeDays <= 0
+                    ? 'refreshed today'
+                    : fxAgeDays > 7
+                      ? `${fxAgeDays} days old — the daily refresh has not run`
+                      : `refreshed ${fxAgeDays} day${fxAgeDays === 1 ? '' : 's'} ago`
+              }
+            />
             <KeyValue
               label="Osek patur ceiling"
               value={money(ceiling, 'ILS', 0)}
@@ -296,7 +324,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
             />
             <KeyValue label="VAT rate" value={percent(rates.vat.standardRate, 0)} />
           </div>
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- Status comparison ---------------------------------------------- */}
@@ -453,7 +481,9 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           </p>
         </CollapsibleCard>
 
-        <Card title="Reserve status" description="Against payouts actually received.">
+        <CollapsibleCard title="Reserve status" description="Against payouts actually received."
+  defaultOpen
+>
           <div className="space-y-0">
             <KeyValue label="Payouts received" value={money(summary.payoutsPaid, settings.baseCurrency, 0)} />
             <KeyValue label="Reserved so far" value={money(summary.taxReserved, settings.baseCurrency, 0)} />
@@ -512,7 +542,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
               ))}
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- What you can write off ---------------------------------------- */}
@@ -704,7 +734,9 @@ function GettingPaid({
         </div>
       </CollapsibleCard>
 
-      <Card title="The rails, priced" bodyClassName="p-0">
+      <CollapsibleCard title="The rails, priced" bodyClassName="p-0"
+  defaultOpen
+>
         <div className="scroll-x">
           <table className="data">
             <thead>
@@ -733,9 +765,9 @@ function GettingPaid({
           paying through Rise on stablecoin. Ask every firm whether a wire or crypto option exists before
           accepting the default.
         </p>
-      </Card>
+      </CollapsibleCard>
 
-      <Card title="Rules that pay for themselves" bodyClassName="p-0">
+      <CollapsibleCard title="Rules that pay for themselves" bodyClassName="p-0">
         <div className="scroll-x">
           <table className="data">
             <thead>
@@ -754,9 +786,9 @@ function GettingPaid({
             </tbody>
           </table>
         </div>
-      </Card>
+      </CollapsibleCard>
 
-      <Card title="Setting it up without getting frozen">
+      <CollapsibleCard title="Setting it up without getting frozen">
         <dl className="space-y-3">
           {SETUP_NOTES.map((note) => (
             <div key={note.title}>
@@ -772,7 +804,7 @@ function GettingPaid({
             </p>
           ))}
         </div>
-      </Card>
+      </CollapsibleCard>
     </>
   )
 }

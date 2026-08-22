@@ -1,25 +1,51 @@
 import Link from 'next/link'
+import { eq } from 'drizzle-orm'
+import { db } from '@/db'
+import { tradingModels } from '@/db/schema'
 import { Badge, Card, EmptyState, PageHeader, Pnl, Stat, StatGrid } from '@/components/ui'
 import { money, number, percent, rMultiple, shortDate } from '@/lib/format'
-import { computeMetrics } from '@/lib/analytics/metrics'
-import { secondsToHuman } from '@/lib/time'
+import { computeMetrics, dailySeries } from '@/lib/analytics/metrics'
+import { secondsToHuman, today } from '@/lib/time'
 import { getSettings } from '@/server/settings'
-import { listAccounts, listTrades, toTradeLike } from '@/server/trades'
+import { listAccounts, listTrades, listTradesForStats, toTradeLike } from '@/server/trades'
+import { acceptChartReading, deleteSetup, readSetupChart, saveSetup } from '@/server/actions'
+import { listSetups, setupStats } from '@/server/setups'
+import { aiConfigured } from '@/server/ai'
+import { PnlCalendar } from './pnl-calendar'
+import { Setups } from './setups'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Trades — Trading Journal' }
+export const metadata = { title: 'Journal — Trading Journal' }
 
 const PAGE_SIZE = 100
 
 export default async function TradesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; symbol?: string; from?: string; to?: string; page?: string }>
+  searchParams: Promise<{
+    account?: string
+    symbol?: string
+    from?: string
+    to?: string
+    page?: string
+    date?: string
+    month?: string
+  }>
 }) {
   const params = await searchParams
   const page = Math.max(0, Number(params.page ?? 0) || 0)
 
-  const [settings, accounts] = await Promise.all([getSettings(), listAccounts()])
+  const [settings, accounts, allTrades, stats, models] = await Promise.all([
+    getSettings(),
+    listAccounts(),
+    listTradesForStats(),
+    setupStats(),
+    db
+      .select({ id: tradingModels.id, name: tradingModels.name })
+      .from(tradingModels)
+      .where(eq(tradingModels.active, true))
+      .orderBy(tradingModels.name),
+  ])
   const accountId = params.account ? Number(params.account) : undefined
 
   const rows = await listTrades({
@@ -37,6 +63,40 @@ export default async function TradesPage({
   const accountName = (id: number): string => accounts.find((a) => a.id === id)?.label ?? `#${id}`
   const ccy = settings.baseCurrency
 
+  // --- The journalling half: a day, its calendar, and the setups on it -----
+  const todayStr = today(settings.timezone)
+  const day = params.date ?? todayStr
+  const daily = dailySeries(allTrades)
+  const dayStats = daily.find((point) => point.day === day)
+  const month = /^\d{4}-\d{2}$/.test(params.month ?? '') ? params.month! : day.slice(0, 7)
+  const calendarDays = new Map(
+    daily.map((point) => [point.day, { netPnl: point.netPnl, trades: point.trades }]),
+  )
+  const setups = await listSetups(day)
+
+  const shiftDay = (offset: number): string => {
+    const date = new Date(`${day}T00:00:00Z`)
+    date.setUTCDate(date.getUTCDate() + offset)
+    return date.toISOString().slice(0, 10)
+  }
+
+  async function saveSetupAction(id: number | null, formData: FormData) {
+    'use server'
+    return saveSetup(id, formData)
+  }
+  async function deleteSetupAction(id: number) {
+    'use server'
+    return deleteSetup(id)
+  }
+  async function readChartAction(id: number) {
+    'use server'
+    return readSetupChart(id)
+  }
+  async function acceptReadingAction(id: number) {
+    'use server'
+    return acceptChartReading(id)
+  }
+
   const query = (overrides: Record<string, string | undefined>): string => {
     const next = new URLSearchParams()
     for (const [key, value] of Object.entries({ ...params, ...overrides })) {
@@ -49,8 +109,8 @@ export default async function TradesPage({
   return (
     <>
       <PageHeader
-        title="Trades"
-        subtitle="Every round trip, built from your fills. Click one to journal it."
+        title="Journal"
+        subtitle="Every trade you took: the setups you logged, and the round trips built from your fills."
         actions={
           <Link href="/trades/new" className="btn btn-primary">
             Log a trade
@@ -75,6 +135,57 @@ export default async function TradesPage({
           />
         </Card>
       </StatGrid>
+
+      <div className="mt-6">
+        <PnlCalendar
+          month={month}
+          days={calendarDays}
+          journaled={new Set(stats.days)}
+          today={todayStr}
+          ccy={ccy}
+        />
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-[var(--ink)]">{day}</h2>
+        <div className="flex items-center gap-2">
+          <Link
+            prefetch={false}
+            href={query({ date: shiftDay(-1) })}
+            className="btn px-2.5"
+            aria-label="Previous day"
+          >
+            ‹
+          </Link>
+          <Link
+            href={query({ date: undefined })}
+            className={day === todayStr ? 'btn pointer-events-none opacity-50' : 'btn'}
+          >
+            Today
+          </Link>
+          <Link
+            prefetch={false}
+            href={query({ date: shiftDay(1) })}
+            className={day >= todayStr ? 'btn pointer-events-none px-2.5 opacity-50' : 'btn px-2.5'}
+            aria-label="Next day"
+          >
+            ›
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <Setups
+          day={day}
+          setups={setups}
+          models={models}
+          saveAction={saveSetupAction}
+          deleteAction={deleteSetupAction}
+          readAction={readChartAction}
+          acceptAction={acceptReadingAction}
+          aiConfigured={aiConfigured()}
+        />
+      </div>
 
       <form method="get" className="card mt-6 flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-[180px] flex-1">
