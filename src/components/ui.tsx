@@ -93,6 +93,7 @@ export function Card({
  * without any of that being written here.
  */
 export function CollapsibleCard({
+  id,
   title,
   description,
   summary,
@@ -101,6 +102,8 @@ export function CollapsibleCard({
   className,
   bodyClassName,
 }: {
+  /** Set it to link to this section — see `OpenOnHash`. */
+  id?: string
   title: string
   description?: string
   /**
@@ -119,6 +122,7 @@ export function CollapsibleCard({
 }) {
   return (
     <details
+      id={id}
       // `self-start` because a folded card sitting in a grid row would
       // otherwise stretch to the height of whatever is beside it, leaving a
       // tall empty box under its own heading.

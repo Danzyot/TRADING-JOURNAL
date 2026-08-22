@@ -5,7 +5,6 @@ import { importBatches, tradingModels } from '@/db/schema'
 import { EquityChart, RankedBarChart } from '@/components/charts'
 import {
   Badge,
-  BarRow,
   Card,
   CollapsibleCard,
   EmptyState,
@@ -20,17 +19,14 @@ import {
   byDirection,
   byDuration,
   byHour,
-  byMistake,
   bySession,
   bySetup,
   bySize,
   bySymbol,
-  byTag,
   byWeekday,
   computeMetrics,
   dailySeries,
   equityCurve,
-  mistakeCost,
   type Bucket,
 } from '@/lib/analytics/metrics'
 import { secondsToHuman, today } from '@/lib/time'
@@ -46,6 +42,7 @@ import { setupStats } from '@/server/setups'
 import { aiConfigured } from '@/server/ai'
 import { ImportForm } from './import-form'
 import { DayView } from './day-view'
+import { OpenOnHash } from '@/components/open-on-hash'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Journal — Trading Journal' }
@@ -151,14 +148,7 @@ export default async function TradesPage({
     },
     { title: 'By hold time', description: 'How long you stay in.', buckets: byDuration(allTrades) },
     { title: 'By setup', description: 'Requires setups to be recorded on trades.', buckets: bySetup(allTrades) },
-    { title: 'By tag', description: 'Requires tags to be recorded on trades.', buckets: byTag(allTrades) },
-    {
-      title: 'By mistake',
-      description: 'Requires mistakes to be tagged on trades.',
-      buckets: byMistake(allTrades),
-    },
   ]
-  const mistakes = mistakeCost(allTrades)
 
   // One figure per folded section, so a closed header still answers its own
   // question. `equityCurve` is cumulative net P&L, so its peak is the
@@ -166,7 +156,6 @@ export default async function TradesPage({
   // account sits right now.
   const curve = equityCurve(allTrades)
   const peak = curve.length ? Math.max(...curve.map((point) => point.equity)) : 0
-  const mistakeTotal = mistakes.reduce((sum, entry) => sum + entry.cost, 0)
   const bestBucket = (buckets: Bucket[]): string => {
     const ranked = [...buckets].sort((a, b) => b.netPnl - a.netPnl)[0]
     return ranked ? `${ranked.label} ${signed(ranked.netPnl, ccy, 0)}` : '—'
@@ -290,7 +279,7 @@ export default async function TradesPage({
             <EmptyState
               title="No trades match"
               body="Import a CSV export or connect a broker, then trades appear here automatically."
-              action={{ href: '/trades', label: 'Import trades' }}
+              action={{ href: '/trades#import', label: 'Import trades' }}
             />
           ) : (
             <div className="scroll-x">
@@ -461,27 +450,6 @@ export default async function TradesPage({
         </CollapsibleCard>
       </div>
 
-      {mistakes.length > 0 && (
-        <div className="mt-4">
-          <CollapsibleCard
-            title="Cost of mistakes"
-            description="Measured against what a clean trade returned over the same period."
-            summary={money(mistakeTotal, ccy, 0)}
-          >
-            {mistakes.map((entry) => (
-              <BarRow
-                key={entry.mistake}
-                label={entry.mistake}
-                value={entry.cost}
-                max={Math.max(...mistakes.map((m) => Math.abs(m.cost)), 1)}
-                currency={ccy}
-                sublabel={`${entry.trades} trades`}
-              />
-            ))}
-          </CollapsibleCard>
-        </div>
-      )}
-
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {breakdowns
           .filter((breakdown) => breakdown.buckets.length > 0)
@@ -532,9 +500,13 @@ export default async function TradesPage({
           ))}
       </div>
 
+      {/* Lets /trades#import arrive with the section already open. */}
+      <OpenOnHash />
+
       {/* --- Getting trades in -------------------------------------------- */}
       <div className="mt-4">
         <CollapsibleCard
+          id="import"
           title="Import trades"
           description="From any platform's CSV export. Safe to re-run — anything already stored is skipped. The trade watcher in Settings does this from a folder on your computer, automatically."
           summary={batches.length === 0 ? "nothing imported yet" : `${batches.length} imports`}

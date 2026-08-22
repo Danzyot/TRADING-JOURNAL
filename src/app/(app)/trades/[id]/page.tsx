@@ -16,18 +16,6 @@ import { listAccounts } from '@/server/trades'
 
 export const dynamic = 'force-dynamic'
 
-const COMMON_MISTAKES = [
-  'moved stop',
-  'no stop',
-  'oversized',
-  'chased entry',
-  'early exit',
-  'revenge trade',
-  'traded outside plan',
-  'held through news',
-  'averaged down',
-]
-
 export default async function TradeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const tradeId = Number(id)
@@ -267,8 +255,8 @@ export default async function TradeDetailPage({ params }: { params: Promise<{ id
                   <p className="text-xs leading-relaxed text-[var(--ink-secondary)]">
                     Not reviewed yet.
                     {!aiConfigured() && ' Set ANTHROPIC_API_KEY in Vercel to enable the check.'}
-                    {!trade.screenshotUrl &&
-                      ' Tip: paste a chart screenshot URL below first — the AI then reads the chart itself against your entry rules.'}
+                    {!trade.screenshot &&
+                      ' Tip: attach the chart below first — the AI then reads it against your entry rules.'}
                   </p>
                 )}
                 <div className="mt-3">
@@ -287,11 +275,14 @@ export default async function TradeDetailPage({ params }: { params: Promise<{ id
             )}
           </Card>
 
-          {trade.screenshotUrl && (
+          {(trade.screenshot || trade.screenshotUrl) && (
             <Card title="Chart">
+              {/* Served by an authenticated route from the encrypted bytes.
+                  `screenshotUrl` is what old trades have — a link typed in
+                  before charts could be attached. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={trade.screenshotUrl}
+                src={trade.screenshot ? `/api/trades/${tradeId}/screenshot` : (trade.screenshotUrl as string)}
                 alt="Trade chart screenshot"
                 className="w-full rounded-lg border border-[var(--line)]"
               />
@@ -301,7 +292,7 @@ export default async function TradeDetailPage({ params }: { params: Promise<{ id
 
         <Card
           title="Journal this trade"
-          description="Recording the stop unlocks R. Naming the mistake is what makes the pattern visible later."
+          description="Recording the stop unlocks R — everything else here is for you to read later."
         >
           <ActionForm
             action={async (formData) => {
@@ -310,26 +301,15 @@ export default async function TradeDetailPage({ params }: { params: Promise<{ id
             }}
             className="space-y-3"
           >
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Stop price" hint="What you actually risked">
-                <input
-                  name="stopPrice"
-                  type="number"
-                  step="any"
-                  defaultValue={trade.stopPrice ?? ''}
-                  className="input"
-                />
-              </Field>
-              <Field label="Target price">
-                <input
-                  name="targetPrice"
-                  type="number"
-                  step="any"
-                  defaultValue={trade.targetPrice ?? ''}
-                  className="input"
-                />
-              </Field>
-            </div>
+            <Field label="Stop price" hint="What you actually risked">
+              <input
+                name="stopPrice"
+                type="number"
+                step="any"
+                defaultValue={trade.stopPrice ?? ''}
+                className="input"
+              />
+            </Field>
 
             <Field label="Model" hint="Which of your written setups this trade claims to be">
               <select name="modelId" defaultValue={trade.modelId ?? ''} className="select">
@@ -346,41 +326,24 @@ export default async function TradeDetailPage({ params }: { params: Promise<{ id
               <input name="setup" defaultValue={trade.setup ?? ''} className="input" />
             </Field>
 
-            <Field label="Tags" hint="Comma separated">
-              <input name="tags" defaultValue={trade.tags.join(', ')} className="input" />
-            </Field>
-
-            <Field label="Mistakes" hint={`Comma separated. Common: ${COMMON_MISTAKES.slice(0, 4).join(', ')}`}>
-              <input name="mistakes" defaultValue={trade.mistakes.join(', ')} className="input" list="mistake-list" />
-              <datalist id="mistake-list">
-                {COMMON_MISTAKES.map((mistake) => (
-                  <option key={mistake} value={mistake} />
-                ))}
-              </datalist>
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Execution score" hint="1–5, how well you followed the plan">
-                <input
-                  name="execScore"
-                  type="number"
-                  min="1"
-                  max="5"
-                  defaultValue={trade.execScore ?? ''}
-                  className="input"
-                />
-              </Field>
-              <Field label="Emotion">
-                <input name="emotion" defaultValue={trade.emotion ?? ''} className="input" placeholder="calm, rushed…" />
-              </Field>
-            </div>
-
             <Field label="Notes">
               <textarea name="notes" rows={5} defaultValue={trade.notes ?? ''} className="textarea" />
             </Field>
 
-            <Field label="Screenshot URL" hint="Paste a TradingView snapshot link">
-              <input name="screenshotUrl" defaultValue={trade.screenshotUrl ?? ''} className="input" />
+            <Field
+              label="Chart screenshot"
+              hint={
+                trade.screenshot
+                  ? 'Choosing a new file replaces the one above'
+                  : 'PNG, JPEG or WebP · stored encrypted'
+              }
+            >
+              <input
+                name="screenshot"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="input"
+              />
             </Field>
 
             <SubmitButton>Save</SubmitButton>

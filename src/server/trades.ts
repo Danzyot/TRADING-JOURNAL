@@ -12,6 +12,7 @@ import {
 } from '@/db/schema'
 import { matchExecutions, rMultiple, type MatchExecution } from '@/lib/analytics/matching'
 import { dailySeries, type TradeLike } from '@/lib/analytics/metrics'
+import { decryptBytes } from '@/lib/crypto'
 
 /**
  * Rebuilds an account's trades from its executions.
@@ -371,4 +372,24 @@ export async function countTrades(filters: TradeFilters = {}): Promise<number> {
     .from(trades)
     .where(conditions.length ? and(...conditions) : undefined)
   return row?.count ?? 0
+}
+
+/**
+ * One trade's chart, decrypted, for the authenticated route that serves it.
+ *
+ * Mirrors the setup version deliberately rather than sharing it: the two read
+ * different tables, and a single "read a screenshot from anywhere" helper is
+ * the kind of thing that later grows a caller with an unchecked id.
+ */
+export async function readTradeScreenshot(
+  id: number,
+): Promise<{ data: Buffer; type: string } | null> {
+  const [row] = await db
+    .select({ data: trades.screenshot, type: trades.screenshotType })
+    .from(trades)
+    .where(eq(trades.id, id))
+    .limit(1)
+
+  if (!row?.data) return null
+  return { data: decryptBytes(Buffer.from(row.data)), type: row.type ?? 'application/octet-stream' }
 }

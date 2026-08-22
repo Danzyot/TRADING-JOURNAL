@@ -127,7 +127,7 @@ export default async function SettingsPage() {
             <EmptyState
               title="No connections"
               body="Tradovate is the only broker here with a usable retail API. Rithmic licenses R|API+ through your FCM under a professional agreement, and Tradecopia connects outward to brokers rather than offering an API to you — for both, use CSV import."
-              action={{ href: '/trades', label: 'Import a CSV instead' }}
+              action={{ href: '/trades#import', label: 'Import a CSV instead' }}
             />
           ) : (
             // Bordered rows rather than nested cards: a card inside a card

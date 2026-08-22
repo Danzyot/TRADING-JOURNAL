@@ -60,7 +60,7 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
         setup.connections > 0
           ? 'Your broker connection is set up — press Sync brokers, or import a CSV for the history it cannot reach.'
           : 'Import a CSV export from Tradovate, Rithmic or NinjaTrader — or connect Tradovate in Settings for automatic sync.',
-      href: '/trades',
+      href: '/trades#import',
       linkLabel: 'Import trades',
     },
     {

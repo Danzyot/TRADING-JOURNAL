@@ -58,7 +58,9 @@ export function TradeForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* The three prices sit together: entry, exit and the stop are read as one
+          line when you check a trade, and the stop is what makes R possible. */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Field label="Direction">
           <select name="direction" className="select" required defaultValue={trade?.direction}>
             <option value="long">Long</option>
@@ -71,8 +73,11 @@ export function TradeForm({
         <Field label="Entry price">
           <input name="avgEntry" type="number" step="any" className="input" required defaultValue={trade?.avgEntry} />
         </Field>
-        <Field label="Exit price" hint="Leave blank if still open">
+        <Field label="Exit price" hint="Blank if still open">
           <input name="avgExit" type="number" step="any" className="input" defaultValue={trade?.avgExit ?? ''} />
+        </Field>
+        <Field label="Stop price" hint="What you risked — this is what makes R possible">
+          <input name="stopPrice" type="number" step="any" className="input" defaultValue={trade?.stopPrice ?? ''} />
         </Field>
       </div>
 
@@ -85,28 +90,13 @@ export function TradeForm({
         </Field>
       </div>
 
+      {/* No commission box: the rate is the same every round turn, so it comes
+          off the account rather than being typed sixty times a month. */}
+      <Field label="Net P&L" hint="After costs. Negative for a loss.">
+        <input name="netPnl" type="number" step="any" className="input" required defaultValue={trade?.netPnl} />
+      </Field>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Net P&L" hint="After costs. Negative for a loss.">
-          <input name="netPnl" type="number" step="any" className="input" required defaultValue={trade?.netPnl} />
-        </Field>
-        <Field label="Commission">
-          <input name="commission" type="number" step="any" defaultValue={trade?.commission ?? 0} className="input" />
-        </Field>
-        <Field label="Fees">
-          <input name="fees" type="number" step="any" defaultValue={trade?.fees ?? 0} className="input" />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Stop price" hint="Records what you risked, which is what makes R possible">
-          <input name="stopPrice" type="number" step="any" className="input" defaultValue={trade?.stopPrice ?? ''} />
-        </Field>
-        <Field label="Target price">
-          <input name="targetPrice" type="number" step="any" className="input" defaultValue={trade?.targetPrice ?? ''} />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Model" hint="Your written setup — the AI reviews the trade against it">
           <select name="modelId" className="select" defaultValue={trade?.modelId ?? ''}>
             <option value="">No model</option>
@@ -120,23 +110,16 @@ export function TradeForm({
         <Field label="Setup">
           <input name="setup" className="input" placeholder="ORB, VWAP reclaim…" defaultValue={trade?.setup ?? ''} />
         </Field>
-        <Field label="Tags" hint="Comma separated">
-          <input name="tags" className="input" defaultValue={trade?.tags?.join(', ') ?? ''} />
-        </Field>
-        <Field label="Mistakes" hint="Comma separated">
-          <input name="mistakes" className="input" defaultValue={trade?.mistakes?.join(', ') ?? ''} />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Execution score" hint="1–5">
-          <input name="execScore" type="number" min="1" max="5" className="input" defaultValue={trade?.execScore ?? ''} />
-        </Field>
-        <Field label="Emotion">
-          <input name="emotion" className="input" defaultValue={trade?.emotion ?? ''} />
-        </Field>
-        <Field label="Screenshot URL">
-          <input name="screenshotUrl" className="input" defaultValue={trade?.screenshotUrl ?? ''} />
+        {/* The file itself, not a link to one: an image host is somebody else's
+            server, and this is a picture of a funded account's ticket. It is
+            encrypted at rest like the documents are. */}
+        <Field label="Chart screenshot" hint="PNG, JPEG or WebP · stored encrypted">
+          <input
+            name="screenshot"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="input"
+          />
         </Field>
       </div>
 

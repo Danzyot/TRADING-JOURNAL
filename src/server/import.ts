@@ -16,6 +16,7 @@ import { db } from '@/db'
 import { accounts, importBatches, trades, type NewExecution } from '@/db/schema'
 import { parseCsv, SOURCE_LABELS, type ImportSource } from '@/lib/integrations/importers'
 import { rMultiple } from '@/lib/analytics/matching'
+import { DEMO_REFUSAL, demoMode } from '@/lib/demo'
 import { getSettings } from './settings'
 import { insertExecutions, rebuildTradesForAccount, rollupDailyStats } from './trades'
 
@@ -34,6 +35,25 @@ export type ImportReport = {
 }
 
 export async function importCsvFile(formData: FormData): Promise<ImportReport> {
+  // Every other mutation is refused through `guard()`; this one has its own
+  // report shape, so it refuses here. A read-only demo that quietly accepts a
+  // CSV is not read-only.
+  if (demoMode()) {
+    return {
+      ok: false,
+      message: DEMO_REFUSAL,
+      source: 'demo',
+      shape: 'executions',
+      rowsSeen: 0,
+      rowsImported: 0,
+      rowsSkipped: 0,
+      tradesBuilt: 0,
+      duplicates: 0,
+      errors: [],
+      unmappedHeaders: [],
+    }
+  }
+
   const empty: ImportReport = {
     ok: false,
     message: '',
