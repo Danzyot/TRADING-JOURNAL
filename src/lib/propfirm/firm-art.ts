@@ -38,9 +38,7 @@ const ART: Record<string, FirmArt> = {
     wordmark: '/firms/alpha-futures-wordmark.png',
   },
   tradeify: { mark: '/firms/tradeify-mark.png', wordmark: '/firms/tradeify-wordmark.jpeg' },
-  // Only a wordmark exists for this one, so its cards keep the monogram rather
-  // than shrinking a wide logo into a 44px circle where it reads as a smudge.
-  topstep: { wordmark: '/firms/topstep-wordmark.png' },
+  topstep: { mark: '/firms/topstep-mark.png', wordmark: '/firms/topstep-wordmark.png' },
 }
 
 /**

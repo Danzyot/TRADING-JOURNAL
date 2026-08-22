@@ -9,7 +9,14 @@ const nextConfig: NextConfig = {
   // explicitly — otherwise the serverless bundle ships without it and the
   // database never gets created.
   outputFileTracingIncludes: {
-    '/**': ['./drizzle/**/*'],
+    '/**': [
+      './drizzle/**/*',
+      // The demo runs Postgres in-process (see src/db/index.ts). Its WebAssembly
+      // and data files are loaded by path at runtime, which the tracer cannot
+      // see, so a serverless bundle would ship the package without the database
+      // inside it.
+      './node_modules/@electric-sql/pglite/dist/*',
+    ],
     // The Settings page serves the local trade watcher for download.
     '/api/watcher/script': ['./tools/watcher.mjs'],
   },
@@ -17,7 +24,9 @@ const nextConfig: NextConfig = {
   // `postgres` is a Node driver that imports `net` and `tls`. Middleware runs on
   // the edge runtime, where bundling those fails. Marking it external keeps the
   // driver out of every bundle and lets Node require it directly at runtime.
-  serverExternalPackages: ['postgres'],
+  // `@electric-sql/pglite` is a WebAssembly module that reads its own files
+  // from disk; bundling it breaks both.
+  serverExternalPackages: ['postgres', '@electric-sql/pglite'],
 
   experimental: {
     // Server Actions handle every mutation in this app; imports can be chunky.

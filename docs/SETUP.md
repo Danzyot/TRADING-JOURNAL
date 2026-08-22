@@ -106,10 +106,10 @@ account.
 
 ## Want to show the app to someone without giving them the password?
 
-Deploy a second copy in demo mode: no sign-in, every save refused, its own
-database seeded with the sample data above, and a **View demo** button under
-your own password field. It takes about five minutes and is written up in
-[DEMO.md](DEMO.md).
+Deploy a second copy in demo mode: no sign-in, every save refused, and a
+**View demo** button under your own password field. It needs one environment
+variable and no database of its own — it runs Postgres inside the function and
+seeds it with the sample data above. Written up in [DEMO.md](DEMO.md).
 
 ---
 

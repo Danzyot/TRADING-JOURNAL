@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { db } from './index'
-import { shouldSeedDemo } from '../lib/demo'
+import { rowsOf } from './rows'
+import { demoMode, shouldSeedDemo } from '../lib/demo'
 
 /**
  * Brings an empty database up to date on its own.
@@ -77,21 +78,21 @@ async function seedDemoIfEmpty(): Promise<void> {
 
   let locked = false
   try {
-    const existing = await db.execute<{ count: number }>(
-      sql`select count(*)::int as count from accounts`,
+    const existing = rowsOf<{ count: number }>(
+      await db.execute(sql`select count(*)::int as count from accounts`),
     )
     if (Number(existing[0]?.count ?? 0) > 0) return
 
     // Several cold starts can race on a first deploy; whoever loses simply
     // leaves it to the winner rather than seeding a second copy.
-    const rows = await db.execute<{ locked: boolean }>(
-      sql`select pg_try_advisory_lock(${SEED_LOCK_KEY}) as locked`,
+    const rows = rowsOf<{ locked: boolean }>(
+      await db.execute(sql`select pg_try_advisory_lock(${SEED_LOCK_KEY}) as locked`),
     )
     locked = Boolean(rows[0]?.locked)
     if (!locked) return
 
-    const again = await db.execute<{ count: number }>(
-      sql`select count(*)::int as count from accounts`,
+    const again = rowsOf<{ count: number }>(
+      await db.execute(sql`select count(*)::int as count from accounts`),
     )
     if (Number(again[0]?.count ?? 0) > 0) return
 
@@ -111,7 +112,10 @@ async function seedDemoIfEmpty(): Promise<void> {
 }
 
 async function run(): Promise<BootstrapResult> {
-  if (!process.env.DATABASE_URL) {
+  // A demo with no DATABASE_URL runs Postgres inside the process, and that
+  // database starts empty every time — so it is the one case where there is
+  // always migrating to do.
+  if (!process.env.DATABASE_URL && !demoMode()) {
     return {
       ok: false,
       migrated: false,
@@ -148,8 +152,8 @@ async function run(): Promise<BootstrapResult> {
     // case in a race is an "already exists" error, which is handled below as a
     // healthy database.
     for (let attempt = 0; attempt < 20 && !locked; attempt++) {
-      const rows = await db.execute<{ locked: boolean }>(
-        sql`select pg_try_advisory_lock(${LOCK_KEY}) as locked`,
+      const rows = rowsOf<{ locked: boolean }>(
+        await db.execute(sql`select pg_try_advisory_lock(${LOCK_KEY}) as locked`),
       )
       locked = Boolean(rows[0]?.locked)
       if (!locked) {
@@ -161,7 +165,7 @@ async function run(): Promise<BootstrapResult> {
     }
 
     const before = await appliedCount()
-    await migrate(db, { migrationsFolder: folder })
+    await applyMigrations(folder)
     const after = await appliedCount()
     const migrated = after > before
 
@@ -194,10 +198,28 @@ async function run(): Promise<BootstrapResult> {
   }
 }
 
+/**
+ * Runs the migrations with whichever migrator matches the live driver.
+ *
+ * Drizzle ships one per driver and they are not interchangeable — the
+ * postgres-js migrator opens its own connection, which the in-process database
+ * does not have.
+ */
+async function applyMigrations(folder: string): Promise<void> {
+  if (!process.env.DATABASE_URL && demoMode()) {
+    const { migrate: migratePglite } = await import('drizzle-orm/pglite/migrator')
+    // Same shape, different driver; see the cast in src/db/index.ts.
+    await migratePglite(db as never, { migrationsFolder: folder })
+    return
+  }
+
+  await migrate(db, { migrationsFolder: folder })
+}
+
 async function appliedCount(): Promise<number> {
   try {
-    const rows = await db.execute<{ count: number }>(
-      sql`select count(*)::int as count from drizzle.__drizzle_migrations`,
+    const rows = rowsOf<{ count: number }>(
+      await db.execute(sql`select count(*)::int as count from drizzle.__drizzle_migrations`),
     )
     return Number(rows[0]?.count ?? 0)
   } catch {

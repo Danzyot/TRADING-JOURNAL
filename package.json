@@ -21,6 +21,7 @@
     "push:keys": "node -e \"const w=require('web-push');const k=w.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey)\""
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.6",
     "@neondatabase/serverless": "^0.10.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

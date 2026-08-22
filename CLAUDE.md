@@ -67,9 +67,12 @@ through.
 - **The demo is a separate deployment, never a request-time switch.**
   `DEMO_MODE=1` makes a deployment public and read-only (`guard()` in
   `actions.ts` refuses every mutation, the middleware skips the session gate,
-  and `bootstrap.ts` seeds that deployment's own empty database). The owner's
-  data is protected by the process boundary, not by a flag on the request —
-  keep it that way. See docs/DEMO.md.
+  and `bootstrap.ts` migrates and seeds it). With no `DATABASE_URL` it runs
+  PGlite — Postgres in WebAssembly — inside the process, so a demo needs no
+  database and holds no credentials. The owner's data is protected by the
+  process boundary, not by a flag on the request — keep it that way. Raw
+  `db.execute` results differ between the two drivers: read them through
+  `rowsOf()`. See docs/DEMO.md.
 - **Email automation is rules-first.** `src/lib/email/parse.ts` is pure and
   tested against real messages; the AI pass only sees what the rules could not
   read. Every event is deduped on the email's Message-ID in `email_events`, so

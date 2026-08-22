@@ -15,9 +15,9 @@ describe('firm logos', () => {
     expect(firmArt('FundedNext Futures').mark).toBe(firmArt('FundedNext').mark)
   })
 
-  it('gives a wordmark-only firm no mark, rather than a wide logo in a circle', () => {
+  it('has both shapes for Topstep', () => {
     expect(firmArt('Topstep').wordmark).toBe('/firms/topstep-wordmark.png')
-    expect(firmArt('Topstep').mark).toBeUndefined()
+    expect(firmArt('Topstep').mark).toBe('/firms/topstep-mark.png')
   })
 
   it('has nothing for a firm nobody sent a logo for', () => {
@@ -32,7 +32,16 @@ describe('firm logos', () => {
   })
 
   it('points every entry at a file under /firms/', () => {
-    for (const name of ['Lucid', 'MFFU', 'Apex', 'TPT', 'FundedNext', 'Alpha Futures', 'Tradeify']) {
+    for (const name of [
+      'Lucid',
+      'MFFU',
+      'Apex',
+      'TPT',
+      'FundedNext',
+      'Alpha Futures',
+      'Tradeify',
+      'Topstep',
+    ]) {
       const art = firmArt(name)
       expect(art.mark).toMatch(/^\/firms\/[\w-]+\.(png|jpeg|webp)$/)
       expect(art.wordmark).toMatch(/^\/firms\/[\w-]+\.(png|jpeg|webp)$/)
