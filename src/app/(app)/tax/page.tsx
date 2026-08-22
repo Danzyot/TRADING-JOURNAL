@@ -86,6 +86,12 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
   const ceiling = prorateCeiling(rates.vat.osekPaturCeiling, monthsActive)
   const schedule = advanceSchedule(breakdown.totalTax)
 
+  // The liability in the currency the page is reporting in, and how much of it
+  // is not yet set aside. Both were computed inline three times.
+  const liabilityBase =
+    settings.baseCurrency === 'ILS' ? breakdown.totalTax : breakdown.totalTax / rate
+  const shortfall = Math.max(0, liabilityBase - summary.taxReserved)
+
   return (
     <>
       <PageHeader
@@ -231,7 +237,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
         <CollapsibleCard
           title="Your tax profile"
           description="Drives every figure on this page."
-          defaultOpen
+          summary={STATUS_LABELS[breakdown.status]}
         >
           <ActionForm action={saveTaxProfile} className="space-y-3">
             <Field label="Business status">
@@ -481,40 +487,29 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           </p>
         </CollapsibleCard>
 
-        <CollapsibleCard title="Reserve status" description="Against payouts actually received."
-  defaultOpen
->
+        {/* The header carries the figure this section exists to answer: what is
+            owed and not yet put aside. */}
+        <CollapsibleCard
+          title="Reserve status"
+          description="Against payouts actually received."
+          summary={
+            shortfall > 0
+              ? `${money(shortfall, settings.baseCurrency, 0)} short`
+              : 'Fully reserved'
+          }
+        >
           <div className="space-y-0">
             <KeyValue label="Payouts received" value={money(summary.payoutsPaid, settings.baseCurrency, 0)} />
             <KeyValue label="Reserved so far" value={money(summary.taxReserved, settings.baseCurrency, 0)} />
             <KeyValue
               label="Estimated liability"
-              value={money(
-                settings.baseCurrency === 'ILS' ? breakdown.totalTax : breakdown.totalTax / rate,
-                settings.baseCurrency,
-                0,
-              )}
+              value={money(liabilityBase, settings.baseCurrency, 0)}
             />
             <KeyValue
               label="Shortfall"
               value={
-                <span
-                  className={
-                    summary.taxReserved <
-                    (settings.baseCurrency === 'ILS' ? breakdown.totalTax : breakdown.totalTax / rate)
-                      ? 'text-[var(--critical)]'
-                      : 'text-[var(--good-text)]'
-                  }
-                >
-                  {money(
-                    Math.max(
-                      0,
-                      (settings.baseCurrency === 'ILS' ? breakdown.totalTax : breakdown.totalTax / rate) -
-                        summary.taxReserved,
-                    ),
-                    settings.baseCurrency,
-                    0,
-                  )}
+                <span className={shortfall > 0 ? 'text-[var(--critical)]' : 'text-[var(--good-text)]'}>
+                  {money(shortfall, settings.baseCurrency, 0)}
                 </span>
               }
             />
