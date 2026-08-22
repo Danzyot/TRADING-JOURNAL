@@ -111,6 +111,85 @@ const catalogues = [...byFirm.entries()]
   .filter(([slug]) => FIRMS[slug])
   .map(([slug, plans]) => ({ ...FIRMS[slug], slug, plans }))
 
+/**
+ * Firms the spec sheets do not cover, entered by hand from the firm's own
+ * rules pages. Merged here so regenerating from the sheets never drops them.
+ */
+type ManualSize = {
+  size: number
+  profitTarget?: number | null
+  maxDrawdown?: number | null
+  maxContracts?: number | null
+  buffer?: number | null
+  cost?: number | null
+  /**
+   * Overrides for the handful of rules a firm varies by size rather than by
+   * family — MFFU's Builder asks $250 at 25K and $500 at 50K, and only the
+   * 50K carries a funded daily drawdown. Anything absent falls back to the
+   * family's `common` block.
+   */
+  minPayout?: string | null
+  dailyLossLimit?: number | null
+  consistencyPercent?: number | null
+  /** Appended to the family notes, for rules that only apply at this size. */
+  notes?: string | null
+}
+type ManualFamily = {
+  family: string
+  sizes: ManualSize[]
+  common: Record<string, unknown> & { microRatio?: number }
+}
+
+const manualPath = 'scripts/manual-catalogues.json'
+if (existsSync(manualPath)) {
+  const manual: Record<string, { name: string; website: string; plans: ManualFamily[] }> = JSON.parse(
+    readFileSync(manualPath, 'utf8'),
+  )
+
+  for (const [slug, firm] of Object.entries(manual)) {
+    if (slug.startsWith('_')) continue
+    const plans: FirmPlan[] = []
+
+    for (const family of firm.plans) {
+      const { microRatio, ...common } = family.common
+      for (const size of family.sizes) {
+        plans.push({
+          label: `${family.family} $${Math.round(size.size / 1000)}k`,
+          phase: 'eval',
+          size: size.size,
+          maxDrawdown: size.maxDrawdown ?? null,
+          drawdownType: (common.drawdownType as FirmPlan['drawdownType']) ?? 'none',
+          consistencyPercent:
+            size.consistencyPercent ?? (common.consistencyPercent as number | null) ?? null,
+          profitTarget: size.profitTarget ?? null,
+          dailyLossLimit: size.dailyLossLimit ?? (common.dailyLossLimit as number | null) ?? null,
+          minTradingDays: (common.minTradingDays as number | null) ?? null,
+          minWinningDays: (common.minWinningDays as number | null) ?? null,
+          winningDayMinProfit: (common.winningDayMinProfit as number | null) ?? null,
+          cost: size.cost ?? null,
+          profitSplit: (common.profitSplit as number | null) ?? null,
+          maxContracts: size.maxContracts ?? null,
+          // Firms quote micro limits as a ratio to the mini limit rather than
+          // a number, so it is derived rather than repeated per size.
+          maxMicroContracts:
+            size.maxContracts != null && microRatio ? size.maxContracts * microRatio : null,
+          activationFee: (common.activationFee as number | null) ?? null,
+          resetFee: (common.resetFee as number | null) ?? null,
+          buffer: size.buffer ?? null,
+          payoutFrequency: (common.payoutFrequency as string | null) ?? null,
+          minPayout: size.minPayout ?? (common.minPayout as string | null) ?? null,
+          notes:
+            [common.notes as string | null, size.notes].filter(Boolean).join(' \u00b7 ') || null,
+        })
+      }
+    }
+
+    const existing = catalogues.find((entry) => entry.slug === slug)
+    if (existing) existing.plans.push(...plans)
+    else catalogues.push({ slug, name: firm.name, website: firm.website, plans })
+  }
+}
+
 const file = `/**
  * Prop-firm plan catalogues — generated, do not edit by hand.
  *

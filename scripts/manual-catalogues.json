@@ -1,0 +1,109 @@
+{
+  "_comment": [
+    "Firms and plans not covered by the wawa-website spec sheets, entered by hand",
+    "from the firm's own rules pages. Merged into src/lib/propfirm/catalogue.ts by",
+    "scripts/import-catalogue.mts, so regenerating never drops them.",
+    "Values omitted here stay null rather than being guessed at.",
+    "Numbers in `sizes` are evaluation-phase rules; where a firm's funded phase",
+    "differs (contract ceilings, drawdown mode, consistency) that lives in notes,",
+    "because a plan carries one set of columns and the account is created in eval."
+  ],
+  "myfundedfutures": {
+    "name": "MyFundedFutures",
+    "website": "https://myfundedfutures.com",
+    "plans": [
+      {
+        "family": "Rapid",
+        "sizes": [
+          { "size": 25000, "profitTarget": 1500, "maxDrawdown": 1000, "maxContracts": 3, "buffer": 1100 },
+          { "size": 50000, "profitTarget": 3000, "maxDrawdown": 2000, "maxContracts": 5, "buffer": 2100 },
+          { "size": 100000, "profitTarget": 6000, "maxDrawdown": 3000, "maxContracts": 8, "buffer": 3100 },
+          { "size": 150000, "profitTarget": 9000, "maxDrawdown": 4500, "maxContracts": 10, "buffer": 4600 }
+        ],
+        "common": {
+          "drawdownType": "trailing_eod",
+          "consistencyPercent": 0.5,
+          "dailyLossLimit": null,
+          "activationFee": 0,
+          "profitSplit": 0.9,
+          "minTradingDays": 1,
+          "minPayout": "$500",
+          "payoutFrequency": "From 1 day",
+          "microRatio": 10,
+          "notes": "Funded drawdown is real-time, not EOD · Micro scaling 10:1 · No funded consistency · No scaling rule"
+        }
+      },
+      {
+        "family": "Rapid EOD",
+        "sizes": [
+          { "size": 50000, "profitTarget": 3000, "maxDrawdown": 2000, "maxContracts": 3, "buffer": 2100 }
+        ],
+        "common": {
+          "drawdownType": "trailing_eod",
+          "consistencyPercent": 0.3,
+          "dailyLossLimit": null,
+          "activationFee": 0,
+          "profitSplit": 0.9,
+          "minPayout": "$500",
+          "payoutFrequency": "Daily",
+          "microRatio": 10,
+          "notes": "Drawdown stays EOD once funded, unlike plain Rapid · Same 3 contracts and 10:1 micro scaling in both phases · No daily drawdown · No funded consistency · No scaling rule · $500 net profit required between payouts"
+        }
+      },
+      {
+        "family": "Pro",
+        "sizes": [
+          { "size": 50000, "profitTarget": 3000, "maxDrawdown": 2000, "maxContracts": 3, "buffer": 2100, "notes": "Funded: 5 contracts" },
+          { "size": 100000, "profitTarget": 6000, "maxDrawdown": 3000, "maxContracts": 6, "buffer": 3100, "notes": "Funded: 10 contracts" },
+          { "size": 150000, "profitTarget": 9000, "maxDrawdown": 4500, "maxContracts": 9, "buffer": 4600, "notes": "Funded: 15 contracts" }
+        ],
+        "common": {
+          "drawdownType": "trailing_eod",
+          "consistencyPercent": 0.5,
+          "dailyLossLimit": null,
+          "activationFee": 0,
+          "profitSplit": 0.8,
+          "minTradingDays": 14,
+          "minPayout": "$1,000",
+          "payoutFrequency": "From 14 days",
+          "microRatio": 10,
+          "notes": "EOD drawdown in both phases · Micro scaling 10:1 in evaluation, none once funded · Contract ceiling rises when funded · No funded consistency · No activation fee"
+        }
+      },
+      {
+        "family": "Builder",
+        "sizes": [
+          {
+            "size": 25000,
+            "profitTarget": 1500,
+            "maxDrawdown": 1000,
+            "maxContracts": 2,
+            "buffer": 1100,
+            "minPayout": "$250",
+            "notes": "Max payout request: $1,000 · No minimum profit per day"
+          },
+          {
+            "size": 50000,
+            "profitTarget": 3000,
+            "maxDrawdown": 2000,
+            "maxContracts": 4,
+            "buffer": 2100,
+            "minPayout": "$500",
+            "notes": "Max payout request: $2,000 · Funded daily drawdown: $1,000"
+          }
+        ],
+        "common": {
+          "drawdownType": "trailing_eod",
+          "consistencyPercent": null,
+          "dailyLossLimit": null,
+          "activationFee": 0,
+          "profitSplit": 0.8,
+          "minTradingDays": 2,
+          "payoutFrequency": "From 2 days",
+          "microRatio": 10,
+          "notes": "EOD drawdown · Micro scaling 10:1 · No evaluation consistency rule, but 50% consistency applies once funded · No activation fee"
+        }
+      }
+    ]
+  }
+}
