@@ -1,3 +1,4 @@
+import React from 'react'
 import Link from 'next/link'
 import { moneyCompact, percent, pnlClass, signed } from '@/lib/format'
 import { Editable } from './site-text'
@@ -237,6 +238,17 @@ export function Stat({
   )
 }
 
+/**
+ * The row of headline figures.
+ *
+ * Two across on a phone rather than one: these are short numbers, and a column
+ * of full-width cards meant scrolling past four of them to reach the fifth.
+ *
+ * An odd count leaves the last tile alone on its row, which reads like a
+ * mistake, so it stretches to fill the width instead — deliberate rather than
+ * orphaned. That only applies while the grid is two columns; from `lg` up
+ * there are three or more, where a short last row looks fine.
+ */
 export function StatGrid({ children, columns = 4 }: { children: React.ReactNode; columns?: number }) {
   const template =
     columns === 2
@@ -246,7 +258,24 @@ export function StatGrid({ children, columns = 4 }: { children: React.ReactNode;
         : columns === 5
           ? 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
           : 'sm:grid-cols-2 lg:grid-cols-4'
-  return <div className={clsx('grid grid-cols-1 gap-4', template)}>{children}</div>
+
+  const odd = React.Children.count(children) % 2 === 1
+  // A two-column grid at every width has nowhere to reset the span.
+  const stretchLast = columns === 2 ? 'col-span-2' : 'col-span-2 lg:col-span-1'
+
+  return (
+    <div className={clsx('grid grid-cols-2 gap-4', template)}>
+      {odd
+        ? React.Children.map(children, (child, index) =>
+            index === React.Children.count(children) - 1 && React.isValidElement(child) ? (
+              <div className={stretchLast}>{child}</div>
+            ) : (
+              child
+            ),
+          )
+        : children}
+    </div>
+  )
 }
 
 export function Pnl({ value, currency = 'USD' }: { value: number | null | undefined; currency?: string }) {
