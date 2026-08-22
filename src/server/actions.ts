@@ -70,22 +70,28 @@ const num = z.coerce.number()
 const requiredNum = z
   .union([z.string().min(1, 'Required'), z.number()])
   .pipe(z.coerce.number())
+/**
+ * An optional field, whether it arrives empty or not at all.
+ *
+ * `Object.fromEntries(formData)` has no key for a field the form never
+ * rendered, and it has an empty string for one the user left blank. Both mean
+ * "not provided", so both become null.
+ *
+ * These used to reject a missing key, with a separate absent-tolerant pair
+ * beside them for forms that render a field conditionally. That distinction
+ * was a trap: it cost a whole trading model, typed out and lost to
+ * "description: Invalid input", because the schema listed a field the form
+ * does not have. Nothing was gained by the strictness — a field declared
+ * optional has no business failing on absence — so there is now one pair.
+ */
 const optionalNum = z
   .union([z.literal(''), z.coerce.number()])
-  .transform((value) => (value === '' ? null : value))
+  .optional()
+  .transform((value) => (value === '' || value === undefined ? null : value))
 const optionalText = z
   .union([z.literal(''), z.string()])
-  .transform((value) => (value === '' ? null : value))
-
-/**
- * The same two, for inputs a form only renders under some conditions.
- *
- * `Object.fromEntries(formData)` simply has no key for a field that was never
- * on screen, and the pair above reject `undefined` — so a plain USD payout was
- * failing validation on the crypto fields it had no reason to show.
- */
-const absentNum = optionalNum.optional().transform((value) => value ?? null)
-const absentText = optionalText.optional().transform((value) => value ?? null)
+  .optional()
+  .transform((value) => (value === '' || value === undefined ? null : value))
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string }
 
@@ -333,12 +339,12 @@ const fromPlanSchema = z.object({
   planLabel: z.string().min(1),
   label: z.string().min(1, 'Give the account a label'),
   phase: z.enum(['eval', 'funded', 'live', 'personal', 'demo']).default('eval'),
-  externalId: absentText,
+  externalId: optionalText,
   platform: z.string().default('tradovate'),
-  startedOn: absentText,
-  costBase: absentNum,
-  openingBalance: absentNum,
-  openingBalanceAt: absentText,
+  startedOn: optionalText,
+  costBase: optionalNum,
+  openingBalance: optionalNum,
+  openingBalanceAt: optionalText,
 })
 
 export async function addAccountFromPlan(formData: FormData): Promise<ActionResult> {
@@ -716,11 +722,11 @@ const expenseSchema = z.object({
   deductiblePercent: optionalNum,
   vatAmount: num.default(0),
   notes: optionalText,
-  cryptoNetwork: absentText,
-  cryptoTxHash: absentText,
-  cryptoAddress: absentText,
+  cryptoNetwork: optionalText,
+  cryptoTxHash: optionalText,
+  cryptoAddress: optionalText,
   /** Unit price of a volatile asset when it settled, in the base currency. */
-  settlementRate: absentNum,
+  settlementRate: optionalNum,
 })
 
 export async function saveExpense(id: number | null, formData: FormData): Promise<ActionResult> {
@@ -834,11 +840,11 @@ const payoutSchema = z.object({
   method: optionalText,
   reference: optionalText,
   notes: optionalText,
-  cryptoNetwork: absentText,
-  cryptoTxHash: absentText,
-  cryptoAddress: absentText,
+  cryptoNetwork: optionalText,
+  cryptoTxHash: optionalText,
+  cryptoAddress: optionalText,
   /** Unit price of a volatile asset when it settled, in the base currency. */
-  settlementRate: absentNum,
+  settlementRate: optionalNum,
 })
 
 export async function savePayout(id: number | null, formData: FormData): Promise<ActionResult> {
@@ -961,16 +967,16 @@ export async function deletePayout(id: number): Promise<ActionResult> {
  */
 const setupSchema = z.object({
   entryDate: z.string().min(1, 'A date is required'),
-  symbol: absentText,
+  symbol: optionalText,
   direction: z.enum(['long', 'short']).nullish().catch(null),
-  entryPrice: absentNum,
-  stopPrice: absentNum,
-  stopPoints: absentNum,
-  targetPrice: absentNum,
-  targetPoints: absentNum,
-  riskReward: absentNum,
-  modelId: absentNum,
-  notes: absentText,
+  entryPrice: optionalNum,
+  stopPrice: optionalNum,
+  stopPoints: optionalNum,
+  targetPrice: optionalNum,
+  targetPoints: optionalNum,
+  riskReward: optionalNum,
+  modelId: optionalNum,
+  notes: optionalText,
 })
 
 export async function saveSetup(id: number | null, formData: FormData): Promise<ActionResult> {
@@ -1101,7 +1107,7 @@ export async function acceptChartReading(id: number): Promise<ActionResult> {
 
 const folderSchema = z.object({
   name: z.string().min(1, 'Give the folder a name'),
-  description: absentText,
+  description: optionalText,
 })
 
 export async function saveFolder(id: number | null, formData: FormData): Promise<ActionResult> {
@@ -1401,7 +1407,7 @@ const documentSchema = z.object({
     .enum(['payout_confirmation', 'statement', 'id_document', 'invoice', 'contract', 'other'])
     .default('other'),
   label: z.string().max(200).default(''),
-  folderId: absentNum,
+  folderId: optionalNum,
   firmId: optionalNum,
   accountId: optionalNum,
   documentDate: optionalText,

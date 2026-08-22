@@ -28,15 +28,60 @@ export function ActionForm({
   onSuccess?: () => void
 }) {
   const formRef = useRef<HTMLFormElement>(null)
+  // What was submitted, kept so a rejected save can be handed back.
+  const submitted = useRef<Record<string, string> | null>(null)
+
   const [state, formAction] = useActionState(
-    async (_previous: ActionResult | null, formData: FormData) => action(formData),
+    async (_previous: ActionResult | null, formData: FormData) => {
+      submitted.current = Object.fromEntries(
+        [...formData.entries()].filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      )
+      return action(formData)
+    },
     null,
   )
 
   useEffect(() => {
-    if (state?.ok) {
+    if (!state) return
+
+    if (state.ok) {
       if (resetOnSuccess) formRef.current?.reset()
       onSuccess?.()
+      submitted.current = null
+      return
+    }
+
+    /**
+     * Put the rejected values back.
+     *
+     * React clears an uncontrolled form after a form action runs — on failure
+     * as well as success. So a validation error did not just refuse the save,
+     * it deleted what had been typed: a trading model written out in full,
+     * gone to one bad field. Restoring is a DOM write because these inputs are
+     * uncontrolled by design; making every field controlled to survive an
+     * error would be a much larger change for the same outcome.
+     *
+     * Only fields that hold typed work are restored. A file input cannot be
+     * set from script at all, and re-checking boxes from a stale snapshot is
+     * more likely to be wrong than useful.
+     */
+    const values = submitted.current
+    const form = formRef.current
+    if (!values || !form) return
+
+    for (const element of Array.from(form.elements)) {
+      if (
+        !(element instanceof HTMLInputElement) &&
+        !(element instanceof HTMLTextAreaElement) &&
+        !(element instanceof HTMLSelectElement)
+      ) {
+        continue
+      }
+      if (element instanceof HTMLInputElement && ['file', 'checkbox', 'radio'].includes(element.type)) {
+        continue
+      }
+      const previous = values[element.name]
+      if (previous !== undefined && element.value !== previous) element.value = previous
     }
     // `onSuccess` is intentionally excluded: callers pass inline closures, and
     // depending on it would re-fire the effect on every render.
