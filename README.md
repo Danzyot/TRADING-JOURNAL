@@ -82,6 +82,7 @@ Environment variables, all set once in Vercel:
 | **[INTEGRATIONS.md](docs/INTEGRATIONS.md)** | Tradovate, Rithmic, Tradecopia, TradingView — what connects and what honestly doesn't |
 | **[EMAIL.md](docs/EMAIL.md)** | Reading prop-firm mail on the server: payouts, fees, passes, fails and balances logging themselves |
 | **[TAX-ISRAEL.md](docs/TAX-ISRAEL.md)** | Business income vs capital gains, which status to register, deductions, travelling and leaving |
+| **[BANKING.md](docs/BANKING.md)** | Getting paid: which rail each firm uses, Wise vs Revolut vs an Israeli bank, and what a foreign account does and does not do |
 | **[TAX-RELOCATION.md](docs/TAX-RELOCATION.md)** | Why an S corp is a dead end, and the honest country-by-country comparison (Cyprus, Greece, Dubai, Bulgaria, Georgia, Thailand, Costa Rica…) |
 | **[PAYOUT-STRATEGY.md](docs/PAYOUT-STRATEGY.md)** | The allocation waterfall and the reasoning behind it |
 

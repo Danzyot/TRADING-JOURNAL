@@ -11,6 +11,14 @@ import {
 } from '@/lib/tax/israel'
 import { ratesFor } from '@/lib/tax/rates'
 import {
+  BANKING_VERIFIED,
+  PAYOUT_RAILS,
+  RECEIVING_ACCOUNTS,
+  RESIDENCY_NOTE,
+  annualSaving,
+  conversionCost,
+} from '@/lib/tax/banking'
+import {
   DEDUCTIBLE_CHECKLIST,
   ENTITY_VERDICTS,
   RELOCATION_OPTIONS,
@@ -624,8 +632,124 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
             Israeli international-tax advisor for the exit and one with a local advisor in the destination.
           </p>
         </Card>
+
+        <GettingPaid payoutsThisYear={summary.payoutsPaid} ccy={settings.baseCurrency} />
       </div>
     </>
+  )
+}
+
+/**
+ * Getting paid: which rail each firm uses, and what receiving costs.
+ *
+ * This sits under the relocation table on purpose. The two questions look
+ * alike — both are "how do I keep more of a payout" — but only one of them is
+ * about where you live. This one is about fees, and the fees are large enough
+ * to be worth a page: a couple of percent of every payout, forever.
+ */
+function GettingPaid({ payoutsThisYear, ccy }: { payoutsThisYear: number; ccy: string }) {
+  const bank = RECEIVING_ACCOUNTS.find((account) => account.name.startsWith('Israeli bank'))!
+  const wise = RECEIVING_ACCOUNTS.find((account) => account.name === 'Wise')!
+
+  // Costed on real payouts when there are some, and on a round number when
+  // there are not — always labelled as which, so no figure is mistaken for a
+  // measurement it is not.
+  const measured = payoutsThisYear > 0
+  const basis = measured ? payoutsThisYear : 60_000
+  const saving = annualSaving(basis, bank.fxCostPercent, wise.fxCostPercent)
+
+  return (
+    <Card
+      title="Getting paid — rails, accounts and what receiving actually costs"
+      description={`How each firm pays, and what it costs to turn a USD payout into spendable money. Verified ${BANKING_VERIFIED}.`}
+      bodyClassName="p-0"
+    >
+      <div className="border-b border-[var(--line)] p-4">
+        <p className="text-xs leading-relaxed text-[var(--ink-secondary)]">
+          On {measured ? 'your' : 'a'} {money(basis, ccy, 0)} of payouts {measured ? 'paid this year' : 'a year'},
+          converting through an Israeli bank at ~{bank.fxCostPercent}% costs{' '}
+          <strong className="text-[var(--ink)]">{money(conversionCost(basis, bank.fxCostPercent), ccy, 0)}</strong>{' '}
+          against ~{money(conversionCost(basis, wise.fxCostPercent), ccy, 0)} through Wise — a difference of{' '}
+          <strong className="text-[var(--good-text)]">{money(saving, ccy, 0)}</strong>.{' '}
+          {measured ? 'Based on payouts actually recorded here.' : 'Illustrative until you record payouts here.'}
+        </p>
+      </div>
+
+      <div className="scroll-x border-b border-[var(--line)]">
+        <table className="data">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th className="text-right">FX cost</th>
+              <th>Local USD details</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            {RECEIVING_ACCOUNTS.map((account) => (
+              <tr key={account.name}>
+                <td className="whitespace-nowrap font-medium text-[var(--ink)]">{account.name}</td>
+                <td className="tabular whitespace-nowrap text-right">~{account.fxCostPercent}%</td>
+                <td>
+                  <Badge tone={account.usdDetails ? 'good' : 'neutral'}>
+                    {account.usdDetails ? 'Yes' : 'No'}
+                  </Badge>
+                </td>
+                <td className="max-w-[320px] text-xs text-[var(--ink-secondary)]">{account.verdict}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="divide-y divide-[var(--line)] border-b border-[var(--line)]">
+        {RECEIVING_ACCOUNTS.map((account) => (
+          <details key={account.name} className="group">
+            <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-[var(--ink)] hover:bg-[var(--surface-sunken)]">
+              {account.name} — the detail
+            </summary>
+            <dl className="px-4 pb-3 text-xs leading-relaxed">
+              <dt className="font-medium text-[var(--ink-secondary)]">Strength</dt>
+              <dd className="mb-1.5 text-[var(--ink-muted)]">{account.strength}</dd>
+              <dt className="font-medium text-[var(--ink-secondary)]">Weakness</dt>
+              <dd className="text-[var(--ink-muted)]">{account.weakness}</dd>
+            </dl>
+          </details>
+        ))}
+      </div>
+
+      <div className="scroll-x border-b border-[var(--line)]">
+        <table className="data">
+          <thead>
+            <tr>
+              <th>Firm</th>
+              <th>Processor</th>
+              <th>Methods</th>
+              <th>Speed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PAYOUT_RAILS.map((rail) => (
+              <tr key={rail.firm}>
+                <td className="whitespace-nowrap font-medium text-[var(--ink)]">{rail.firm}</td>
+                <td className="whitespace-nowrap text-xs">{rail.processor}</td>
+                <td className="max-w-[200px] text-xs">{rail.methods}</td>
+                <td className="whitespace-nowrap text-xs text-[var(--ink-secondary)]">{rail.speed}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-2 p-4">
+        <h3 className="text-xs font-semibold text-[var(--ink)]">Before you route payouts abroad</h3>
+        {RESIDENCY_NOTE.map((paragraph) => (
+          <p key={paragraph.slice(0, 24)} className="text-xs leading-relaxed text-[var(--ink-secondary)]">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    </Card>
   )
 }
 
