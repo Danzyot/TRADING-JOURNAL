@@ -54,7 +54,7 @@ import { prepareScreenshot } from './setups'
 import { deriveSetup } from '@/lib/analytics/setup'
 import { scanSetupScreenshot } from './ai'
 
-const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
+const REVALIDATE = ['/', '/trades', '/accounts', '/firms', '/money', '/tax', '/documents', '/models']
 
 function revalidateAll() {
   for (const path of REVALIDATE) revalidatePath(path)
@@ -1299,7 +1299,7 @@ export async function dismissInsightAction(id: number): Promise<ActionResult> {
     const { dismissInsight } = await import('./insights')
     await dismissInsight(id)
     revalidatePath('/')
-    revalidatePath('/analytics')
+    revalidatePath('/trades')
     return 'Dismissed. It comes back only if the condition re-fires after being resolved.'
   })
 }

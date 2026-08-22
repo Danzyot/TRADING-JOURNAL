@@ -9,7 +9,6 @@ import { EditModeToggle } from './site-text'
 const NAV = [
   { href: '/', label: 'Dashboard', glyph: '◧' },
   { href: '/trades', label: 'Journal', glyph: '✎' },
-  { href: '/analytics', label: 'Analytics', glyph: '◔' },
   { href: '/accounts', label: 'Accounts', glyph: '▤' },
   { href: '/firms', label: 'Prop firms', glyph: '⌂' },
   { href: '/models', label: 'Models', glyph: '◇' },

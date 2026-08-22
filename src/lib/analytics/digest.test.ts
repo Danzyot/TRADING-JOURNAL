@@ -89,7 +89,7 @@ describe('buildDigest', () => {
     expect(lines[1]).toBe('Week +$1,240 — evals +$300, funded +$940')
     expect(lines[2]).toBe('12W/8L (60%) · 2 passed, 1 failed')
     expect(lines[3]).toBe('Payouts $3,000 (2) · Costs $450 · Net +$2,550')
-    expect(digest?.url).toBe('/analytics')
+    expect(digest?.url).toBe('/trades')
   })
 
   it('wraps a Friday with no trades but real money movement', () => {

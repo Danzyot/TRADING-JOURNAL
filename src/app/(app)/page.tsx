@@ -197,7 +197,7 @@ export default async function DashboardPage() {
             title="What the numbers are telling you"
             description="Generated from your own trades and costs. Each one names its evidence."
             actions={
-              <Link href="/analytics" className="text-xs text-[var(--accent)] hover:underline">
+              <Link href="/trades" className="text-xs text-[var(--accent)] hover:underline">
                 All analytics →
               </Link>
             }
@@ -271,7 +271,7 @@ export default async function DashboardPage() {
         <Card
           title="Daily net P&L"
           actions={
-            <Link href="/analytics" className="text-xs text-[var(--accent)] hover:underline">
+            <Link href="/trades" className="text-xs text-[var(--accent)] hover:underline">
               Sessions, symbols, weekdays →
             </Link>
           }

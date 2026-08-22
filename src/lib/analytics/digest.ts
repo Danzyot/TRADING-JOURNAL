@@ -125,7 +125,7 @@ export function buildDigest(input: DigestInput): Digest | null {
   return {
     title: week ? 'Friday wrap' : 'Evening check',
     body: lines.join('\n'),
-    url: week ? '/analytics' : '/',
+    url: week ? '/trades' : '/',
     tag: week ? 'weekly' : 'evening',
   }
 }
