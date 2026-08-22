@@ -10,6 +10,20 @@ Open the journal in **Safari** (not Chrome — on iOS only Safari can install a
 web app), tap **Share → Add to Home Screen**, then open it from the new icon.
 It runs full screen with its own icon and remembers your session.
 
+## Choosing the icon
+
+Six colourways of the same mark ship with the app: blue, teal, purple, magenta,
+gold and red. Pick one in **Settings → App icon**. The sidebar and browser tab
+change immediately; the manifest and the `apple-touch-icon` link both name the
+chosen file, so a *new* install picks it up too.
+
+An icon already on a home screen keeps the old art — iOS copies the image at
+install time and never re-reads it. Delete the icon and add it again to change
+it.
+
+`scripts/generate-logos.mjs` cuts the six from the artwork sheet if it is ever
+replaced.
+
 ## Turning on notifications
 
 Notifications need a VAPID key pair. It is one command, once, and free forever:

@@ -54,6 +54,8 @@ export const settings = pgTable('settings', {
   /** USD -> ILS. Refreshed by the daily cron; manual override allowed. */
   usdIls: money('usd_ils').default(3.7).notNull(),
   fxUpdatedAt: timestamp('fx_updated_at', { withTimezone: true }),
+  /** Which of the app marks to show — see src/lib/logos.ts. */
+  logo: text('logo').default('blue').notNull(),
   /** Israeli tax profile — see src/lib/tax/israel.ts for the shape. */
   taxProfile: jsonb('tax_profile').$type<TaxProfile>(),
   /** Payout allocation waterfall — see src/lib/allocation.ts. */

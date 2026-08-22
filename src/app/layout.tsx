@@ -1,25 +1,42 @@
 import type { Metadata, Viewport } from 'next'
+import { DEFAULT_LOGO, logoOrDefault, logoPath } from '@/lib/logos'
+import { getSettings } from '@/server/settings'
 import { NavigationFallback } from '@/components/navigation-fallback'
 import { ServiceWorker } from '@/components/service-worker'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: 'Trading Journal',
-  description: 'Futures trading journal for prop firm accounts — performance, costs, payouts and tax.',
-  manifest: '/manifest.webmanifest',
-  applicationName: 'Trading Journal',
-  icons: {
-    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/icon-192.png', sizes: '192x192' }],
-    apple: '/apple-touch-icon.png',
-  },
-  appleWebApp: {
-    // Runs full screen from the home screen, without Safari's chrome — and on
-    // iOS this is also the precondition for receiving push notifications.
-    capable: true,
-    title: 'Journal',
-    statusBarStyle: 'default',
-  },
-  formatDetection: { telephone: false },
+/**
+ * Resolved per request so the chosen mark reaches the tab icon and, more
+ * importantly, iOS — which reads apple-touch-icon out of the page HTML rather
+ * than from the manifest.
+ *
+ * The settings read is guarded: this layout also wraps the login page, and a
+ * database blip must not take the whole app down over an icon.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  let logo = DEFAULT_LOGO
+  try {
+    logo = logoOrDefault((await getSettings()).logo)
+  } catch {
+    // Fall back to the default mark.
+  }
+
+  return {
+    title: 'Trading Journal',
+    description: 'Futures trading journal for prop firm accounts — performance, costs, payouts and tax.',
+    manifest: '/manifest.webmanifest',
+    applicationName: 'Trading Journal',
+    icons: {
+      icon: [{ url: logoPath(logo, 'icon-192'), sizes: '192x192' }],
+      apple: logoPath(logo, 'apple-touch-icon'),
+    },
+    appleWebApp: {
+      capable: true,
+      title: 'Journal',
+      statusBarStyle: 'black-translucent',
+    },
+    formatDetection: { telephone: false },
+  }
 }
 
 export const viewport: Viewport = {

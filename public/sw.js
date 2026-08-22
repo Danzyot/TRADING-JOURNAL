@@ -17,11 +17,13 @@
  * from a cache would be worse than one that is briefly blank.
  */
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL_CACHE = `tj-shell-${VERSION}`
 
 /** Static, content-addressed or versioned assets — safe to serve from cache. */
-const SHELL_ASSETS = ['/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/manifest.webmanifest']
+// Only genuinely static things. The manifest is deliberately absent: it now
+// names whichever mark is chosen, so a cached copy would pin the old icon.
+const SHELL_ASSETS = ['/favicon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

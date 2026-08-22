@@ -42,6 +42,7 @@ import { autoTagTrades, refineModelGuidance, reviewPendingForModel, reviewTradeA
 import { runEmailIngest } from './email-ingest'
 import { forgetDevice, saveDevice, sendPush } from './push'
 import { setSiteText } from './site-text'
+import { isLogoId } from '@/lib/logos'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
@@ -956,6 +957,26 @@ export async function sendTestNotification(): Promise<ActionResult> {
  * can appear on several pages, and seeing a heading change in one place but
  * not another would read as a bug.
  */
+/**
+ * Picks one of the app marks.
+ *
+ * Everything that shows the logo — the sidebar, the tab icon, the manifest the
+ * phone reads — resolves it from this one value, so the whole app follows in
+ * one step. The id is validated against the catalogue, never trusted.
+ */
+export async function saveLogo(id: string): Promise<ActionResult> {
+  return guard(async () => {
+    if (!isLogoId(id)) throw new Error('Unknown logo.')
+    await updateSettings({ logo: id })
+    revalidateAll()
+    revalidatePath('/settings')
+    // The manifest names the icons, so it has to be re-fetched for the phone
+    // to notice.
+    revalidatePath('/manifest.webmanifest')
+    return 'Logo updated. On your phone, re-add it to the home screen to see the new icon.'
+  })
+}
+
 export async function saveSiteText(key: string, value: string): Promise<ActionResult> {
   return guard(async () => {
     const parsed = z

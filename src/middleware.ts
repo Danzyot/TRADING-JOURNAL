@@ -4,15 +4,10 @@ import { jwtVerify } from 'jose'
 const COOKIE = 'tj_session'
 
 /** Files a browser must be able to fetch before the user has signed in. */
-const PUBLIC_FILES = new Set([
-  '/manifest.webmanifest',
-  '/sw.js',
-  '/favicon.svg',
-  '/apple-touch-icon.png',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon-maskable-512.png',
-])
+const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/sw.js', '/favicon.svg'])
+
+/** The app marks, under /logos/<colour>/. Same reasoning as PUBLIC_FILES. */
+const PUBLIC_PREFIXES = ['/logos/']
 
 /**
  * Gate every page behind the session cookie.
@@ -42,6 +37,7 @@ export async function middleware(request: NextRequest) {
     // any data; sw.js caches only static assets and every page it fetches
     // still passes through this same check.
     PUBLIC_FILES.has(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
     pathname === '/favicon.ico'
 
   if (isPublic) return NextResponse.next()

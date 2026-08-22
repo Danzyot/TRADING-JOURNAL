@@ -6,6 +6,8 @@ import { recentEmailEvents } from '@/server/email-ingest'
 import { mailboxProblems, mailboxes } from '@/server/gmail'
 import { listDevices, pushConfigured, vapidPublicKey } from '@/server/push'
 import { PushSetup } from '@/components/push-setup'
+import { LogoPicker } from '@/components/logo-picker'
+import { logoOrDefault } from '@/lib/logos'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
@@ -13,6 +15,7 @@ import { DEFAULT_RISK_RULES } from '@/server/settings'
 import {
   checkInbox,
   createConnection,
+  saveLogo,
   registerPushDevice,
   removePushDevice,
   sendTestNotification,
@@ -342,6 +345,13 @@ export default async function SettingsPage() {
               docs/WATCHER.md.
             </p>
           </div>
+        </Card>
+
+        <Card
+          title="App icon"
+          description="The mark used in the sidebar, the browser tab and on your phone's home screen."
+        >
+          <LogoPicker current={logoOrDefault(settings.logo)} save={saveLogo} />
         </Card>
 
         <NotificationsCard

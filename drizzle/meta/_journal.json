@@ -57,6 +57,13 @@
       "when": 1787396042126,
       "tag": "0007_abandoned_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787399457813,
+      "tag": "0008_smiling_purple_man",
+      "breakpoints": true
     }
   ]
 }

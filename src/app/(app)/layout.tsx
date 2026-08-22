@@ -2,6 +2,8 @@ import { Shell } from '@/components/shell'
 import { SiteTextProvider } from '@/components/site-text'
 import { saveSiteText } from '@/server/actions'
 import { getSiteText } from '@/server/site-text'
+import { getSettings } from '@/server/settings'
+import { logoOrDefault, logoPath } from '@/lib/logos'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,11 +13,12 @@ export const dynamic = 'force-dynamic'
  * than one per heading.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const overrides = await getSiteText()
+  const [overrides, settings] = await Promise.all([getSiteText(), getSettings()])
+  const logo = logoPath(logoOrDefault(settings.logo), 'icon-64')
 
   return (
     <SiteTextProvider overrides={overrides} save={saveSiteText}>
-      <Shell>{children}</Shell>
+      <Shell logo={logo}>{children}</Shell>
     </SiteTextProvider>
   )
 }

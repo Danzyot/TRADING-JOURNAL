@@ -19,7 +19,7 @@ const NAV = [
   { href: '/settings', label: 'Settings', glyph: '⚙' },
 ]
 
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({ children, logo }: { children: React.ReactNode; logo: string }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -37,12 +37,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold text-white"
-              style={{ background: 'var(--accent)' }}
-            >
-              TJ
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- a 64px
+                static mark; the optimiser adds a round trip for no gain. */}
+            <img src={logo} alt="" width={28} height={28} className="rounded-md" />
             <span className="text-sm font-semibold text-[var(--ink)]">Trading Journal</span>
           </Link>
           <button
