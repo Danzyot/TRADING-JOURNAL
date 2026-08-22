@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
   // A demo deployment has no password and no data worth gating: the whole app
   // is the public part. Its own database is the only one this process can
   // reach, so there is nothing here to leak even if a route forgets to check.
-  if (isDemoDeployment(process.env)) return harden(proceed(), policy)
+  if (isDemoDeployment(process.env)) return cacheAtTheEdge(harden(proceed(), policy), request)
 
   if (isPublicPath(pathname)) return harden(proceed(), policy)
 
@@ -88,6 +88,32 @@ function contentSecurityPolicy(nonce: string): string {
     "form-action 'self'",
     'upgrade-insecure-requests',
   ].join('; ')
+}
+
+/**
+ * Lets the CDN serve the demo, instead of waking a function for every visitor.
+ *
+ * Every page in this app is force-dynamic, which means Next marks each response
+ * `no-store` — correct for a private journal whose numbers change as you trade.
+ * The demo is the opposite case: it has no sessions, refuses every write, and
+ * generates the same sample data for everybody, so two visitors are asking for
+ * a byte-identical page.
+ *
+ * Without this, each visit ran a cold serverless instance that had to boot a
+ * Postgres, migrate it and seed it before rendering — seconds, and paid again
+ * by the next visitor. With it, the first request after a deploy pays that once
+ * and the edge answers the rest immediately; `stale-while-revalidate` means
+ * even the refresh happens behind someone else's fast response.
+ *
+ * GET pages only: a POST is a Server Action, and the API routes are small and
+ * had better stay live.
+ */
+function cacheAtTheEdge(response: NextResponse, request: NextRequest): NextResponse {
+  if (request.method !== 'GET') return response
+  if (request.nextUrl.pathname.startsWith('/api')) return response
+
+  response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+  return response
 }
 
 function harden(response: NextResponse, policy: string): NextResponse {

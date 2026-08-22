@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { isDemoDeployment } from './src/lib/demo'
 
 const nextConfig: NextConfig = {
   // `standalone` keeps the Railway/Docker image small; Vercel ignores it.
@@ -46,6 +47,40 @@ const nextConfig: NextConfig = {
    * the same behaviour as before.
    */
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,
+
+  /**
+   * Lets a CDN serve the demo.
+   *
+   * Every page here is force-dynamic, so Next marks each response `no-store` —
+   * right for a private journal, wrong for the demo, where every visitor is
+   * asking for the same sample data and each miss wakes a serverless instance
+   * that has to boot and seed a database before it can answer.
+   *
+   * The condition is the same fail-closed rule the rest of the app uses, and it
+   * matters more here than anywhere: a deployment holding real data must never
+   * emit `public` on a page. `isDemoDeployment` is false whenever an
+   * `APP_PASSWORD` is present, so the only build that can produce this header
+   * is one with no password at all — which is also one with no private data to
+   * hand to the next visitor.
+   *
+   * Read at build time, because that is when headers are baked. Adding a
+   * password to a demo project therefore needs a redeploy to take full effect,
+   * which is what Vercel does with an environment change anyway.
+   */
+  async headers() {
+    if (!isDemoDeployment(process.env)) return []
+    return [
+      {
+        source: '/:path((?!api/).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=3600, stale-while-revalidate=86400',
+          },
+        ],
+      },
+    ]
+  },
 
   /**
    * The framework and its version are free reconnaissance for anyone probing

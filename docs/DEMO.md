@@ -68,6 +68,15 @@ compiled to WebAssembly — inside the serverless function, migrates it, and see
 it. The first request an instance serves takes about three seconds; every
 request after that is normal speed.
 
+Because every visitor gets the same sample data and nothing there can be
+changed, the demo's pages are marked `public, s-maxage=3600,
+stale-while-revalidate=86400`, so Vercel's CDN answers them without waking a
+function at all. The first visit after a deploy pays the boot; the rest are
+served from the edge, and the hourly refresh happens behind someone else's fast
+response. That header is emitted **only** by a build with `DEMO_MODE=1` and no
+`APP_PASSWORD` — the same fail-closed rule as everywhere else, because a
+deployment holding real data must never mark a page `public`.
+
 Three consequences worth knowing:
 
 - **Nothing persists.** The database lives in that instance's temporary
@@ -76,6 +85,11 @@ Three consequences worth knowing:
 - **Nothing to reset.** There is no leftover state to clean up, ever.
 - **No credentials.** The demo process holds no connection string, so it cannot
   reach your data even in principle.
+- **A cold visit is slow.** Booting Postgres inside a function takes a few
+  seconds, and a demo nobody visits is nearly always cold. The edge cache above
+  hides that from everyone but the first visitor; if you would rather it never
+  happen at all, give the demo project its own `DATABASE_URL` (a separate Neon
+  database, never yours) and the boot becomes an ordinary connection.
 
 If you ever want the demo to keep what people do to it, give that project a
 `DATABASE_URL` of its own — a separate Neon database, never yours — and it will
