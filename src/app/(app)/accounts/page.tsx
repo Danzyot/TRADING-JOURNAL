@@ -247,7 +247,7 @@ export default async function AccountsPage({
                 blank form leaves to memory, and a blank drawdown silently
                 turns off every warning on the account. */}
             <Disclosure label="Add from a plan">
-              <PlanCatalogue catalogues={FIRM_CATALOGUES} addAction={addFromPlan} compact />
+              <PlanCatalogue catalogues={FIRM_CATALOGUES} addAction={addFromPlan} />
             </Disclosure>
             <Disclosure label="Add blank account">
               <AccountForm firms={firms} ccy={ccy} />

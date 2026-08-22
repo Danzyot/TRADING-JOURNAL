@@ -5,24 +5,26 @@ import { Editable } from '@/components/site-text'
 import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import { addAccountFromPlan } from '@/server/actions'
 import { listAccounts } from '@/server/trades'
+import { listFirms } from '@/server/money'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Prop firms — Trading Journal' }
 
 export default async function FirmsPage() {
-  const accounts = await listAccounts()
+  const [accounts, firms] = await Promise.all([listAccounts(), listFirms()])
 
   const plans = FIRM_CATALOGUES.reduce((sum, firm) => sum + firm.plans.length, 0)
   const sizes = new Set(FIRM_CATALOGUES.flatMap((firm) => firm.plans.map((plan) => plan.size)))
   // Which firms are more than reference material — the ones actually traded.
+  // Matched on the firm's name rather than on the plan label: an account added
+  // before the catalogue existed, or edited since, still belongs to its firm.
+  const firmNames = new Map(firms.map((firm) => [firm.id, firm.name.toLowerCase()]))
   const inUse = new Set(
     accounts
-      .map((account) => account.planLabel)
-      .filter(Boolean)
-      .flatMap((label) =>
-        FIRM_CATALOGUES.filter((firm) => firm.plans.some((plan) => plan.label === label)).map(
-          (firm) => firm.slug,
-        ),
+      .map((account) => (account.firmId === null ? null : firmNames.get(account.firmId)))
+      .filter((name): name is string => Boolean(name))
+      .flatMap((name) =>
+        FIRM_CATALOGUES.filter((firm) => firm.name.toLowerCase() === name).map((firm) => firm.slug),
       ),
   )
 
