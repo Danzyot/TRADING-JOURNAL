@@ -172,7 +172,9 @@ export async function applyEmailEvents(
         paidOn: status === 'paid' ? draft.date : null,
         status,
         grossAmount: draft.amount,
-        profitSplit: firm?.profitSplit ?? 1,
+        // The account's own split first: it varies within a firm, so the
+        // firm's value is only a fallback for accounts that never set one.
+        profitSplit: account?.profitSplit ?? firm?.profitSplit ?? 1,
         netAmount: draft.amount,
         currency: draft.currency ?? 'USD',
         fxRate: 1,

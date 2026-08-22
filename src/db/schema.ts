@@ -114,10 +114,20 @@ export type RiskRules = {
 // ---------------------------------------------------------------------------
 
 /**
- * A plan template inside a firm's catalogue — "Pro — $50k" and friends.
+ * One purchasable plan in a firm's catalogue — the template an account is
+ * created from.
  *
- * Applying one to an account copies the values onto the account; nothing
- * references the plan afterwards, so editing a plan never silently rewrites
+ * The rules live here rather than on the firm because they vary *within* a
+ * firm: MyFundedFutures pays 80% on some accounts and 90% on others, and Apex
+ * sells the same size with intraday or end-of-day drawdown. A firm is really
+ * just a name and a website; everything that matters is per plan.
+ *
+ * Every field is nullable where a firm may simply not have that rule. A plan
+ * with no daily loss limit and a plan with a $0 one are opposites, so absence
+ * is never collapsed into zero.
+ *
+ * Applying a plan copies its values onto the account; nothing references the
+ * plan afterwards, so editing a catalogue never silently rewrites an account's
  * history, and an account can always diverge from its template.
  */
 export type FirmPlan = {
@@ -130,10 +140,25 @@ export type FirmPlan = {
   consistencyPercent: number | null
   profitTarget: number | null
   dailyLossLimit: number | null
+  minTradingDays?: number | null
   minWinningDays: number | null
   winningDayMinProfit: number | null
   /** What this plan costs to buy, for pre-filling the account's cost. */
   cost: number | null
+  /** The trader's share, 0..1 — per plan, not per firm. */
+  profitSplit?: number | null
+  /** Contract ceilings, which firms quote separately for minis and micros. */
+  maxContracts?: number | null
+  maxMicroContracts?: number | null
+  /** One-off charged when an evaluation converts to funded. */
+  activationFee?: number | null
+  resetFee?: number | null
+  /** Profit that must sit above the starting balance before withdrawing. */
+  buffer?: number | null
+  payoutFrequency?: string | null
+  minPayout?: string | null
+  /** Free-text rules worth keeping verbatim, shown on the account. */
+  notes?: string | null
 }
 
 export const propFirms = pgTable('prop_firms', {
@@ -194,6 +219,16 @@ export const accounts = pgTable(
     dailyLossLimit: money('daily_loss_limit'),
     /** Max contracts the firm allows. Used to flag size violations. */
     maxContracts: integer('max_contracts'),
+  /** Micro ceiling, quoted separately from minis by most firms. */
+  maxMicroContracts: integer('max_micro_contracts'),
+  /**
+   * The trader's share, 0..1 — per account, because it varies inside a firm:
+   * MyFundedFutures pays 80% on some accounts and 90% on others. Null falls
+   * back to the firm's value so existing accounts keep behaving as they did.
+   */
+  profitSplit: ratio('profit_split'),
+  /** This account's payout rules in the trader's own words. */
+  payoutPolicy: text('payout_policy'),
     minTradingDays: integer('min_trading_days'),
     /**
      * Payout gate in the form most firms now use: N days that each netted at

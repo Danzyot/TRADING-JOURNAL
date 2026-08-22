@@ -2,26 +2,30 @@
 
 import { useState } from 'react'
 import { ActionForm, Field, SubmitButton } from '@/components/form'
-import { FIRM_PRESETS } from '@/lib/propfirm/rules'
+import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import type { ActionResult } from '@/server/actions'
 
 export type FirmFormData = {
   id: number
   name: string
   website: string | null
-  profitSplit: number
-  minDaysToPayout: number | null
-  payoutPolicy: string | null
   notes: string | null
 }
 
 /**
  * Add / edit a prop firm.
  *
- * Templates are offered here, in the form, as something the user chooses to
- * apply — nothing is ever pre-created. Picking one fills the fields and every
- * field stays editable, because the presets are a starting point for typing
- * less, not a claim about what the firm's current terms are.
+ * A firm is a name and a website, and nothing else. Everything that used to
+ * sit here — profit split, payout policy, days to payout — varies *within* a
+ * firm rather than across it: MyFundedFutures pays 80% on some accounts and
+ * 90% on others, and Apex sells one size with either intraday or end-of-day
+ * drawdown. Asking for one value per firm meant filling in a number that was
+ * wrong for half the accounts under it. Those fields now live on the plan and
+ * on the account.
+ *
+ * Picking a firm from the catalogue fills the name and website and brings its
+ * plans along. Nothing is pre-created: the catalogue is a starting point the
+ * user chooses, and every value stays editable afterwards.
  */
 export function FirmForm({
   action,
@@ -31,14 +35,11 @@ export function FirmForm({
   firm?: FirmFormData
 }) {
   const [template, setTemplate] = useState<string>('')
-  const preset = FIRM_PRESETS.find((entry) => entry.name === template)
+  const preset = FIRM_CATALOGUES.find((entry) => entry.name === template)
 
   const defaults = {
     name: preset?.name ?? firm?.name ?? '',
-    website: firm?.website ?? '',
-    profitSplit: preset?.profitSplit ?? firm?.profitSplit ?? 0.9,
-    minDaysToPayout: firm?.minDaysToPayout ?? '',
-    payoutPolicy: preset?.note ?? firm?.payoutPolicy ?? '',
+    website: preset?.website ?? firm?.website ?? '',
     notes: firm?.notes ?? '',
   }
 
@@ -46,34 +47,29 @@ export function FirmForm({
     <ActionForm action={action} className="space-y-3">
       {!firm && (
         <Field
-          label="Start from a template (optional)"
-          hint="Fills the fields below — edit anything. Firm terms change often, so treat the values as a starting point."
+          label="Start from a firm we have specs for (optional)"
+          hint="Fills the name and website and brings that firm's plans in. Terms change often, so treat every value as a starting point."
         >
           <select value={template} onChange={(event) => setTemplate(event.target.value)} className="select">
             <option value="">Blank</option>
-            {FIRM_PRESETS.map((entry) => (
-              <option key={entry.name} value={entry.name}>
-                {entry.name}
+            {FIRM_CATALOGUES.map((entry) => (
+              <option key={entry.slug} value={entry.name}>
+                {entry.name} — {entry.plans.length} plans
               </option>
             ))}
           </select>
         </Field>
       )}
 
-      {/* The template's plan catalogue rides along as JSON; the server seeds
-          the firm's plans from it so the accounts grid's Catalogue works
-          immediately. Editable afterwards like everything else. */}
+      {/* The catalogue rides along as JSON; the server seeds the firm's plans
+          from it so the accounts grid's plan picker works immediately. */}
       {!firm && preset && preset.plans.length > 0 && (
         <>
           <input type="hidden" name="plansJson" value={JSON.stringify(preset.plans)} />
           <p className="text-xs text-[var(--ink-secondary)]">
-            Includes {preset.plans.length} plan template{preset.plans.length === 1 ? '' : 's'} (
-            {preset.plans
-              .slice(0, 3)
-              .map((entry) => entry.label)
-              .join(', ')}
-            {preset.plans.length > 3 ? ', …' : ''}) — sizes, drawdowns, targets and list prices, all
-            editable in the firm&apos;s plan catalogue after saving.
+            Brings {preset.plans.length} plans — sizes, drawdown type, targets, consistency, contract
+            limits, profit split and list prices. All editable in the plan catalogue after saving, and an
+            account can always diverge from the plan it came from.
           </p>
         </>
       )}
@@ -89,28 +85,7 @@ export function FirmForm({
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Profit split" hint="Your share as a fraction, e.g. 0.9 for 90%">
-            <input
-              name="profitSplit"
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
-              defaultValue={defaults.profitSplit}
-              className="input"
-            />
-          </Field>
-          <Field label="Min days to payout">
-            <input name="minDaysToPayout" type="number" defaultValue={defaults.minDaysToPayout} className="input" />
-          </Field>
-        </div>
-
-        <Field label="Payout policy" hint="The rules in your own words — consistency %, caps, schedule.">
-          <textarea name="payoutPolicy" rows={3} defaultValue={defaults.payoutPolicy} className="textarea" />
-        </Field>
-
-        <Field label="Notes">
+        <Field label="Notes" hint="Anything about the firm as a whole. Account rules live on the account.">
           <textarea name="notes" rows={2} defaultValue={defaults.notes} className="textarea" />
         </Field>
       </div>

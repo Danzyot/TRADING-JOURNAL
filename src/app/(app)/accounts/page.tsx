@@ -388,17 +388,7 @@ function FirmEditor({ firm }: { firm?: FirmRow }) {
       <FirmForm
         action={submit}
         firm={
-          firm
-            ? {
-                id: firm.id,
-                name: firm.name,
-                website: firm.website,
-                profitSplit: firm.profitSplit,
-                minDaysToPayout: firm.minDaysToPayout,
-                payoutPolicy: firm.payoutPolicy,
-                notes: firm.notes,
-              }
-            : undefined
+          firm ? { id: firm.id, name: firm.name, website: firm.website, notes: firm.notes } : undefined
         }
       />
     </Card>
@@ -517,8 +507,30 @@ function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; a
           <Field label="Daily loss limit">
             <input name="dailyLossLimit" type="number" step="any" defaultValue={account?.dailyLossLimit ?? ''} className="input" />
           </Field>
-          <Field label="Max contracts">
+          <Field label="Max contracts" hint="Minis, as most firms quote them">
             <input name="maxContracts" type="number" defaultValue={account?.maxContracts ?? ''} className="input" />
+          </Field>
+          <Field label="Max micro contracts">
+            <input
+              name="maxMicroContracts"
+              type="number"
+              defaultValue={account?.maxMicroContracts ?? ''}
+              className="input"
+            />
+          </Field>
+          <Field
+            label="Profit split"
+            hint="Your share, e.g. 0.9. Blank uses the firm's — it differs between accounts at the same firm."
+          >
+            <input
+              name="profitSplit"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              defaultValue={account?.profitSplit ?? ''}
+              className="input"
+            />
           </Field>
           <Field label="Min trading days">
             <input name="minTradingDays" type="number" defaultValue={account?.minTradingDays ?? ''} className="input" />
@@ -568,6 +580,10 @@ function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; a
           <input type="checkbox" name="excludeFromStats" defaultChecked={account?.excludeFromStats ?? false} />
           Exclude from headline statistics (for demo or experimental accounts)
         </label>
+
+        <Field label="Payout policy" hint="This account's rules — consistency, caps, schedule.">
+          <textarea name="payoutPolicy" rows={2} defaultValue={account?.payoutPolicy ?? ''} className="textarea" />
+        </Field>
 
         <Field label="Notes">
           <textarea name="notes" rows={2} defaultValue={account?.notes ?? ''} className="textarea" />

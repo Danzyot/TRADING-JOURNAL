@@ -100,12 +100,18 @@ function fxToBase(currency: string, settings: { baseCurrency: string; usdIls: nu
 // Firms & accounts
 // ---------------------------------------------------------------------------
 
+/**
+ * A firm is a name and a website.
+ *
+ * Profit split, payout policy and days-to-payout used to live here, but they
+ * vary within a firm rather than across it, so they moved to the plan and the
+ * account. The columns remain for the accounts that still fall back to them,
+ * and are simply not written from this form — an edit must not reset a value
+ * the form never showed.
+ */
 const firmSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   website: optionalText,
-  profitSplit: num.min(0).max(1).default(0.9),
-  payoutPolicy: optionalText,
-  minDaysToPayout: optionalNum,
   notes: optionalText,
   /** Plan catalogue carried from a firm template, as JSON. */
   plansJson: optionalText.optional(),
@@ -114,7 +120,7 @@ const firmSchema = z.object({
 export async function saveFirm(id: number | null, formData: FormData): Promise<ActionResult> {
   return guard(async () => {
     const { plansJson, ...values } = firmSchema.parse(Object.fromEntries(formData))
-    const payload: Record<string, unknown> = { ...values, minDaysToPayout: values.minDaysToPayout ?? null }
+    const payload: Record<string, unknown> = { ...values }
 
     // A template's catalogue seeds plans only on create — an edit never
     // silently overwrites a catalogue the user has since customised.
@@ -152,6 +158,10 @@ const accountSchema = z.object({
   drawdownLocksAt: optionalNum,
   dailyLossLimit: optionalNum,
   maxContracts: optionalNum,
+  maxMicroContracts: optionalNum,
+  /** Blank falls back to the firm's split rather than assuming a number. */
+  profitSplit: optionalNum,
+  payoutPolicy: optionalText,
   minTradingDays: optionalNum,
   minWinningDays: optionalNum,
   winningDayMinProfit: optionalNum,
@@ -177,6 +187,8 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
       drawdownLocksAt: values.drawdownLocksAt ?? null,
       dailyLossLimit: values.dailyLossLimit ?? null,
       maxContracts: values.maxContracts ?? null,
+      maxMicroContracts: values.maxMicroContracts ?? null,
+      profitSplit: values.profitSplit ?? null,
       minTradingDays: values.minTradingDays ?? null,
       minWinningDays: values.minWinningDays ?? null,
       winningDayMinProfit: values.winningDayMinProfit ?? null,
