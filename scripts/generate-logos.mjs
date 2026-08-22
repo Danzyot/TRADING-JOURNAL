@@ -21,7 +21,7 @@ import { mkdirSync } from 'node:fs'
 const SHEETS = [
   {
     set: 'ember',
-    src: '96748366-cba3-48d2-8b71-b5f0233d9b80.png',
+    src: 'art/logo-sheet-ember.png',
     size: 400,
     // Centres of the glow, which are unambiguous on this softer sheet.
     lefts: [100, 573, 1049],
@@ -29,7 +29,7 @@ const SHEETS = [
   },
   {
     set: 'neon',
-    src: '456b9324-caa0-49c7-83c8-880723772272 (1).png',
+    src: 'art/logo-sheet-neon.png',
     size: 418,
     // Measured tile edges: left 74/558/1035, top 56/538.
     lefts: [74, 558, 1035],
