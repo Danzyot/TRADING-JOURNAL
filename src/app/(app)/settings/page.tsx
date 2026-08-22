@@ -4,6 +4,8 @@ import { brokerConnections, syncLog } from '@/db/schema'
 import { FIRM_DOMAINS } from '@/lib/email/parse'
 import { recentEmailEvents } from '@/server/email-ingest'
 import { mailboxProblems, mailboxes } from '@/server/gmail'
+import { listDevices, pushConfigured, vapidPublicKey } from '@/server/push'
+import { PushSetup } from '@/components/push-setup'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
@@ -11,6 +13,9 @@ import { DEFAULT_RISK_RULES } from '@/server/settings'
 import {
   checkInbox,
   createConnection,
+  registerPushDevice,
+  removePushDevice,
+  sendTestNotification,
   deleteConnection,
   refreshInsights,
   runSync,
@@ -36,11 +41,12 @@ const TIMEZONES = [
 ]
 
 export default async function SettingsPage() {
-  const [settings, connections, logs, emailLog] = await Promise.all([
+  const [settings, connections, logs, emailLog, devices] = await Promise.all([
     getSettings(),
     db.select().from(brokerConnections).orderBy(desc(brokerConnections.createdAt)),
     db.select().from(syncLog).orderBy(desc(syncLog.ranAt)).limit(15),
     recentEmailEvents(8),
+    listDevices(),
   ])
 
   const inboxes = mailboxes()
@@ -338,6 +344,12 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
+        <NotificationsCard
+          configured={pushConfigured()}
+          publicKey={vapidPublicKey()}
+          devices={devices}
+        />
+
         <EmailAutomationCard
           inboxes={inboxes.map((box) => box.user)}
           problems={inboxProblems}
@@ -378,6 +390,75 @@ export default async function SettingsPage() {
         </Card>
       </div>
     </>
+  )
+}
+
+/**
+ * Notifications on the phone.
+ *
+ * The interesting half is client-side (permissions, service worker, the push
+ * subscription) and lives in PushSetup; this is the frame around it, plus the
+ * list of devices so a phone that was replaced can be removed.
+ */
+function NotificationsCard({
+  configured,
+  publicKey,
+  devices,
+}: {
+  configured: boolean
+  publicKey: string | null
+  devices: { id: number; label: string | null; createdAt: Date; lastSentAt: Date | null }[]
+}) {
+  return (
+    <Card
+      title="Notifications on your phone"
+      description="Payouts approved and paid, accounts passed or blown, daily balances — pushed to your home-screen app the moment the journal learns about them."
+    >
+      {configured ? (
+        <div className="space-y-3">
+          <PushSetup publicKey={publicKey} save={registerPushDevice} test={sendTestNotification} />
+
+          {devices.length > 0 && (
+            <ul className="space-y-1.5 border-t border-[var(--line)] pt-3">
+              {devices.map((device) => (
+                <li key={device.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-[var(--ink-secondary)]">
+                    {device.label ?? 'Device'}{' '}
+                    <span className="text-[var(--ink-muted)]">
+                      · added {device.createdAt.toLocaleDateString()}
+                      {device.lastSentAt && ` · last alert ${device.lastSentAt.toLocaleDateString()}`}
+                    </span>
+                  </span>
+                  <ActionButton
+                    action={async () => {
+                      'use server'
+                      return removePushDevice(device.id)
+                    }}
+                    className="btn btn-danger px-2 py-0.5 text-xs"
+                    confirm="Stop sending notifications to this device?"
+                  >
+                    Remove
+                  </ActionButton>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2 text-xs leading-relaxed text-[var(--ink-secondary)]">
+          <p>
+            Notifications need a VAPID key pair — one command, once, and they are free forever. Run{' '}
+            <code>npm run push:keys</code>, then add <code>VAPID_PUBLIC_KEY</code>,{' '}
+            <code>VAPID_PRIVATE_KEY</code> and <code>VAPID_SUBJECT</code> (your email as{' '}
+            <code>mailto:you@example.com</code>) to Vercel and redeploy.
+          </p>
+          <p className="text-[var(--ink-muted)]">
+            On iPhone the app must be added to the home screen first — Safari tabs cannot receive
+            notifications. Full details in docs/NOTIFICATIONS.md.
+          </p>
+        </div>
+      )}
+    </Card>
   )
 }
 

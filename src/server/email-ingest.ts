@@ -6,6 +6,7 @@ import { classifyEmail, looksTransactional, type EmailEventDraft } from '@/lib/e
 import { defaultDeductibleFor } from '@/lib/tax/israel'
 import { aiConfigured, classifyEmailWithAi } from './ai'
 import { fetchRecentMail, gmailConfigured } from './gmail'
+import { notify } from './push'
 
 /**
  * The email automation: inbox in, journal rows out.
@@ -261,6 +262,7 @@ export async function applyEmailEvents(
   )
 
   if (recorded.length > 0) {
+    await announce(recorded)
     try {
       await db.insert(emailEvents).values(
         recorded.map((draft) => ({
@@ -278,6 +280,43 @@ export async function applyEmailEvents(
   }
 
   return { applied: recorded.length, skipped, errors }
+}
+
+/**
+ * Pushes the events worth interrupting someone for.
+ *
+ * Not every event is news: a balance snapshot arrives every evening and a
+ * subscription notice can wait for the next time the app is opened. A payout
+ * moving, or an account being passed or lost, is the reason to have
+ * notifications at all — and the point of the automation is that you hear
+ * about it without going to look.
+ */
+async function announce(events: EmailEventDraft[]): Promise<void> {
+  const worthTelling = events.filter(
+    (event) => event.kind === 'payout' || event.kind === 'account_status',
+  )
+  if (worthTelling.length === 0) return
+
+  if (worthTelling.length > 1) {
+    await notify({
+      title: `${worthTelling.length} updates from your firms`,
+      body: worthTelling.map((event) => event.summary).join(' · ').slice(0, 200),
+      url: '/money',
+      tag: 'email-batch',
+    })
+    return
+  }
+
+  const [event] = worthTelling
+  const payout = event.kind === 'payout'
+  await notify({
+    title: payout
+      ? `Payout ${event.status ?? 'update'}${event.amount ? ` — $${event.amount.toLocaleString()}` : ''}`
+      : `Account ${event.status ?? 'changed'}`,
+    body: event.summary,
+    url: payout ? '/money' : '/accounts',
+    tag: payout ? 'payout' : 'account',
+  })
 }
 
 /** The most recent events, for the Settings page. */

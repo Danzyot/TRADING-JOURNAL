@@ -627,6 +627,31 @@ export const emailEvents = pgTable(
   (t) => [uniqueIndex('email_events_source_idx').on(t.sourceId)],
 )
 
+/**
+ * Devices signed up for push notifications.
+ *
+ * One row per browser or installed app, keyed on the endpoint the push service
+ * gives us — that string *is* the device's address, and it changes when a
+ * subscription is renewed, so it is the natural key rather than anything we
+ * invent. Subscriptions expire on their own (a reinstalled app, a cleared
+ * browser); a send that comes back 404 or 410 deletes the row.
+ */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: serial('id').primaryKey(),
+    endpoint: text('endpoint').notNull(),
+    /** The device's public key and auth secret, from the browser. */
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    /** Something recognisable in Settings, e.g. "iPhone". */
+    label: text('label'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    lastSentAt: timestamp('last_sent_at', { withTimezone: true }),
+  },
+  (t) => [uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint)],
+)
+
 // ---------------------------------------------------------------------------
 // Journal, insights, imports
 // ---------------------------------------------------------------------------
@@ -775,3 +800,4 @@ export type TradingModel = typeof tradingModels.$inferSelect
 export type NewTradingModel = typeof tradingModels.$inferInsert
 export type ModelReview = typeof modelReviews.$inferSelect
 export type EmailEvent = typeof emailEvents.$inferSelect
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect

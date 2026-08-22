@@ -40,6 +40,7 @@ import { rebuildTradesForAccount, rollupDailyStats } from './trades'
 import { saveTradovateCredentials, syncAllConnections, syncTradovateConnection } from './sync'
 import { autoTagTrades, refineModelGuidance, reviewPendingForModel, reviewTradeAgainstModel } from './ai'
 import { runEmailIngest } from './email-ingest'
+import { forgetDevice, saveDevice, sendPush } from './push'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
@@ -892,6 +893,58 @@ export async function checkInbox(days: number): Promise<ActionResult> {
     parts.push(summary.applied === 1 ? '1 new event logged' : `${summary.applied} new events logged`)
     if (summary.skipped > 0) parts.push(`${summary.skipped} already known`)
     return `${parts.join(' — ')}.`
+  })
+}
+
+const subscriptionJsonSchema = z.object({
+  endpoint: z.string().url().max(1000),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(5).max(100) }),
+})
+
+/**
+ * Registers this browser or installed app for notifications.
+ *
+ * The subscription arrives as the JSON the browser produced, which is the only
+ * shape a push service accepts back; it is parsed here rather than trusted.
+ */
+export async function registerPushDevice(subscription: string, label: string): Promise<ActionResult> {
+  return guard(async () => {
+    const parsed = subscriptionJsonSchema.parse(JSON.parse(subscription))
+    await saveDevice({
+      endpoint: parsed.endpoint,
+      p256dh: parsed.keys.p256dh,
+      auth: parsed.keys.auth,
+      label: label.slice(0, 40),
+    })
+    revalidatePath('/settings')
+    return 'Notifications are on for this device.'
+  })
+}
+
+export async function removePushDevice(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    await forgetDevice(id)
+    revalidatePath('/settings')
+    return 'Device removed.'
+  })
+}
+
+export async function sendTestNotification(): Promise<ActionResult> {
+  return guard(async () => {
+    const { sent, failed } = await sendPush({
+      title: 'Trading Journal',
+      body: 'Notifications are working. This is what a payout alert will look like.',
+      url: '/',
+      tag: 'test',
+    })
+    if (sent === 0) {
+      throw new Error(
+        failed > 0
+          ? 'Every device rejected the notification — try Enable again to refresh the subscription.'
+          : 'No devices are registered yet.',
+      )
+    }
+    return `Sent to ${sent} device${sent === 1 ? '' : 's'}.`
   })
 }
 

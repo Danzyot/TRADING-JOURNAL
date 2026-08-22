@@ -43,6 +43,13 @@
       "when": 1787357943810,
       "tag": "0005_pale_venus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787395227359,
+      "tag": "0006_spicy_zzzax",
+      "breakpoints": true
     }
   ]
 }

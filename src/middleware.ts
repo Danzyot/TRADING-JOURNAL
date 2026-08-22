@@ -3,6 +3,17 @@ import { jwtVerify } from 'jose'
 
 const COOKIE = 'tj_session'
 
+/** Files a browser must be able to fetch before the user has signed in. */
+const PUBLIC_FILES = new Set([
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/favicon.svg',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+])
+
 /**
  * Gate every page behind the session cookie.
  *
@@ -24,6 +35,13 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/upload') ||
     pathname.startsWith('/api/ingest') ||
     pathname.startsWith('/_next') ||
+    // The installable-app files. These have to be readable without a session:
+    // iOS fetches the manifest and the icon before anyone signs in, and a
+    // service worker that 302s to the login page cannot register at all —
+    // which would take push notifications down with it. None of them expose
+    // any data; sw.js caches only static assets and every page it fetches
+    // still passes through this same check.
+    PUBLIC_FILES.has(pathname) ||
     pathname === '/favicon.ico'
 
   if (isPublic) return NextResponse.next()
