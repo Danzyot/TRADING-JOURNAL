@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { moneyCompact } from '@/lib/format'
 
@@ -7,7 +10,15 @@ export type CalendarDay = { netPnl: number; trades: number }
  * The month at a glance: one cell per day, tinted by that day's net P&L with
  * intensity scaled to the month's largest day, and a weekly total on the
  * right — the copier-platform report view, but every cell clicks through to
- * that day's journal entry. Server-rendered; the links are the interactivity.
+ * that day's setups.
+ *
+ * Paging between months is local state, not navigation. Every day of history
+ * is already in `days`, so asking the server to re-render the whole journal
+ * just to draw a different grid of the same data made flicking back through
+ * the year feel like a page load each time — which it was.
+ *
+ * Picking a *day* is still a link: that one genuinely needs the server, since
+ * the setups logged on it are loaded per day.
  */
 export function PnlCalendar({
   month,
@@ -25,7 +36,12 @@ export function PnlCalendar({
   today: string
   ccy: string
 }) {
-  const [yearStr, monthStr] = month.split('-')
+  // Seeded from the server's month, and re-synced whenever it changes — the
+  // server decides the month when a day is picked or a link is opened.
+  const [visible, setVisible] = useState(month)
+  useEffect(() => setVisible(month), [month])
+
+  const [yearStr, monthStr] = visible.split('-')
   const year = Number(yearStr)
   const monthIndex = Number(monthStr) - 1
 
@@ -48,7 +64,7 @@ export function PnlCalendar({
   const monthMax = Math.max(
     1,
     ...Array.from(days.entries())
-      .filter(([day]) => day.startsWith(month))
+      .filter(([day]) => day.startsWith(visible))
       .map(([, stats]) => Math.abs(stats.netPnl)),
   )
 
@@ -67,12 +83,22 @@ export function PnlCalendar({
       <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-4 py-2.5">
         <h2 className="text-sm font-semibold text-[var(--ink)]">{monthLabel}</h2>
         <div className="flex items-center gap-1.5">
-          <Link prefetch={false} href={`/journal?month=${monthParam(prev)}`} className="btn px-2.5" aria-label="Previous month">
+          <button
+            type="button"
+            onClick={() => setVisible(monthParam(prev))}
+            className="btn px-2.5"
+            aria-label="Previous month"
+          >
             ‹
-          </Link>
-          <Link prefetch={false} href={`/journal?month=${monthParam(next)}`} className="btn px-2.5" aria-label="Next month">
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisible(monthParam(next))}
+            className="btn px-2.5"
+            aria-label="Next month"
+          >
             ›
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -120,7 +146,7 @@ export function PnlCalendar({
                       <td key={dayIndex} className="p-0.5 align-top">
                         <Link
                           prefetch={false}
-                          href={`/journal?date=${date}`}
+                          href={`/trades?date=${date}`}
                           className="block h-[4.25rem] rounded-md border p-1.5 transition-transform hover:scale-[1.03]"
                           style={{
                             background: tint ?? 'var(--surface-sunken)',
