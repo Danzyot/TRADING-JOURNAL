@@ -13,6 +13,7 @@ describe('firm logos', () => {
     expect(firmArt('TPT').wordmark).toBe(firmArt('Take Profit Trader').wordmark)
     expect(firmArt('Lucid').mark).toBe(firmArt('Lucid Trading').mark)
     expect(firmArt('FundedNext Futures').mark).toBe(firmArt('FundedNext').mark)
+    expect(firmArt('TopstepX').mark).toBe(firmArt('Topstep').mark)
   })
 
   it('has both shapes for Topstep', () => {

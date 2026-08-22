@@ -59,6 +59,8 @@ const ALIASES: Record<string, string> = {
   alpha: 'alphafutures',
   alphacapitalfutures: 'alphafutures',
   topsteptrader: 'topstep',
+  // The platform's name, and what the firm row usually ends up called.
+  topstepx: 'topstep',
 }
 
 export function firmArtKey(name: string): string {

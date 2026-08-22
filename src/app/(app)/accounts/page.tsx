@@ -154,6 +154,15 @@ export default async function AccountsPage({
   const editId = params.edit ? Number(params.edit) : null
   const editing = editId === null ? undefined : accounts.find((account) => account.id === editId)
   const hasUnassigned = accounts.some((account) => account.firmId === null)
+  // Only firms you hold accounts with. These chips filter the table below, so a
+  // firm with nothing in it is a button whose only outcome is an empty page —
+  // and the firm *record* outlives every account you close, so the full list
+  // drifted into being firms you used to trade. The directory of every firm
+  // there is lives on the prop firms page; this is a filter over your own.
+  const firmsInUse = firms.filter(
+    (firm) =>
+      accounts.some((account) => account.firmId === firm.id) || firmFilter === String(firm.id),
+  )
 
   return (
     <>
@@ -227,13 +236,14 @@ export default async function AccountsPage({
           {/* Firm filter — server-rendered tabs, no client state to manage. */}
           <div className="flex flex-wrap items-center gap-1.5">
             <FilterTab href="/accounts" active={firmFilter === ''} label="All firms" />
-            {firms.map((firm) => (
+            {firmsInUse.map((firm) => (
               <FilterTab
                 key={firm.id}
                 href={`/accounts?firm=${firm.id}`}
                 active={firmFilter === String(firm.id)}
                 label={firm.name}
                 mark={firmArt(firm.name).mark}
+                count={accounts.filter((account) => account.firmId === firm.id).length}
               />
             ))}
             {hasUnassigned && (
@@ -282,12 +292,15 @@ function FilterTab({
   active,
   label,
   mark,
+  count,
 }: {
   href: string
   active: boolean
   label: string
   /** The firm's logo, when there is one — a row of chips is scanned, not read. */
   mark?: string
+  /** How many accounts sit behind this chip. */
+  count?: number
 }) {
   return (
     <Link
@@ -304,6 +317,11 @@ function FilterTab({
         <img src={mark} alt="" aria-hidden loading="lazy" className="h-5 w-5 rounded-full object-cover" />
       )}
       {label}
+      {count !== undefined && (
+        <span className={clsx('tabular text-[0.6875rem]', active ? 'text-white/80' : 'text-[var(--ink-muted)]')}>
+          {count}
+        </span>
+      )}
     </Link>
   )
 }

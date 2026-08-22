@@ -150,12 +150,15 @@ export function PlanCatalogue({
   const searching = query.trim() !== ''
   const needle = query.trim().toLowerCase()
 
-  // Your own firms sort to the front. Everything else keeps catalogue order, so
-  // a firm never moves around underneath you for any other reason.
-  const ordered = useMemo(
-    () => [...catalogues].sort((a, b) => Number(b.slug in yours) - Number(a.slug in yours)),
-    [catalogues, yours],
-  )
+  // Firms you hold accounts with first, then everything that has plans to read,
+  // then bare records — a firm you added by hand and never filled in is the
+  // least useful card on the page and used to sit second. Within each band the
+  // catalogue order is kept, so nothing else moves around underneath you.
+  const ordered = useMemo(() => {
+    const rank = (firm: FirmCatalogue) =>
+      (yours[firm.slug] ?? 0) > 0 ? 0 : firm.plans.length > 0 ? 1 : 2
+    return [...catalogues].sort((a, b) => rank(a) - rank(b))
+  }, [catalogues, yours])
 
   const matches = useMemo(() => {
     if (!searching) return []
@@ -291,10 +294,7 @@ function FirmGrid({
         const accent = accentFor(firm.slug)
         const families = familiesOf(firm)
         const sizes = [...new Set(firm.plans.map((plan) => plan.size))].sort((a, b) => a - b)
-        const splits = firm.plans
-          .map((plan) => plan.profitSplit)
-          .filter((split): split is number => split !== null && split !== undefined)
-        const bestSplit = splits.length ? Math.max(...splits) : null
+        const accounts = yours[firm.slug] ?? 0
 
         return (
           <button
@@ -321,11 +321,13 @@ function FirmGrid({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {firm.slug in yours && (
+              {/* A badge for accounts you actually hold. Having a firm *record*
+                  is not the same thing — one is left behind by every account
+                  you ever added and then closed, and "Yours · no accounts" on
+                  half the page said nothing about which firms you trade. */}
+              {accounts > 0 && (
                 <Bubble tone={accent}>
-                  {yours[firm.slug] > 0
-                    ? `Yours · ${yours[firm.slug]} account${yours[firm.slug] === 1 ? '' : 's'}`
-                    : 'Yours · no accounts'}
+                  {accounts} account{accounts === 1 ? '' : 's'}
                 </Bubble>
               )}
               {firm.plans.length === 0 ? (
@@ -334,7 +336,6 @@ function FirmGrid({
                 <>
                   <Bubble>{families.length} account types</Bubble>
                   <Bubble>{firm.plans.length} plans</Bubble>
-                  {bestSplit !== null && <Bubble tone={accent}>up to {pct(bestSplit)}</Bubble>}
                 </>
               )}
             </div>
@@ -597,7 +598,14 @@ function SearchResults({
                   {plan.label}
                 </span>
                 <span className="block truncate text-[0.6875rem] text-[var(--ink-muted)]">
-                  {firm.name} · {usd(plan.maxDrawdown)} max loss · {pct(plan.profitSplit)} split
+                  {[
+                    firm.name,
+                    `${usd(plan.maxDrawdown)} max loss`,
+                    // Only when the plan records one — "— split" was noise.
+                    plan.profitSplit == null ? null : `${pct(plan.profitSplit)} split`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </span>
               <span className="tabular shrink-0 text-xs font-semibold text-[var(--ink-secondary)]">
