@@ -1,11 +1,14 @@
 import { CashflowChart } from '@/components/charts'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { EditableRow } from '@/components/editable-row'
+import { CryptoFields } from '@/components/crypto-fields'
+import { Editable } from '@/components/site-text'
 import { BarRow, Badge, Card, EmptyState, KeyValue, Meter, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { CATEGORY_LABELS, money, percent, relativeDays, shortDate, signed, titleCase } from '@/lib/format'
 import { EXPENSE_CATEGORIES } from '@/db/schema'
 import { allocatePayout, normalisePlan } from '@/lib/allocation'
 import { DEDUCTIBLE_DEFAULTS } from '@/lib/tax/israel'
+import { NETWORKS, explorerAddressUrl, explorerTxUrl, networkFor, shorten } from '@/lib/crypto-assets'
 import { today } from '@/lib/time'
 import {
   cancelSubscription,
@@ -17,8 +20,18 @@ import {
   saveExpense,
   savePayout,
   saveSubscription,
+  saveWallet,
+  deleteWallet,
 } from '@/server/actions'
-import { annualisedCost, listExpenses, listFirms, listPayouts, listSubscriptions, moneySummary } from '@/server/money'
+import {
+  annualisedCost,
+  listExpenses,
+  listFirms,
+  listPayouts,
+  listSubscriptions,
+  listWallets,
+  moneySummary,
+} from '@/server/money'
 import { getSettings } from '@/server/settings'
 import { listAccounts } from '@/server/trades'
 
@@ -26,7 +39,7 @@ export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Earnings — Trading Journal' }
 
 export default async function MoneyPage() {
-  const [settings, summary, expenses, payouts, subscriptions, accounts, firms] = await Promise.all([
+  const [settings, summary, expenses, payouts, subscriptions, accounts, firms, wallets] = await Promise.all([
     getSettings(),
     moneySummary(),
     listExpenses(),
@@ -34,6 +47,7 @@ export default async function MoneyPage() {
     listSubscriptions(),
     listAccounts(),
     listFirms(),
+    listWallets(),
   ])
 
   const ccy = settings.baseCurrency
@@ -204,9 +218,11 @@ export default async function MoneyPage() {
       {/* --- Payouts -------------------------------------------------------- */}
       <div className="mt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Payouts</h2>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">
+            <Editable scope="heading">Payouts</Editable>
+          </h2>
           <Disclosure label="Record payout">
-            <PayoutForm accounts={accounts} firms={firms} ccy={ccy} />
+            <PayoutForm accounts={accounts} firms={firms} ccy={ccy} wallets={wallets} />
           </Disclosure>
         </div>
 
@@ -236,7 +252,7 @@ export default async function MoneyPage() {
                       key={payout.id}
                       columns={10}
                       editor={
-                        <PayoutForm accounts={accounts} firms={firms} ccy={ccy} payout={payout} />
+                        <PayoutForm accounts={accounts} firms={firms} ccy={ccy} payout={payout} wallets={wallets} />
                       }
                       actions={
                         <ActionButton
@@ -258,6 +274,7 @@ export default async function MoneyPage() {
                         <span className="flex items-center gap-1.5">
                           {accountName(payout.accountId)}
                           <SourceBadge source={payout.source} />
+                          <ChainLink network={payout.cryptoNetwork} hash={payout.cryptoTxHash} />
                         </span>
                       </td>
                       <td>
@@ -291,14 +308,108 @@ export default async function MoneyPage() {
         </Card>
       </div>
 
+      {/* --- Wallets -------------------------------------------------------- */}
+      <div className="mt-8 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--ink)]">
+              <Editable scope="heading">Wallets</Editable>
+            </h2>
+            <Editable as="p" scope="body" className="text-xs text-[var(--ink-secondary)]">
+              Receiving addresses, so a crypto payout has a destination with a name. Nothing here can move money — an
+              address is what you hand a firm, not a key.
+            </Editable>
+          </div>
+          <Disclosure label="Add wallet">
+            <WalletForm />
+          </Disclosure>
+        </div>
+
+        <Card>
+          {wallets.length === 0 ? (
+            <EmptyState
+              title="No wallets saved"
+              body="Add the addresses you get paid to and the payout form will offer them by name."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Chain</th>
+                    <th>Address</th>
+                    <th>Assets</th>
+                    <th>Custody</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {wallets.map((wallet) => (
+                    <EditableRow
+                      key={wallet.id}
+                      columns={6}
+                      editor={<WalletForm wallet={wallet} />}
+                      actions={
+                        <ActionButton
+                          action={async () => {
+                            'use server'
+                            return deleteWallet(wallet.id)
+                          }}
+                          className="btn btn-danger px-2 py-1"
+                          confirm="Remove this wallet? Payouts keep their address and hash."
+                        >
+                          ✕
+                        </ActionButton>
+                      }
+                      cells={
+                        <>
+                          <td className="font-medium text-[var(--ink)]">
+                            <span className="flex items-center gap-1.5">
+                              {wallet.label}
+                              {!wallet.active && <Badge tone="warn">Retired</Badge>}
+                            </span>
+                          </td>
+                          <td>{networkFor(wallet.network)?.label ?? wallet.network}</td>
+                          <td className="font-mono text-xs">
+                            {explorerAddressUrl(wallet.network, wallet.address) ? (
+                              <a
+                                href={explorerAddressUrl(wallet.network, wallet.address)!}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                title={wallet.address}
+                                className="hover:text-[var(--accent)]"
+                              >
+                                {shorten(wallet.address, 8, 6)}
+                              </a>
+                            ) : (
+                              shorten(wallet.address, 8, 6)
+                            )}
+                          </td>
+                          <td className="text-xs">{wallet.assets ?? '—'}</td>
+                          <td className="text-xs">{wallet.custody ?? '—'}</td>
+                        </>
+                      }
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
       {/* --- Subscriptions -------------------------------------------------- */}
       <div className="mt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-[var(--ink)]">Subscriptions</h2>
+            <h2 className="text-sm font-semibold text-[var(--ink)]">
+            <Editable scope="heading">Subscriptions</Editable>
+          </h2>
             <p className="text-xs text-[var(--ink-secondary)]">
               {money(summary.subscriptionAnnual, ccy, 0)} a year across{' '}
-              {subscriptions.filter((s) => s.active).length} active. Charges are logged automatically as they fall due.
+              {subscriptions.filter((s) => s.active).length} active.{' '}
+              <Editable scope="body">Charges are logged automatically as they fall due.</Editable>
             </p>
           </div>
           <Disclosure label="Add subscription">
@@ -390,9 +501,11 @@ export default async function MoneyPage() {
       {/* --- Expenses ------------------------------------------------------- */}
       <div className="mt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Expenses</h2>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">
+            <Editable scope="heading">Expenses</Editable>
+          </h2>
           <Disclosure label="Log expense">
-            <ExpenseForm accounts={accounts} firms={firms} />
+            <ExpenseForm accounts={accounts} firms={firms} wallets={wallets} ccy={ccy} />
           </Disclosure>
         </div>
 
@@ -423,7 +536,7 @@ export default async function MoneyPage() {
                     <EditableRow
                       key={expense.id}
                       columns={9}
-                      editor={<ExpenseForm accounts={accounts} firms={firms} expense={expense} />}
+                      editor={<ExpenseForm accounts={accounts} firms={firms} expense={expense} wallets={wallets} ccy={ccy} />}
                       actions={
                         <ActionButton
                           action={async () => {
@@ -443,6 +556,7 @@ export default async function MoneyPage() {
                         <span className="flex items-center gap-1.5">
                           {expense.vendor}
                           <SourceBadge source={expense.source} />
+                          <ChainLink network={expense.cryptoNetwork} hash={expense.cryptoTxHash} />
                         </span>
                       </td>
                       <td>{CATEGORY_LABELS[expense.category] ?? titleCase(expense.category)}</td>
@@ -471,6 +585,30 @@ type AccountRow = Awaited<ReturnType<typeof listAccounts>>[number]
 type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
 type ExpenseRow = Awaited<ReturnType<typeof listExpenses>>[number]
 type PayoutRow = Awaited<ReturnType<typeof listPayouts>>[number]
+type WalletRow = Awaited<ReturnType<typeof listWallets>>[number]
+
+/**
+ * A transaction hash, as a link to the chain that settled it.
+ *
+ * The point of recording the hash at all is that the row stops being a claim
+ * and becomes something anyone can check — so it renders as one click to the
+ * explorer rather than 66 characters of hex nobody would ever retype.
+ */
+function ChainLink({ network, hash }: { network: string | null; hash: string | null }) {
+  const url = explorerTxUrl(network, hash)
+  if (!url) return null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={`${networkFor(network)?.label ?? network} · ${hash}`}
+      className="tabular rounded bg-[var(--surface-sunken)] px-1 py-0.5 font-mono text-[0.625rem] text-[var(--ink-secondary)] hover:text-[var(--accent)]"
+    >
+      {shorten(hash, 4, 4)}
+    </a>
+  )
+}
 type SubscriptionRow = Awaited<ReturnType<typeof listSubscriptions>>[number]
 
 /**
@@ -499,10 +637,14 @@ function ExpenseForm({
   accounts,
   firms,
   expense,
+  wallets,
+  ccy,
 }: {
   accounts: AccountRow[]
   firms: FirmRow[]
   expense?: ExpenseRow
+  wallets: WalletRow[]
+  ccy: string
 }) {
   async function submit(formData: FormData) {
     'use server'
@@ -533,13 +675,15 @@ function ExpenseForm({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-          <Field label="Currency">
-            <select name="currency" className="select" defaultValue={expense?.currency ?? 'USD'}>
-              <option value="USD">USD</option>
-              <option value="ILS">ILS</option>
-              <option value="EUR">EUR</option>
-            </select>
-          </Field>
+          <CryptoFields
+            defaultCurrency={expense?.currency ?? 'USD'}
+            defaultNetwork={expense?.cryptoNetwork}
+            defaultTxHash={expense?.cryptoTxHash}
+            defaultAddress={expense?.cryptoAddress}
+            defaultRate={expense?.fxRate}
+            wallets={wallets}
+            baseCurrency={ccy}
+          />
           <Field label="Account">
             <select name="accountId" className="select" defaultValue={expense?.accountId ?? ''}>
               <option value="">Not account-specific</option>
@@ -714,11 +858,13 @@ function PayoutForm({
   firms,
   ccy,
   payout,
+  wallets,
 }: {
   accounts: AccountRow[]
   firms: FirmRow[]
   ccy: string
   payout?: PayoutRow
+  wallets: WalletRow[]
 }) {
   async function submit(formData: FormData) {
     'use server'
@@ -749,13 +895,15 @@ function PayoutForm({
               <option value="cancelled">Cancelled</option>
             </select>
           </Field>
-          <Field label="Currency">
-            <select name="currency" className="select" defaultValue={payout?.currency ?? ccy}>
-              <option value="USD">USD</option>
-              <option value="ILS">ILS</option>
-              <option value="EUR">EUR</option>
-            </select>
-          </Field>
+          <CryptoFields
+            defaultCurrency={payout?.currency ?? ccy}
+            defaultNetwork={payout?.cryptoNetwork}
+            defaultTxHash={payout?.cryptoTxHash}
+            defaultAddress={payout?.cryptoAddress}
+            defaultRate={payout?.fxRate}
+            wallets={wallets}
+            baseCurrency={ccy}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -850,4 +998,67 @@ function buildCashflow(
   return [...months.entries()]
     .map(([month, value]) => ({ month, ...value }))
     .sort((a, b) => a.month.localeCompare(b.month))
+}
+
+function WalletForm({ wallet }: { wallet?: WalletRow }) {
+  async function submit(formData: FormData) {
+    'use server'
+    return saveWallet(wallet?.id ?? null, formData)
+  }
+
+  const form = (
+    <ActionForm action={submit} className="space-y-3" resetOnSuccess={!wallet}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Field label="Label" hint="What you call it, not what the chain calls it">
+          <input name="label" className="input" required placeholder="Revolut USDC" defaultValue={wallet?.label} />
+        </Field>
+        <Field label="Chain">
+          <select name="network" className="select" defaultValue={wallet?.network ?? ''} required>
+            <option value="">Choose a chain…</option>
+            {NETWORKS.map((network) => (
+              <option key={network.id} value={network.id}>
+                {network.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Assets" hint="What actually arrives here">
+          <input name="assets" className="input" placeholder="USDC, USDT" defaultValue={wallet?.assets ?? ''} />
+        </Field>
+      </div>
+
+      <Field label="Address">
+        <input
+          name="address"
+          className="input font-mono text-xs"
+          required
+          placeholder="0x…"
+          defaultValue={wallet?.address}
+        />
+      </Field>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Custody" hint="Who holds the keys — the first thing a compliance question asks">
+          <input
+            name="custody"
+            className="input"
+            placeholder="Self-custody hardware, Revolut, Coinbase…"
+            defaultValue={wallet?.custody ?? ''}
+          />
+        </Field>
+        <Field label="Notes">
+          <input name="notes" className="input" defaultValue={wallet?.notes ?? ''} />
+        </Field>
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-[var(--ink-secondary)]">
+        <input type="checkbox" name="active" defaultChecked={wallet?.active ?? true} />
+        Still in use
+      </label>
+
+      <SubmitButton>{wallet ? 'Save changes' : 'Add wallet'}</SubmitButton>
+    </ActionForm>
+  )
+
+  return wallet ? form : <Card>{form}</Card>
 }

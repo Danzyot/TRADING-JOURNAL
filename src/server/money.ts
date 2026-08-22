@@ -7,6 +7,7 @@ import {
   payouts,
   propFirms,
   subscriptions,
+  wallets,
   type Expense,
   type Payout,
   type Subscription,
@@ -39,6 +40,10 @@ export async function listPayouts(from?: string, to?: string): Promise<Payout[]>
 
 export async function listSubscriptions(): Promise<Subscription[]> {
   return db.select().from(subscriptions).orderBy(desc(subscriptions.active), asc(subscriptions.nextRenewalOn))
+}
+
+export async function listWallets() {
+  return db.select().from(wallets).orderBy(desc(wallets.active), asc(wallets.label))
 }
 
 export async function listFirms() {

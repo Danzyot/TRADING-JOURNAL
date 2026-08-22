@@ -28,6 +28,7 @@ import {
   type AllocationPlan,
   type RiskRules,
   type TaxProfile,
+  wallets,
 } from '@/db/schema'
 import { allocatePayout } from '@/lib/allocation'
 import { riskFromStop, rMultiple } from '@/lib/analytics/matching'
@@ -43,6 +44,7 @@ import { runEmailIngest } from './email-ingest'
 import { forgetDevice, saveDevice, sendPush } from './push'
 import { setSiteText } from './site-text'
 import { isLogoId } from '@/lib/logos'
+import { addressLooksValid, isCryptoCurrency, isStablecoin } from '@/lib/crypto-assets'
 import { deleteDocument, storeDocument } from './documents'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
@@ -67,6 +69,16 @@ const optionalNum = z
 const optionalText = z
   .union([z.literal(''), z.string()])
   .transform((value) => (value === '' ? null : value))
+
+/**
+ * The same two, for inputs a form only renders under some conditions.
+ *
+ * `Object.fromEntries(formData)` simply has no key for a field that was never
+ * on screen, and the pair above reject `undefined` — so a plain USD payout was
+ * failing validation on the crypto fields it had no reason to show.
+ */
+const absentNum = optionalNum.optional().transform((value) => value ?? null)
+const absentText = optionalText.optional().transform((value) => value ?? null)
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string }
 
@@ -95,6 +107,52 @@ function fxToBase(currency: string, settings: { baseCurrency: string; usdIls: nu
   if (currency === 'ILS' && settings.baseCurrency === 'USD') return 1 / settings.usdIls
   if (currency === 'USD' && settings.baseCurrency === 'ILS') return settings.usdIls
   return 1
+}
+
+/**
+ * The same factor, but honest about crypto.
+ *
+ * `fxToBase` falls back to 1:1 for anything it does not know, which is a fine
+ * default for an unrecognised fiat code and a dangerous one for a chain asset:
+ * 0.4 ETH would be booked as $0.40 and quietly disappear from every total. So
+ * a stablecoin is valued as the dollar it tracks, and a volatile asset must
+ * carry the unit price that actually settled — the form asks for it, and this
+ * refuses rather than guesses when it is missing.
+ */
+function settlementRate(
+  currency: string,
+  settings: { baseCurrency: string; usdIls: number },
+  override: number | null,
+): number {
+  if (!isCryptoCurrency(currency)) return fxToBase(currency, settings)
+  if (isStablecoin(currency) && override === null) return fxToBase('USD', settings)
+  if (override === null || override <= 0) {
+    throw new Error(
+      `${currency} has no fixed value — enter what one ${currency} was worth in ${settings.baseCurrency} when it settled.`,
+    )
+  }
+  return override
+}
+
+/**
+ * Chain details, kept only while the row is actually in crypto.
+ *
+ * Editing a payout from USDC back to USD has to clear them: a hash left
+ * behind on a wire transfer would link to a block explorer that knows nothing
+ * about it, which is worse than having no link at all.
+ */
+function cryptoColumns(
+  currency: string,
+  values: { cryptoNetwork?: string | null; cryptoTxHash?: string | null; cryptoAddress?: string | null },
+) {
+  if (!isCryptoCurrency(currency)) {
+    return { cryptoNetwork: null, cryptoTxHash: null, cryptoAddress: null }
+  }
+  return {
+    cryptoNetwork: values.cryptoNetwork ?? null,
+    cryptoTxHash: values.cryptoTxHash ?? null,
+    cryptoAddress: values.cryptoAddress ?? null,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -514,6 +572,11 @@ const expenseSchema = z.object({
   deductiblePercent: optionalNum,
   vatAmount: num.default(0),
   notes: optionalText,
+  cryptoNetwork: absentText,
+  cryptoTxHash: absentText,
+  cryptoAddress: absentText,
+  /** Unit price of a volatile asset when it settled, in the base currency. */
+  settlementRate: absentNum,
 })
 
 export async function saveExpense(id: number | null, formData: FormData): Promise<ActionResult> {
@@ -522,10 +585,12 @@ export async function saveExpense(id: number | null, formData: FormData): Promis
     const values = expenseSchema.parse(raw)
     const settings = await getSettings()
 
-    const fxRate = fxToBase(values.currency, settings)
+    const fxRate = settlementRate(values.currency, settings, values.settlementRate)
 
+    const { settlementRate: _rate, ...columns } = values
     const payload = {
-      ...values,
+      ...columns,
+      ...cryptoColumns(values.currency, values),
       category: values.category as (typeof expenses.$inferInsert)['category'],
       accountId: values.accountId ?? null,
       firmId: values.firmId ?? null,
@@ -625,6 +690,11 @@ const payoutSchema = z.object({
   method: optionalText,
   reference: optionalText,
   notes: optionalText,
+  cryptoNetwork: absentText,
+  cryptoTxHash: absentText,
+  cryptoAddress: absentText,
+  /** Unit price of a volatile asset when it settled, in the base currency. */
+  settlementRate: absentNum,
 })
 
 export async function savePayout(id: number | null, formData: FormData): Promise<ActionResult> {
@@ -637,7 +707,7 @@ export async function savePayout(id: number | null, formData: FormData): Promise
     const netAmount = values.grossAmount * values.profitSplit - values.processingFee
     // Same conversion the expense path uses. The old inline version booked an
     // ILS payout 1:1 into a USD base — a ₪10,000 payout recorded as $10,000.
-    const fxRate = fxToBase(values.currency, settings)
+    const fxRate = settlementRate(values.currency, settings, values.settlementRate)
     const netAmountBase = netAmount * fxRate
 
     // Caps only mean anything against the RUNNING balance of each bucket, so
@@ -658,8 +728,10 @@ export async function savePayout(id: number | null, formData: FormData): Promise
     const allocation = allocatePayout(netAmountBase, settings.allocationPlan, balances)
     const taxLine = allocation.lines.find((line) => line.key === 'tax')
 
+    const { settlementRate: _rate, ...columns } = values
     const payload = {
-      ...values,
+      ...columns,
+      ...cryptoColumns(values.currency, values),
       accountId: values.accountId ?? null,
       firmId: values.firmId ?? null,
       netAmount,
@@ -675,6 +747,51 @@ export async function savePayout(id: number | null, formData: FormData): Promise
 
     revalidateAll()
     return `Payout of ${netAmount.toFixed(2)} ${values.currency} saved.`
+  })
+}
+
+/**
+ * A receiving address, saved so a payout's destination is a name.
+ *
+ * Deliberately narrow: nothing here can move money. The address is public
+ * information by construction — it is what you hand a prop firm — so it is
+ * stored in the clear, unlike the broker credentials next door.
+ */
+const walletSchema = z.object({
+  label: z.string().min(1, 'Give it a name'),
+  network: z.string().min(1, 'Choose a chain'),
+  address: z.string().min(1, 'Address is required'),
+  assets: optionalText,
+  custody: optionalText,
+  notes: optionalText,
+})
+
+export async function saveWallet(id: number | null, formData: FormData): Promise<ActionResult> {
+  return guard(async () => {
+    const raw = Object.fromEntries(formData)
+    const values = walletSchema.parse(raw)
+    const address = values.address.trim()
+
+    // A warning, not a rejection: a chain this app has not heard of yet must
+    // not stop the trader recording where their money actually goes.
+    const shape = addressLooksValid(values.network, address)
+
+    const payload = { ...values, address, active: raw.active !== 'off' }
+    if (id) await db.update(wallets).set(payload).where(eq(wallets.id, id))
+    else await db.insert(wallets).values(payload)
+
+    revalidateAll()
+    return shape
+      ? `Saved ${values.label}.`
+      : `Saved ${values.label} — but that does not look like a ${values.network} address, so check it before using it.`
+  })
+}
+
+export async function deleteWallet(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    await db.delete(wallets).where(eq(wallets.id, id))
+    revalidateAll()
+    return 'Wallet removed. Payouts that used it keep their address and hash.'
   })
 }
 

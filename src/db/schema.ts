@@ -489,6 +489,17 @@ export const expenses = pgTable(
     vatAmount: money('vat_amount').default(0).notNull(),
     hasReceipt: boolean('has_receipt').default(false).notNull(),
     receiptUrl: text('receipt_url'),
+
+    /**
+     * Settlement in crypto, when an evaluation fee was paid in stablecoins
+     * rather than by card. `currency` already says USDC; these say which chain
+     * it moved on and which transaction proves it, which is what a compliance
+     * request or a tax return actually needs. Null on every fiat row.
+     */
+    cryptoNetwork: text('crypto_network'),
+    cryptoTxHash: text('crypto_tx_hash'),
+    cryptoAddress: text('crypto_address'),
+
     notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -563,11 +574,47 @@ export const payouts = pgTable(
     /** Set once the payout has been invoiced (osek murshe / patur receipt). */
     invoiceNumber: text('invoice_number'),
     invoicedOn: date('invoiced_on'),
+
+    /**
+     * Settlement in crypto. Lucid pays through WorkMarket or crypto and
+     * nothing else; MyFundedFutures, FundedNext and Alpha Futures settle in
+     * stablecoins on request. `netAmount` stays the number of units and
+     * `fxRate` what they were worth on arrival, so a payout of 500 USDC and
+     * one of $500 sum the same way — these three columns are what make the
+     * crypto one checkable against the chain afterwards.
+     */
+    cryptoNetwork: text('crypto_network'),
+    cryptoTxHash: text('crypto_tx_hash'),
+    cryptoAddress: text('crypto_address'),
+
     notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index('payouts_date_idx').on(t.requestedOn), index('payouts_account_idx').on(t.accountId)],
 )
+
+/**
+ * The trader's own receiving addresses, so a payout's destination is a name
+ * rather than 42 characters of hex.
+ *
+ * Kept deliberately thin: an address, the chain it lives on, and what it is
+ * for. No private keys, no seed phrases, no read-only API keys — this table
+ * can only ever say where money went, never move it, which is the only shape
+ * worth having in a database that also holds a passport scan.
+ */
+export const wallets = pgTable('wallets', {
+  id: serial('id').primaryKey(),
+  label: text('label').notNull(),
+  network: text('network').notNull(),
+  address: text('address').notNull(),
+  /** Which assets actually arrive here, free text: "USDC, USDT". */
+  assets: text('assets'),
+  /** Exchange, self-custody, hardware — context for a compliance question. */
+  custody: text('custody'),
+  active: boolean('active').default(true).notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
 
 // ---------------------------------------------------------------------------
 // Trading models — named entry setups the AI reviews trades against
