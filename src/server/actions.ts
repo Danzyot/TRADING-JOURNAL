@@ -29,6 +29,9 @@ import {
   type RiskRules,
   type TaxProfile,
   wallets,
+  tradeSetups,
+  documentFolders,
+  documents,
 } from '@/db/schema'
 import { allocatePayout } from '@/lib/allocation'
 import { riskFromStop, rMultiple } from '@/lib/analytics/matching'
@@ -48,6 +51,9 @@ import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import { parsePlainMoney } from '@/lib/propfirm/parse-specs'
 import { addressLooksValid, isCryptoCurrency, isStablecoin } from '@/lib/crypto-assets'
 import { deleteDocument, storeDocument } from './documents'
+import { prepareScreenshot } from './setups'
+import { deriveSetup } from '@/lib/analytics/setup'
+import { scanSetupScreenshot } from './ai'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
@@ -908,6 +914,196 @@ export async function deletePayout(id: number): Promise<ActionResult> {
     await db.delete(payouts).where(eq(payouts.id, id))
     revalidateAll()
     return 'Payout deleted.'
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Trade setups
+
+/**
+ * A setup as the trader recorded it.
+ *
+ * Prices and point distances are two ways of writing one fact, so the form
+ * takes whichever the platform showed and `deriveSetup` fills in the rest.
+ * Where both are given and disagree, the mismatch is reported back rather than
+ * quietly resolved — a stop recorded 45 points from the entry when the order
+ * was 20 makes every R-multiple downstream wrong.
+ */
+const setupSchema = z.object({
+  entryDate: z.string().min(1, 'A date is required'),
+  symbol: absentText,
+  direction: z.enum(['long', 'short']).nullish().catch(null),
+  entryPrice: absentNum,
+  stopPrice: absentNum,
+  stopPoints: absentNum,
+  targetPrice: absentNum,
+  targetPoints: absentNum,
+  riskReward: absentNum,
+  modelId: absentNum,
+  notes: absentText,
+})
+
+export async function saveSetup(id: number | null, formData: FormData): Promise<ActionResult> {
+  return guard(async () => {
+    const raw = Object.fromEntries(formData)
+    const values = setupSchema.parse({ ...raw, direction: raw.direction || null })
+
+    const derived = deriveSetup({
+      direction: values.direction ?? null,
+      entryPrice: values.entryPrice,
+      stopPrice: values.stopPrice,
+      stopPoints: values.stopPoints,
+      targetPrice: values.targetPrice,
+      targetPoints: values.targetPoints,
+      riskReward: values.riskReward,
+    })
+
+    const file = formData.get('screenshot')
+    const image = await prepareScreenshot(file instanceof File ? file : null)
+
+    const payload = {
+      entryDate: values.entryDate,
+      symbol: values.symbol,
+      direction: derived.direction,
+      entryPrice: derived.entryPrice,
+      stopPrice: derived.stopPrice,
+      stopPoints: derived.stopPoints,
+      targetPrice: derived.targetPrice,
+      targetPoints: derived.targetPoints,
+      riskReward: derived.riskReward,
+      modelId: values.modelId ?? null,
+      notes: values.notes,
+      updatedAt: new Date(),
+      // Only overwrite the chart when a new one was actually sent: an edit that
+      // changes a price must not silently drop the screenshot.
+      ...(image
+        ? { screenshot: image.data, screenshotType: image.type, screenshotBytes: image.bytes }
+        : {}),
+    }
+
+    if (id) await db.update(tradeSetups).set(payload).where(eq(tradeSetups.id, id))
+    else await db.insert(tradeSetups).values(payload)
+
+    revalidateAll()
+    const saved = id ? 'Setup updated' : 'Setup saved'
+    return derived.warnings.length > 0
+      ? `${saved} — but check this: ${derived.warnings.join(' ')}`
+      : `${saved}.`
+  })
+}
+
+export async function deleteSetup(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    await db.delete(tradeSetups).where(eq(tradeSetups.id, id))
+    revalidateAll()
+    return 'Setup deleted.'
+  })
+}
+
+/** Asks the model to read the chart. Never writes over what the trader typed. */
+export async function readSetupChart(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    const result = await scanSetupScreenshot(id)
+    revalidateAll()
+    if (!result.ok) throw new Error(result.message)
+    return result.message
+  })
+}
+
+/**
+ * Copies the model's reading into the setup's own fields.
+ *
+ * Deliberately a separate, explicit step: the reading arrives as a suggestion
+ * and becomes data only when the trader has looked at it and pressed the
+ * button. Anything the model could not read is left exactly as it was.
+ */
+export async function acceptChartReading(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    const [row] = await db.select().from(tradeSetups).where(eq(tradeSetups.id, id)).limit(1)
+    if (!row) throw new Error('That setup no longer exists.')
+    const scan = row.aiExtract as Record<string, unknown> | null
+    if (!scan) throw new Error('That setup has not been read yet.')
+
+    const pick = (key: string): number | null => {
+      const value = scan[key]
+      return typeof value === 'number' && Number.isFinite(value) ? value : null
+    }
+
+    const derived = deriveSetup({
+      direction: (scan.direction as 'long' | 'short' | null) ?? row.direction,
+      entryPrice: pick('entryPrice') ?? row.entryPrice,
+      stopPrice: pick('stopPrice') ?? row.stopPrice,
+      targetPrice: pick('targetPrice') ?? row.targetPrice,
+    })
+
+    const named = typeof scan.modelName === 'string' ? scan.modelName.toLowerCase() : null
+    const [model] = named
+      ? await db
+          .select({ id: tradingModels.id })
+          .from(tradingModels)
+          .where(sql`lower(${tradingModels.name}) = ${named}`)
+          .limit(1)
+      : []
+
+    await db
+      .update(tradeSetups)
+      .set({
+        direction: derived.direction,
+        entryPrice: derived.entryPrice,
+        stopPrice: derived.stopPrice,
+        stopPoints: derived.stopPoints,
+        targetPrice: derived.targetPrice,
+        targetPoints: derived.targetPoints,
+        riskReward: derived.riskReward,
+        symbol: (typeof scan.symbol === 'string' ? scan.symbol : null) ?? row.symbol,
+        modelId: model?.id ?? row.modelId,
+        updatedAt: new Date(),
+      })
+      .where(eq(tradeSetups.id, id))
+
+    revalidateAll()
+    return 'Reading copied into the setup. Check every level against your platform.'
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Document folders
+
+const folderSchema = z.object({
+  name: z.string().min(1, 'Give the folder a name'),
+  description: absentText,
+})
+
+export async function saveFolder(id: number | null, formData: FormData): Promise<ActionResult> {
+  return guard(async () => {
+    const values = folderSchema.parse(Object.fromEntries(formData))
+    if (id) await db.update(documentFolders).set(values).where(eq(documentFolders.id, id))
+    else await db.insert(documentFolders).values(values)
+    revalidateAll()
+    return `Saved ${values.name}.`
+  })
+}
+
+/**
+ * Removes a folder, keeping everything in it.
+ *
+ * The foreign key is ON DELETE SET NULL, so the documents move to the vault's
+ * root. Deleting a folder is a filing decision; taking a passport scan with it
+ * would be a destructive one, and the two should never share a button.
+ */
+export async function deleteFolder(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    await db.delete(documentFolders).where(eq(documentFolders.id, id))
+    revalidateAll()
+    return 'Folder removed. Everything in it moved back to the vault root.'
+  })
+}
+
+export async function moveDocument(id: number, folderId: number | null): Promise<ActionResult> {
+  return guard(async () => {
+    await db.update(documents).set({ folderId }).where(eq(documents.id, id))
+    revalidateAll()
+    return folderId === null ? 'Moved to the vault root.' : 'Moved.'
   })
 }
 

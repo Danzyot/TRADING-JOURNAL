@@ -22,6 +22,7 @@ import {
   type ModelReviewResult,
   type Trade,
   type TradingModel,
+  tradeSetups,
 } from '@/db/schema'
 import { sessionLabel } from '@/lib/analytics/metrics'
 import { formatInZone } from '@/lib/time'
@@ -37,6 +38,16 @@ import {
 } from '@/lib/ai/model-review'
 import { getSettings } from './settings'
 import { EMAIL_SYSTEM_PROMPT, buildEmailPrompt, parseEmailEvents } from '@/lib/email/ai'
+import {
+  SETUP_SCAN_SYSTEM_PROMPT,
+  buildSetupScanPrompt,
+  parseSetupScan,
+  type SetupScan,
+} from '@/lib/ai/setup-scan'
+import { screenshotForAi } from './setups'
+
+/** What the vision API accepts. HEIC from a phone has to be converted first. */
+const VISION_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 import { firmForSender, type EmailEventDraft, type RawEmail } from '@/lib/email/parse'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
@@ -52,18 +63,26 @@ function aiModel(): string {
 type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'image'; source: { type: 'url'; url: string } }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
 
 async function callClaude(options: {
   system: string
   prompt: string
   imageUrl?: string | null
+  /** An image this app holds itself, which has no URL anyone else can fetch. */
+  image?: { base64: string; type: string } | null
   maxTokens?: number
 }): Promise<string> {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set.')
 
   const content: ContentBlock[] = []
-  if (options.imageUrl && /^https:\/\//.test(options.imageUrl)) {
+  if (options.image) {
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: options.image.type, data: options.image.base64 },
+    })
+  } else if (options.imageUrl && /^https:\/\//.test(options.imageUrl)) {
     content.push({ type: 'image', source: { type: 'url', url: options.imageUrl } })
   }
   content.push({ type: 'text', text: options.prompt })
@@ -324,5 +343,81 @@ export async function classifyEmailWithAi(email: RawEmail): Promise<EmailEventDr
     return parseEmailEvents(reply, email, firmForSender(email.from))
   } catch {
     return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reading a setup off a chart
+
+/**
+ * Asks the model what it can read on a screenshot.
+ *
+ * The reading is stored in `aiExtract`, deliberately apart from the fields the
+ * trader typed. Nothing here overwrites a value they entered: a misread digit
+ * would silently rewrite every R-multiple downstream, and once merged there
+ * would be no way to tell a level that was checked from one that was guessed.
+ * The journal offers the reading as something to accept, field by field.
+ */
+export async function scanSetupScreenshot(
+  setupId: number,
+): Promise<{ ok: boolean; message: string; scan?: SetupScan }> {
+  if (!aiConfigured()) {
+    return { ok: false, message: 'ANTHROPIC_API_KEY is not set, so chart reading is unavailable.' }
+  }
+
+  const image = await screenshotForAi(setupId)
+  if (!image) {
+    return { ok: false, message: 'That setup has no screenshot to read.' }
+  }
+  if (!VISION_TYPES.has(image.type)) {
+    return {
+      ok: false,
+      message: `${image.type} cannot be read by the model. Re-upload the chart as PNG, JPEG or WebP.`,
+    }
+  }
+
+  const models = await db
+    .select({ name: tradingModels.name })
+    .from(tradingModels)
+    .where(eq(tradingModels.active, true))
+
+  let scan: SetupScan
+  try {
+    const reply = await callClaude({
+      system: SETUP_SCAN_SYSTEM_PROMPT,
+      prompt: buildSetupScanPrompt(models.map((model) => model.name)),
+      image,
+      maxTokens: 800,
+    })
+    scan = parseSetupScan(reply)
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : 'The chart read failed.' }
+  }
+
+  await db
+    .update(tradeSetups)
+    .set({ aiExtract: scan as unknown as Record<string, unknown>, aiReadAt: new Date() })
+    .where(eq(tradeSetups.id, setupId))
+
+  const read = [
+    scan.entryPrice !== null ? 'entry' : null,
+    scan.stopPrice !== null ? 'stop' : null,
+    scan.targetPrice !== null ? 'target' : null,
+  ].filter(Boolean)
+
+  if (read.length === 0) {
+    return {
+      ok: true,
+      scan,
+      message: scan.unreadable.length
+        ? `Nothing legible: ${scan.unreadable.join('; ')}.`
+        : 'Nothing legible on that chart — fill the levels in yourself.',
+    }
+  }
+
+  return {
+    ok: true,
+    scan,
+    message: `Read ${read.join(', ')} with ${scan.confidence} confidence. Check each one before accepting it.`,
   }
 }

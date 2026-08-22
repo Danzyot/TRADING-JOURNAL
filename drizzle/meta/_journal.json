@@ -99,6 +99,13 @@
       "when": 1787408865194,
       "tag": "0013_curvy_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787411769433,
+      "tag": "0014_curious_mojo",
+      "breakpoints": true
     }
   ]
 }

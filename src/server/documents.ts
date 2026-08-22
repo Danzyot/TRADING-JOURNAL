@@ -48,6 +48,7 @@ export async function listDocuments(): Promise<DocumentSummary[]> {
       filename: documents.filename,
       mimeType: documents.mimeType,
       sizeBytes: documents.sizeBytes,
+      folderId: documents.folderId,
       firmId: documents.firmId,
       accountId: documents.accountId,
       documentDate: documents.documentDate,

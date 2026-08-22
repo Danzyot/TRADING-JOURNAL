@@ -1,13 +1,22 @@
 import Link from 'next/link'
-import { desc } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { journalEntries } from '@/db/schema'
+import { journalEntries, tradingModels } from '@/db/schema'
 import { ActionForm, Field, SubmitButton } from '@/components/form'
 import { Card, EmptyState, PageHeader, Pnl, Stat, StatGrid } from '@/components/ui'
 import { longDate, money, number, percent, shortDate } from '@/lib/format'
 import { dailySeries } from '@/lib/analytics/metrics'
 import { today } from '@/lib/time'
-import { saveJournalEntry } from '@/server/actions'
+import {
+  acceptChartReading,
+  deleteSetup,
+  readSetupChart,
+  saveJournalEntry,
+  saveSetup,
+} from '@/server/actions'
+import { listSetups } from '@/server/setups'
+import { aiConfigured } from '@/server/ai'
+import { Setups } from './setups'
 import { getSettings } from '@/server/settings'
 import { listTradesForStats } from '@/server/trades'
 import { PnlCalendar } from './pnl-calendar'
@@ -30,10 +39,15 @@ export default async function JournalPage({
   searchParams: Promise<{ date?: string; month?: string }>
 }) {
   const params = await searchParams
-  const [settings, trades, entries] = await Promise.all([
+  const [settings, trades, entries, models] = await Promise.all([
     getSettings(),
     listTradesForStats(),
     db.select().from(journalEntries).orderBy(desc(journalEntries.entryDate)).limit(60),
+    db
+      .select({ id: tradingModels.id, name: tradingModels.name })
+      .from(tradingModels)
+      .where(eq(tradingModels.active, true))
+      .orderBy(tradingModels.name),
   ])
 
   const ccy = settings.baseCurrency
@@ -46,6 +60,25 @@ export default async function JournalPage({
   const dayTrades = trades
     .filter((trade) => trade.tradingDay === day)
     .sort((a, b) => a.entryAt.getTime() - b.entryAt.getTime())
+
+  const setups = await listSetups(day)
+
+  async function saveSetupAction(id: number | null, formData: FormData) {
+    'use server'
+    return saveSetup(id, formData)
+  }
+  async function deleteSetupAction(id: number) {
+    'use server'
+    return deleteSetup(id)
+  }
+  async function readChartAction(id: number) {
+    'use server'
+    return readSetupChart(id)
+  }
+  async function acceptReadingAction(id: number) {
+    'use server'
+    return acceptChartReading(id)
+  }
 
   const shiftDay = (offset: number): string => {
     const date = new Date(`${day}T00:00:00Z`)
@@ -128,6 +161,19 @@ export default async function JournalPage({
 
       <div className="mt-6">
         <PnlCalendar month={month} days={calendarDays} journaled={journaledDays} today={todayStr} ccy={ccy} />
+      </div>
+
+      <div className="mt-6">
+        <Setups
+          day={day}
+          setups={setups}
+          models={models}
+          saveAction={saveSetupAction}
+          deleteAction={deleteSetupAction}
+          readAction={readChartAction}
+          acceptAction={acceptReadingAction}
+          aiConfigured={aiConfigured()}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
