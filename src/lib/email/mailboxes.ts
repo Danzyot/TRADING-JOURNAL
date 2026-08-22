@@ -33,10 +33,47 @@ const MAX_NUMBERED = 10
 
 type Env = Record<string, string | undefined>
 
-const clean = (value: string | undefined): string => (value ?? '').trim()
+/**
+ * Trims a value and drops wrapping quotes.
+ *
+ * A `.env` file needs the quotes and strips them itself; a hosting dashboard
+ * takes the value literally, so the same line copied from documentation into
+ * Vercel arrives as `"you@gmail.com"` — quotes included — and every sign-in
+ * fails with nothing to suggest why.
+ */
+const clean = (value: string | undefined): string => {
+  const trimmed = (value ?? '').trim()
+  const quoted = /^(['"])([\s\S]*)\1$/.exec(trimmed)
+  return (quoted ? quoted[2] : trimmed).trim()
+}
 
 /** Google displays app passwords in groups of four; the spaces are cosmetic. */
 const cleanPassword = (value: string | undefined): string => clean(value).replace(/\s+/g, '')
+
+/**
+ * Turns an IMAP failure into something a person can act on.
+ *
+ * The protocol's own wording ("Invalid credentials (Failure)") names neither
+ * the account nor the likely cause, and the causes here are specific and few —
+ * so the message says which address failed and what usually explains it.
+ */
+export function explainMailError(user: string, raw: string): string {
+  const message = raw.slice(0, 200)
+
+  if (/application-specific password required/i.test(message)) {
+    return `${user}: Gmail refused the account password. Create an app password at myaccount.google.com/apppasswords and use that instead.`
+  }
+  if (/invalid credentials|authenticationfailed|auth.*fail|\[AUTHENTICATIONFAILED\]/i.test(message)) {
+    return `${user}: sign-in rejected. An app password only works for the account it was created in — make it while signed in to ${user} — and paste it without quotes.`
+  }
+  if (/failed to establish connection|timed? ?out|ETIMEDOUT|ECONNREFUSED|ENOTFOUND/i.test(message)) {
+    return `${user}: could not reach the mail server. Check IMAP_HOST if it is set; otherwise this is usually temporary.`
+  }
+  if (/too many simultaneous connections/i.test(message)) {
+    return `${user}: Gmail is rate-limiting connections. It clears on its own; the next run will pick up.`
+  }
+  return `${user}: ${message}`
+}
 
 export function readMailboxes(env: Env): MailboxConfig {
   const host = clean(env.IMAP_HOST) || 'imap.gmail.com'

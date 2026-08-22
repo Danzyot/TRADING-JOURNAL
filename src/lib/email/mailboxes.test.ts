@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readMailboxes } from './mailboxes'
+import { explainMailError, readMailboxes } from './mailboxes'
 
 const users = (env: Record<string, string | undefined>) =>
   readMailboxes(env).mailboxes.map((box) => box.user)
@@ -79,5 +79,49 @@ describe('readMailboxes', () => {
 
   it('finds nothing when nothing is configured', () => {
     expect(readMailboxes({})).toEqual({ mailboxes: [], problems: [] })
+  })
+})
+
+describe('quoted values', () => {
+  it('drops quotes pasted from documentation into a hosting dashboard', () => {
+    const { mailboxes, problems } = readMailboxes({
+      GMAIL_USER_1: '"yotdanz@gmail.com"',
+      GMAIL_APP_PASSWORD_1: '"abcd efgh ijkl mnop"',
+    })
+
+    expect(mailboxes[0]).toMatchObject({
+      user: 'yotdanz@gmail.com',
+      password: 'abcdefghijklmnop',
+    })
+    expect(problems).toEqual([])
+  })
+
+  it('keeps a quote that is genuinely part of a password', () => {
+    const [box] = readMailboxes({ GMAIL_USER: 'a@b.com', GMAIL_APP_PASSWORD: 'pw"word' }).mailboxes
+    expect(box.password).toBe('pw"word')
+  })
+})
+
+describe('explainMailError', () => {
+  it('explains rejected credentials with the address that failed', () => {
+    const message = explainMailError('pikedrop2@gmail.com', 'Invalid credentials (Failure)')
+    expect(message).toContain('pikedrop2@gmail.com')
+    expect(message).toContain('created in')
+  })
+
+  it('spots the account password being used instead of an app password', () => {
+    expect(explainMailError('a@b.com', 'Application-specific password required')).toContain(
+      'apppasswords',
+    )
+  })
+
+  it('explains an unreachable server', () => {
+    expect(explainMailError('a@b.com', 'Failed to establish connection in required time')).toContain(
+      'could not reach',
+    )
+  })
+
+  it('passes an unrecognised failure through, still naming the address', () => {
+    expect(explainMailError('a@b.com', 'Something odd')).toBe('a@b.com: Something odd')
   })
 })

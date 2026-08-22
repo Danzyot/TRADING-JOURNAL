@@ -137,6 +137,12 @@ overlaps, and nothing new arrived.
 - *`Invalid credentials`* — the app password was revoked, or 2-Step
   Verification was turned off, which revokes them all. With several inboxes the
   message names which address failed; the others are still read.
+- *Nothing works and the site login changed* — `APP_PASSWORD` is the password
+  you sign in to the journal with; the mailbox one is `GMAIL_APP_PASSWORD`.
+  Putting a Gmail app password in `APP_PASSWORD` changes the site login and
+  does nothing for email.
+- *`Invalid credentials` right after pasting* — the value may have arrived with
+  quotes around it. A hosting dashboard stores what you paste, verbatim.
 - *One inbox is ignored* — check Settings for a "Not being read" note. An app
   password only works for the account it was created in, so each address needs
   its own, made while signed in to that account.

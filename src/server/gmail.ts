@@ -1,7 +1,7 @@
 import 'server-only'
 import { ImapFlow, type ListResponse } from 'imapflow'
 import { simpleParser } from 'mailparser'
-import { readMailboxes, type Mailbox } from '@/lib/email/mailboxes'
+import { explainMailError, readMailboxes, type Mailbox } from '@/lib/email/mailboxes'
 import { gmailQuery, htmlToText, type RawEmail } from '@/lib/email/parse'
 
 /**
@@ -52,7 +52,7 @@ export async function fetchRecentMail(days = 2): Promise<{ emails: RawEmail[]; e
     try {
       emails.push(...(await fetchFromMailbox(box, days)))
     } catch (error) {
-      errors.push(`${box.user}: ${error instanceof Error ? error.message.slice(0, 160) : 'IMAP failure'}`)
+      errors.push(explainMailError(box.user, error instanceof Error ? error.message : 'IMAP failure'))
     }
   }
 
