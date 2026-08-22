@@ -166,9 +166,13 @@ describe('payoutEligibility', () => {
     expect(result.blockers.join(' ')).toContain('evaluation')
   })
 
-  it('blocks below the minimum trading days', () => {
+  it('does not treat the evaluation\'s minimum trading days as a payout rule', () => {
+    // That number comes off the plan catalogue, where it is what the
+    // *evaluation* required. Quoting it as the thing between the trader and
+    // their money invents a rule the firm never wrote.
     const result = payoutEligibility(account({ minTradingDays: 15 }), options)
-    expect(result.blockers.join(' ')).toContain('10 of 15')
+    expect(result.blockers.join(' ')).not.toContain('trading days')
+    expect(result.eligible).toBe(true)
   })
 
   it('enforces the winning-days gate with a profit threshold', () => {

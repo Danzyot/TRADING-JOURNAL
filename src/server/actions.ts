@@ -35,9 +35,10 @@ import {
 import { allocatePayout } from '@/lib/allocation'
 import { riskFromStop, rMultiple } from '@/lib/analytics/matching'
 import { defaultDeductibleFor } from '@/lib/tax/israel'
-import { addMonths, tradingDayFor } from '@/lib/time'
+import { addMonths, today, tradingDayFor } from '@/lib/time'
 import { getSettings, updateSettings } from './settings'
 import { materialiseSubscriptions, nextRenewal } from './money'
+import { applyEmailProposal, dismissEmailProposal } from './email-ingest'
 import { regenerateInsights } from './insights'
 import { rebuildTradesForAccount, rollupDailyStats } from './trades'
 import { saveTradovateCredentials, syncAllConnections, syncTradovateConnection } from './sync'
@@ -888,6 +889,67 @@ const payoutSchema = z.object({
   /** Unit price of a volatile asset when it settled, in the base currency. */
   settlementRate: optionalNum,
 })
+
+/**
+ * Moves a payout to its next state: requested → approved → paid.
+ *
+ * A payout spends its life walking that line, and doing it through the full
+ * edit form meant opening a row, finding the status select and saving, four
+ * times a month. The day it lands is stamped automatically, because "paid" and
+ * "paid on" are the same fact and typing the second one is how they drift
+ * apart.
+ */
+/** Applies one email suggestion to the account the trader picked. */
+export async function applyEmailSuggestion(
+  eventId: number,
+  formData: FormData,
+): Promise<ActionResult> {
+  return guard(async () => {
+    const accountId = num.parse(formData.get('accountId'))
+    const { message } = await applyEmailProposal(eventId, accountId)
+    revalidateAll()
+    revalidatePath('/settings')
+    return message
+  })
+}
+
+/** Declines one. The email stays in the log; the suggestion does not come back. */
+export async function dismissEmailSuggestion(eventId: number): Promise<ActionResult> {
+  return guard(async () => {
+    await dismissEmailProposal(eventId)
+    revalidatePath('/settings')
+    return 'Suggestion dismissed.'
+  })
+}
+
+export async function advancePayout(id: number): Promise<ActionResult> {
+  return guard(async () => {
+    const [existing] = await db
+      .select({ status: payouts.status, paidOn: payouts.paidOn })
+      .from(payouts)
+      .where(eq(payouts.id, id))
+      .limit(1)
+    if (!existing) throw new Error('Payout not found.')
+
+    const next =
+      existing.status === 'requested' ? 'approved' : existing.status === 'approved' ? 'paid' : null
+    if (!next) throw new Error(`A ${existing.status} payout has nowhere further to go.`)
+
+    const settings = await getSettings()
+    await db
+      .update(payouts)
+      .set({
+        status: next,
+        // Only when it is not already recorded: a payout entered late already
+        // knows the day it arrived, and today is not that day.
+        ...(next === 'paid' && !existing.paidOn ? { paidOn: today(settings.timezone) } : {}),
+      })
+      .where(eq(payouts.id, id))
+
+    revalidateAll()
+    return next === 'approved' ? 'Marked approved.' : 'Marked paid.'
+  })
+}
 
 export async function savePayout(id: number | null, formData: FormData): Promise<ActionResult> {
   return guard(async () => {

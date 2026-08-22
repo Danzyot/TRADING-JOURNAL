@@ -10,6 +10,7 @@
  * every prop firm evaluates drawdown on *its* day boundary, not on UTC's.
  */
 import { relations, sql } from 'drizzle-orm'
+import type { EmailProposal } from '@/lib/email/proposals'
 import {
   boolean,
   customType,
@@ -742,6 +743,19 @@ export const emailEvents = pgTable(
     kind: text('kind').notNull(),
     summary: text('summary'),
     payload: jsonb('payload').$type<Record<string, unknown>>(),
+    /**
+     * Whether the journal acted on this email.
+     *
+     * `applied` — it changed something, or there was nothing to change.
+     * `proposed` — it reads as a change but names an account this journal
+     *   cannot identify, so it waits for one press instead of guessing.
+     * `dismissed` — offered and declined; never offered again.
+     */
+    state: text('state', { enum: ['applied', 'proposed', 'dismissed'] })
+      .default('applied')
+      .notNull(),
+    /** The change a proposed event is asking for. See lib/email/proposals.ts. */
+    proposal: jsonb('proposal').$type<EmailProposal>(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex('email_events_source_idx').on(t.sourceId)],

@@ -1,6 +1,7 @@
 import 'server-only'
 import { and, eq, inArray, or, sql } from 'drizzle-orm'
 import { db } from '@/db'
+import { proposalFor, type EmailProposal } from '@/lib/email/proposals'
 import { accounts, emailEvents, expenses, payouts, propFirms } from '@/db/schema'
 import { classifyEmail, looksTransactional, type EmailEventDraft } from '@/lib/email/parse'
 import { defaultDeductibleFor } from '@/lib/tax/israel'
@@ -24,6 +25,8 @@ export type IngestSummary = {
   ok: boolean
   scanned: number
   applied: number
+  /** Read as a change, but waiting for you to say which account. */
+  proposed: number
   skipped: number
   aiUsed: number
   errors: string[]
@@ -45,6 +48,7 @@ export async function runEmailIngest(options: { days?: number } = {}): Promise<I
       ok: false,
       scanned: 0,
       applied: 0,
+      proposed: 0,
       skipped: 0,
       aiUsed: 0,
       errors: ['No mailbox configured — set GMAIL_USER and GMAIL_APP_PASSWORD.'],
@@ -78,6 +82,7 @@ export async function runEmailIngest(options: { days?: number } = {}): Promise<I
     ok: errors.length === 0 && outcome.errors.length === 0,
     scanned: emails.length,
     applied: outcome.applied,
+    proposed: outcome.proposed,
     skipped: outcome.skipped,
     aiUsed,
     errors: [...errors, ...outcome.errors],
@@ -104,8 +109,8 @@ async function knownSourceIds(ids: string[]): Promise<Set<string>> {
  */
 export async function applyEmailEvents(
   drafts: EmailEventDraft[],
-): Promise<{ applied: number; skipped: number; errors: string[] }> {
-  if (drafts.length === 0) return { applied: 0, skipped: 0, errors: [] }
+): Promise<{ applied: number; proposed: number; skipped: number; errors: string[] }> {
+  if (drafts.length === 0) return { applied: 0, proposed: 0, skipped: 0, errors: [] }
 
   // One email can produce the same event twice across mailboxes; keep the first.
   const unique = new Map<string, EmailEventDraft>()
@@ -114,7 +119,7 @@ export async function applyEmailEvents(
   const known = await knownSourceIds([...unique.keys()])
   const fresh = [...unique.values()].filter((draft) => !known.has(draft.sourceId))
   const skipped = unique.size - fresh.length
-  if (fresh.length === 0) return { applied: 0, skipped, errors: [] }
+  if (fresh.length === 0) return { applied: 0, proposed: 0, skipped, errors: [] }
 
   const [firms, accountRows] = await Promise.all([
     db.select().from(propFirms),
@@ -148,6 +153,7 @@ export async function applyEmailEvents(
   const statusChanges: { accountId: number; status: 'passed' | 'failed' | 'closed' | 'paused' }[] = []
   const balanceChanges: { accountId: number; balance: number; cutoff: string }[] = []
 
+  const proposedEvents: { draft: EmailEventDraft; proposal: EmailProposal }[] = []
   const payoutEvents: EmailEventDraft[] = []
   const expenseEvents: EmailEventDraft[] = []
   const otherEvents: EmailEventDraft[] = []
@@ -213,19 +219,29 @@ export async function applyEmailEvents(
       const status = (['passed', 'failed', 'closed', 'paused'] as const).find(
         (candidate) => candidate === draft.status,
       )
-      if (status) statusChanges.push({ accountId: account.id, status })
+      if (status) {
+        statusChanges.push({ accountId: account.id, status })
+        otherEvents.push(draft)
+        continue
+      }
     } else if (draft.kind === 'balance_snapshot' && account && typeof draft.balance === 'number') {
       balanceChanges.push({
         accountId: account.id,
         balance: draft.balance,
         cutoff: `${draft.date}T23:59:00Z`,
       })
+      otherEvents.push(draft)
+      continue
     }
 
-    // 'subscription' and 'note' — and any event whose account or firm is not
-    // in the journal yet — are recorded and shown in the log without guessing
-    // at a side effect. Nothing is created on the user's behalf.
-    otherEvents.push(draft)
+    // Nothing to act on directly. If the email still reads as a change — a
+    // balance, a pass, a blow-up — it is kept as a proposal rather than logged
+    // and forgotten: the account it names is one this journal does not know,
+    // and the trader does. Everything else ('subscription', 'note', and any
+    // status this app does not model) is news, and is recorded as such.
+    const proposal = proposalFor(draft)
+    if (proposal) proposedEvents.push({ draft, proposal })
+    else otherEvents.push(draft)
   }
 
   const run = async (label: string, work: () => Promise<unknown>, events: EmailEventDraft[]) => {
@@ -267,17 +283,26 @@ export async function applyEmailEvents(
     otherEvents,
   )
 
-  if (recorded.length > 0) {
-    await announce(recorded)
+  if (recorded.length > 0 || proposedEvents.length > 0) {
+    if (recorded.length > 0) await announce(recorded)
     try {
-      await db.insert(emailEvents).values(
-        recorded.map((draft) => ({
+      await db.insert(emailEvents).values([
+        ...recorded.map((draft) => ({
           sourceId: draft.sourceId,
           kind: draft.kind,
           summary: draft.summary,
           payload: draft as unknown as Record<string, unknown>,
+          state: 'applied' as const,
         })),
-      )
+        ...proposedEvents.map(({ draft, proposal }) => ({
+          sourceId: draft.sourceId,
+          kind: draft.kind,
+          summary: draft.summary,
+          payload: draft as unknown as Record<string, unknown>,
+          state: 'proposed' as const,
+          proposal,
+        })),
+      ])
     } catch (error) {
       // The effects are already written; failing to record them would replay
       // the whole batch next run, so this is the one error worth shouting about.
@@ -285,7 +310,7 @@ export async function applyEmailEvents(
     }
   }
 
-  return { applied: recorded.length, skipped, errors }
+  return { applied: recorded.length, proposed: proposedEvents.length, skipped, errors }
 }
 
 /**
@@ -332,4 +357,77 @@ export async function recentEmailEvents(limit = 12) {
     .from(emailEvents)
     .orderBy(sql`${emailEvents.createdAt} desc`)
     .limit(limit)
+}
+
+/** Everything still waiting on one press. */
+export async function pendingEmailProposals() {
+  const rows = await db
+    .select()
+    .from(emailEvents)
+    .where(eq(emailEvents.state, 'proposed'))
+    .orderBy(sql`${emailEvents.createdAt} desc`)
+    .limit(20)
+
+  return rows.filter((row): row is typeof row & { proposal: EmailProposal } => row.proposal !== null)
+}
+
+/**
+ * Applies one proposal to the account the trader picked.
+ *
+ * The account is also *taught* the identifier the email used, when it does not
+ * already carry one: the next snapshot for that id then matches on its own, so
+ * a proposal is answered once rather than every morning. Only when the field is
+ * empty — overwriting a broker's own id would break the sync that uses it.
+ */
+export async function applyEmailProposal(
+  eventId: number,
+  accountId: number,
+): Promise<{ message: string }> {
+  const [row] = await db.select().from(emailEvents).where(eq(emailEvents.id, eventId)).limit(1)
+  if (!row) throw new Error('That suggestion is no longer there.')
+  if (row.state !== 'proposed') throw new Error('That suggestion has already been answered.')
+  const proposal = row.proposal
+  if (!proposal) throw new Error('That event has nothing to apply.')
+
+  const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1)
+  if (!account) throw new Error('Account not found.')
+
+  if (proposal.type === 'balance') {
+    await db
+      .update(accounts)
+      .set({ currentBalance: proposal.balance, balanceUpdatedAt: new Date(proposal.cutoff) })
+      .where(
+        and(
+          eq(accounts.id, accountId),
+          or(
+            sql`${accounts.balanceUpdatedAt} is null`,
+            sql`${accounts.balanceUpdatedAt} < ${proposal.cutoff}::timestamptz`,
+          ),
+        ),
+      )
+  } else {
+    await db.update(accounts).set({ status: proposal.status }).where(eq(accounts.id, accountId))
+  }
+
+  if (proposal.externalId && !account.externalId) {
+    await db
+      .update(accounts)
+      .set({ externalId: proposal.externalId })
+      .where(eq(accounts.id, accountId))
+  }
+
+  await db.update(emailEvents).set({ state: 'applied' }).where(eq(emailEvents.id, eventId))
+
+  const learned = proposal.externalId && !account.externalId
+  return {
+    message:
+      proposal.type === 'balance'
+        ? `Balance updated on ${account.label}.${learned ? ' Future snapshots for that id will apply themselves.' : ''}`
+        : `${account.label} marked ${proposal.status}.${learned ? ' Future emails for that id will apply themselves.' : ''}`,
+  }
+}
+
+/** Declines a proposal. It is never offered again — the email stays in the log. */
+export async function dismissEmailProposal(eventId: number): Promise<void> {
+  await db.update(emailEvents).set({ state: 'dismissed' }).where(eq(emailEvents.id, eventId))
 }

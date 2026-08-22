@@ -2,7 +2,8 @@ import { desc } from 'drizzle-orm'
 import { db } from '@/db'
 import { brokerConnections, syncLog } from '@/db/schema'
 import { FIRM_DOMAINS } from '@/lib/email/parse'
-import { recentEmailEvents } from '@/server/email-ingest'
+import { describeProposal } from '@/lib/email/proposals'
+import { pendingEmailProposals, recentEmailEvents } from '@/server/email-ingest'
 import { mailboxProblems, mailboxes } from '@/server/gmail'
 import { listDevices, pushConfigured, vapidPublicKey } from '@/server/push'
 import { PushSetup } from '@/components/push-setup'
@@ -12,8 +13,10 @@ import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/com
 import { Badge, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui'
 import { titleCase } from '@/lib/format'
 import {
+  applyEmailSuggestion,
   checkInbox,
   createConnection,
+  dismissEmailSuggestion,
   saveLogo,
   registerPushDevice,
   removePushDevice,
@@ -25,6 +28,7 @@ import {
   syncAllBrokers,
 } from '@/server/actions'
 import { getSettings } from '@/server/settings'
+import { listAccounts } from '@/server/trades'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Settings — Trading Journal' }
@@ -42,13 +46,16 @@ const TIMEZONES = [
 ]
 
 export default async function SettingsPage() {
-  const [settings, connections, logs, emailLog, devices] = await Promise.all([
-    getSettings(),
-    db.select().from(brokerConnections).orderBy(desc(brokerConnections.createdAt)),
-    db.select().from(syncLog).orderBy(desc(syncLog.ranAt)).limit(15),
-    recentEmailEvents(8),
-    listDevices(),
-  ])
+  const [settings, connections, logs, emailLog, suggestions, devices, accountRows] =
+    await Promise.all([
+      getSettings(),
+      db.select().from(brokerConnections).orderBy(desc(brokerConnections.createdAt)),
+      db.select().from(syncLog).orderBy(desc(syncLog.ranAt)).limit(15),
+      recentEmailEvents(8),
+      pendingEmailProposals(),
+      listDevices(),
+      listAccounts(),
+    ])
 
   const inboxes = mailboxes()
   const inboxProblems = mailboxProblems()
@@ -307,6 +314,8 @@ export default async function SettingsPage() {
 
         <EmailAutomationCard
           inboxes={inboxes.map((box) => box.user)}
+          suggestions={suggestions}
+          accounts={accountRows.map((account) => ({ id: account.id, label: account.label }))}
           problems={inboxProblems}
           events={emailLog}
         />
@@ -428,10 +437,14 @@ function EmailAutomationCard({
   inboxes,
   problems,
   events,
+  suggestions,
+  accounts,
 }: {
   inboxes: string[]
   problems: string[]
   events: { id: number; kind: string; summary: string | null; createdAt: Date }[]
+  suggestions: Awaited<ReturnType<typeof pendingEmailProposals>>
+  accounts: { id: number; label: string }[]
 }) {
   const configured = inboxes.length > 0
 
@@ -466,6 +479,53 @@ function EmailAutomationCard({
               </ActionButton>
             </div>
           </div>
+
+          {suggestions.length > 0 && (
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[var(--accent-soft)] p-3">
+              <p className="text-xs font-semibold text-[var(--ink)]">
+                {suggestions.length} update{suggestions.length === 1 ? '' : 's'} waiting
+              </p>
+              <p className="mt-0.5 text-[0.6875rem] leading-relaxed text-[var(--ink-secondary)]">
+                These emails read as a change, but name an account this journal does not recognise yet.
+                Pick the account once and the ones after it apply themselves.
+              </p>
+
+              <ul className="mt-3 space-y-2">
+                {suggestions.map((suggestion) => (
+                  <li key={suggestion.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-2.5">
+                    <p className="text-xs text-[var(--ink)]">{suggestion.summary}</p>
+                    <p className="mt-0.5 text-[0.6875rem] text-[var(--ink-secondary)]">
+                      {describeProposal(suggestion.proposal)}
+                      {suggestion.proposal.externalId ? ` · the email calls it ${suggestion.proposal.externalId}` : ''}
+                    </p>
+
+                    <ActionForm
+                      action={applyEmailSuggestion.bind(null, suggestion.id)}
+                      className="mt-2 flex flex-wrap items-end gap-2"
+                    >
+                      <select name="accountId" className="select w-auto py-1 text-xs" required>
+                        {accounts.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.label}
+                          </option>
+                        ))}
+                      </select>
+                      <SubmitButton className="btn btn-primary px-2.5 py-1 text-xs">Apply</SubmitButton>
+                    </ActionForm>
+
+                    <div className="mt-2">
+                      <ActionButton
+                        action={dismissEmailSuggestion.bind(null, suggestion.id)}
+                        className="btn px-2 py-0.5 text-[0.6875rem]"
+                      >
+                        Not this
+                      </ActionButton>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {events.length === 0 ? (
             <p className="text-xs text-[var(--ink-muted)]">

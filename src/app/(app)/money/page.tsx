@@ -22,6 +22,7 @@ import { DEDUCTIBLE_DEFAULTS } from '@/lib/tax/israel'
 import { NETWORKS, explorerAddressUrl, explorerTxUrl, networkFor, shorten } from '@/lib/crypto-assets'
 import { today } from '@/lib/time'
 import {
+  advancePayout,
   cancelSubscription,
   deleteExpense,
   deletePayout,
@@ -280,16 +281,32 @@ export default async function MoneyPage() {
                         <PayoutForm accounts={accounts} firms={firms} ccy={ccy} payout={payout} wallets={wallets} />
                       }
                       actions={
-                        <ActionButton
-                          action={async () => {
-                            'use server'
-                            return deletePayout(payout.id)
-                          }}
-                          className="btn btn-danger px-2 py-1"
-                          confirm="Delete this payout?"
-                        >
-                          ✕
-                        </ActionButton>
+                        <>
+                          {/* One press moves it along the only line it ever
+                              walks: requested → approved → paid. */}
+                          {(payout.status === 'requested' || payout.status === 'approved') && (
+                            <ActionButton
+                              action={async () => {
+                                'use server'
+                                return advancePayout(payout.id)
+                              }}
+                              className="btn px-2 py-1"
+                              pendingLabel="…"
+                            >
+                              {payout.status === 'requested' ? 'Approve' : 'Mark paid'}
+                            </ActionButton>
+                          )}
+                          <ActionButton
+                            action={async () => {
+                              'use server'
+                              return deletePayout(payout.id)
+                            }}
+                            className="btn btn-danger px-2 py-1"
+                            confirm="Delete this payout?"
+                          >
+                            ✕
+                          </ActionButton>
+                        </>
                       }
                       cells={
                         <>

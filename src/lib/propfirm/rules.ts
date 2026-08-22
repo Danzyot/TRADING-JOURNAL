@@ -190,11 +190,15 @@ export function payoutEligibility(
   if (account.status !== 'active') {
     blockers.push(`Account status is "${account.status}".`)
   }
-  if (account.minTradingDays && options.tradingDays < account.minTradingDays) {
-    blockers.push(
-      `${options.tradingDays} of ${account.minTradingDays} required trading days completed.`,
-    )
-  }
+  // `minTradingDays` is deliberately NOT checked here. It comes off the plan
+  // catalogue, where it is the *evaluation's* minimum — MyFundedFutures Rapid
+  // is one day, Builder is fourteen — and a firm's payout policy is a separate
+  // rule that most of them state in days-since-funding or winning days. Quoting
+  // an evaluation number as the thing standing between you and your money is
+  // inventing a rule the firm never wrote, so the eligibility test sticks to
+  // rules that are genuinely about payouts: the account being funded and
+  // active, profit above the buffer, the consistency limit, the firm's minimum
+  // payout, and `minWinningDays` where the firm actually sets one.
 
   // The gate most firms actually use now: N days each netting at least $X.
   // A day that made $40 counts toward trading days but not toward this.

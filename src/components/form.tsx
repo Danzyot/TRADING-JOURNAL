@@ -1,5 +1,7 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import type { ActionResult } from '@/server/actions'
@@ -27,6 +29,7 @@ export function ActionForm({
   resetOnSuccess?: boolean
   onSuccess?: () => void
 }) {
+  const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   // What was submitted, kept so a rejected save can be handed back.
   const submitted = useRef<Record<string, string> | null>(null)
@@ -48,6 +51,11 @@ export function ActionForm({
       if (resetOnSuccess) formRef.current?.reset()
       onSuccess?.()
       submitted.current = null
+      // The server action revalidated its paths, but the tree on screen was
+      // rendered before that and does not re-fetch on its own: applying an
+      // email suggestion left the suggestion sitting there, which reads as a
+      // button that did nothing. One refresh, and only after a success.
+      router.refresh()
       return
     }
 
@@ -145,6 +153,7 @@ export function ActionButton({
   confirm?: string
   pendingLabel?: string
 }) {
+  const router = useRouter()
   const [pending, setPending] = useState(false)
   const [result, setResult] = useState<ActionResult | null>(null)
 
@@ -153,7 +162,11 @@ export function ActionButton({
     setPending(true)
     setResult(null)
     try {
-      setResult(await action())
+      const outcome = await action()
+      setResult(outcome)
+      // Same reason as ActionForm: the page has to be told to re-read what the
+      // action just changed underneath it.
+      if (outcome.ok) router.refresh()
     } catch (error) {
       setResult({ ok: false, message: error instanceof Error ? error.message : 'Something went wrong.' })
     } finally {
