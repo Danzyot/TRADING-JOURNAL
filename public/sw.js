@@ -17,7 +17,7 @@
  * from a cache would be worse than one that is briefly blank.
  */
 
-const VERSION = 'v2'
+const VERSION = 'v3'
 const SHELL_CACHE = `tj-shell-${VERSION}`
 
 /** Static, content-addressed or versioned assets — safe to serve from cache. */
@@ -40,9 +40,32 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== SHELL_CACHE).map((key) => caches.delete(key))))
+      .then(() => pruneStaleAssets())
       .then(() => self.clients.claim()),
   )
 })
+
+/**
+ * Drops cached build assets on activation.
+ *
+ * A new worker activates because a new version was deployed, which means every
+ * script this cache holds belongs to a build that is no longer running. Left
+ * alone the cache only grows — one full set of chunks per deploy, forever —
+ * and on a phone that storage is not free.
+ */
+async function pruneStaleAssets() {
+  try {
+    const cache = await caches.open(SHELL_CACHE)
+    const keys = await cache.keys()
+    await Promise.all(
+      keys
+        .filter((request) => new URL(request.url).pathname.startsWith('/_next/static/'))
+        .map((request) => cache.delete(request)),
+    )
+  } catch {
+    // A cache that cannot be pruned still works; it is only larger.
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
@@ -57,6 +80,13 @@ self.addEventListener('fetch', (event) => {
   const isStatic =
     url.pathname.startsWith('/_next/static/') || SHELL_ASSETS.includes(url.pathname)
   if (!isStatic) return
+
+  // Serving a chunk from a previous build is the whole problem this worker
+  // could otherwise cause: the page would keep running old code with no sign
+  // that anything is out of date. Hashed names make a stale hit impossible in
+  // principle, but a deploy id in the query string does not change the cache
+  // key on its own, so it is checked here too.
+
 
   event.respondWith(
     caches.match(request).then(

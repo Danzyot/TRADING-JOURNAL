@@ -90,3 +90,46 @@ iOS fetches them before anyone signs in, and a service worker that redirects to
 a login page cannot register at all. They expose nothing: the worker caches
 only static assets, and every page it fetches still goes through the session
 check.
+
+## Staying on the current version
+
+A home-screen app on iOS is suspended, not closed. It can keep running the
+code it launched with for weeks, so a deploy lands under it: the copy on the
+phone asks for a script file from the build it started with, that build gets
+pruned, and the request 404s. The app breaks, and from the phone the only
+obvious fix is to delete the icon and add it again.
+
+Four things prevent that, earliest first:
+
+1. **`deploymentId`** (`next.config.ts`, from `VERCEL_DEPLOYMENT_ID`). Every
+   asset URL carries the build that produced it, so Next recognises a mismatch
+   and does a full navigation instead of failing on a missing chunk.
+2. **`updateViaCache: 'none'`** on the service-worker registration, so `sw.js`
+   itself is never answered from the HTTP cache and a new version is always
+   noticed.
+3. **A check on resume.** Coming back to the foreground is when a suspended app
+   rejoins the world, so that is when it looks for a newer worker. If the app
+   has been in the background more than five seconds it counts as a fresh
+   visit and reloads silently; if the user is mid-sentence they get a "new
+   version is ready" button instead of losing the sentence.
+4. **Recovery.** If a script does fail to load anyway, the page reloads once —
+   guarded in `sessionStorage` so a genuinely broken deploy cannot put it in a
+   reload loop.
+
+The worker also drops cached `/_next/static/` entries when it activates. A new
+worker activates because a new build shipped, so everything in there belongs to
+a build that is no longer running; without pruning the cache grows by one full
+set of chunks per deploy.
+
+### What re-adding is still needed for
+
+**The home-screen icon.** iOS copies the icon into the home screen at the
+moment the app is added and never looks at it again. Changing the mark in
+Settings changes it everywhere in the app, in the browser tab and for anyone
+installing from then on — but an icon already on a home screen only changes by
+removing it and adding it back. That is an iOS limitation, not something the
+app can work around.
+
+**Notification permission** survives updates and does not need re-granting.
+The push subscription is stored server-side against the device and is
+unaffected by a deploy.

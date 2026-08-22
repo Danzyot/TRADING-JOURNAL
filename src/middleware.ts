@@ -4,7 +4,13 @@ import { jwtVerify } from 'jose'
 const COOKIE = 'tj_session'
 
 /** Files a browser must be able to fetch before the user has signed in. */
-const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/sw.js', '/favicon.svg'])
+const PUBLIC_FILES = new Set([
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/favicon.svg',
+  // Named by the service worker on every push notification.
+  '/icon-192.png',
+])
 
 /** The app marks, under /logos/<colour>/. Same reasoning as PUBLIC_FILES. */
 const PUBLIC_PREFIXES = ['/logos/']

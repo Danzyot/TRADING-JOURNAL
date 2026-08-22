@@ -24,6 +24,20 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: '4mb' },
   },
 
+  /**
+   * Stamps every asset URL with the deployment that built it.
+   *
+   * Without this, a page loaded before a deploy asks for script files by their
+   * old hashed names, and once the previous build is pruned those return 404 —
+   * the app breaks under an installed home-screen icon that is never fully
+   * closed. With it, Next sees the mismatch and does a full navigation instead
+   * of failing, so the copy on the phone lands on the new version by itself.
+   *
+   * Vercel provides the id; anywhere else falls back to undefined, which is
+   * the same behaviour as before.
+   */
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,
+
   eslint: { ignoreDuringBuilds: true },
 }
 
