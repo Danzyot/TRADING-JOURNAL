@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { moneyCompact, percent, pnlClass, signed } from '@/lib/format'
+import { Editable } from './site-text'
 
 export function clsx(...values: (string | false | null | undefined)[]): string {
   return values.filter(Boolean).join(' ')
@@ -9,6 +10,10 @@ export function clsx(...values: (string | false | null | undefined)[]): string {
 // Page furniture
 // ---------------------------------------------------------------------------
 
+/**
+ * Every page's title and standfirst — and, because both go through `Editable`,
+ * every page's title and standfirst can be rewritten by the person using it.
+ */
 export function PageHeader({
   title,
   subtitle,
@@ -21,8 +26,14 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">{title}</h1>
-        {subtitle && <p className="mt-1 max-w-2xl text-sm text-[var(--ink-secondary)]">{subtitle}</p>}
+        <Editable as="h1" scope="page.title" className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
+          {title}
+        </Editable>
+        {subtitle && (
+          <Editable as="p" scope="page.subtitle" className="mt-1 block max-w-2xl text-sm text-[var(--ink-secondary)]">
+            {subtitle}
+          </Editable>
+        )}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -49,8 +60,16 @@ export function Card({
       {(title || actions) && (
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <div>
-            {title && <h2 className="text-sm font-semibold text-[var(--ink)]">{title}</h2>}
-            {description && <p className="mt-0.5 text-xs text-[var(--ink-secondary)]">{description}</p>}
+            {title && (
+              <Editable as="h2" scope="card.title" className="text-sm font-semibold text-[var(--ink)]">
+                {title}
+              </Editable>
+            )}
+            {description && (
+              <Editable as="p" scope="card.description" className="mt-0.5 block text-xs text-[var(--ink-secondary)]">
+                {description}
+              </Editable>
+            )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </header>

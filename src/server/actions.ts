@@ -41,6 +41,7 @@ import { saveTradovateCredentials, syncAllConnections, syncTradovateConnection }
 import { autoTagTrades, refineModelGuidance, reviewPendingForModel, reviewTradeAgainstModel } from './ai'
 import { runEmailIngest } from './email-ingest'
 import { forgetDevice, saveDevice, sendPush } from './push'
+import { setSiteText } from './site-text'
 
 const REVALIDATE = ['/', '/trades', '/accounts', '/money', '/tax', '/analytics', '/models']
 
@@ -945,6 +946,28 @@ export async function sendTestNotification(): Promise<ActionResult> {
       )
     }
     return `Sent to ${sent} device${sent === 1 ? '' : 's'}.`
+  })
+}
+
+/**
+ * Rewrites one piece of the interface's own wording.
+ *
+ * Every path is revalidated rather than just the current one: the same words
+ * can appear on several pages, and seeing a heading change in one place but
+ * not another would read as a bug.
+ */
+export async function saveSiteText(key: string, value: string): Promise<ActionResult> {
+  return guard(async () => {
+    const parsed = z
+      .object({ key: z.string().min(1).max(200), value: z.string().max(2000) })
+      .parse({ key, value })
+
+    await setSiteText(parsed.key, parsed.value)
+    revalidateAll()
+    revalidatePath('/settings')
+    revalidatePath('/import')
+    revalidatePath('/journal')
+    return parsed.value.trim() === '' ? 'Original wording restored.' : 'Saved.'
   })
 }
 

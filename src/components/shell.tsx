@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { clsx } from './ui'
+import { EditModeToggle } from './site-text'
 
 const NAV = [
   { href: '/', label: 'Dashboard', glyph: '◧' },
@@ -77,6 +78,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-[var(--line)] p-3">
+          <div className="mb-2">
+            <EditModeToggle />
+          </div>
           <ThemeToggle />
           <form action="/api/logout" method="post" className="mt-2">
             <button type="submit" className="btn w-full text-[var(--ink-secondary)]">
@@ -100,6 +104,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
             ☰
           </button>
           <span className="text-sm font-semibold">Trading Journal</span>
+          {/* On a phone the sidebar is a drawer, so the pencil also sits here
+              where it is reachable without opening navigation first. */}
+          <div className="ml-auto w-auto">
+            <EditModeToggle />
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">

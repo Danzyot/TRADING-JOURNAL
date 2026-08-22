@@ -41,6 +41,10 @@ through.
   User annotations survive rebuilds keyed on (entryAt, symbol) — that carry
   includes `modelId`/`modelReview`, and `model_reviews` history deliberately
   has no trade FK for the same reason.
+- **The wording is data too.** Page and card headings render through
+  `Editable`; overrides live in `site_text`, keyed by a slug of the default
+  text, and an absent row means "use the default". Never hard-code a heading
+  that bypasses `PageHeader`/`Card` without reason.
 - **Money is Postgres numeric surfaced as number.** New money columns use the
   `money`/`price`/`ratio` custom types in `schema.ts`.
 - **The executions unique index is partial** (`WHERE external_id IS NOT

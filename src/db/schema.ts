@@ -652,6 +652,31 @@ export const pushSubscriptions = pgTable(
   (t) => [uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint)],
 )
 
+/**
+ * Text the user has rewritten.
+ *
+ * Every heading and description in the app ships with a default written in
+ * code; this table holds the ones that have been changed. Absence means "use
+ * the default", so the app works with an empty table and a rewritten heading
+ * survives deploys.
+ *
+ * The key is derived from the default text rather than hand-assigned, which is
+ * what makes every heading editable without tagging each one. The trade-off is
+ * deliberate: if the default in code later changes, the override is orphaned
+ * and the new default shows — visible and self-correcting, rather than a
+ * stale sentence nobody can find the source of.
+ */
+export const siteText = pgTable(
+  'site_text',
+  {
+    id: serial('id').primaryKey(),
+    key: text('key').notNull(),
+    value: text('value').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex('site_text_key_idx').on(t.key)],
+)
+
 // ---------------------------------------------------------------------------
 // Journal, insights, imports
 // ---------------------------------------------------------------------------
@@ -801,3 +826,4 @@ export type NewTradingModel = typeof tradingModels.$inferInsert
 export type ModelReview = typeof modelReviews.$inferSelect
 export type EmailEvent = typeof emailEvents.$inferSelect
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
+export type SiteText = typeof siteText.$inferSelect
