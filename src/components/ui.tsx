@@ -90,8 +90,12 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-      <p className="text-sm font-medium text-[var(--ink)]">{title}</p>
-      <p className="max-w-md text-sm text-[var(--ink-secondary)]">{body}</p>
+      <Editable as="p" scope="empty.title" className="text-sm font-medium text-[var(--ink)]">
+        {title}
+      </Editable>
+      <Editable as="p" scope="empty.body" className="block max-w-md text-sm text-[var(--ink-secondary)]">
+        {body}
+      </Editable>
       {action && (
         <Link href={action.href} className="btn btn-primary mt-2">
           {action.label}
@@ -138,9 +142,19 @@ export function Stat({
 
   return (
     <div>
-      <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-[var(--ink-muted)]">{label}</p>
+      <Editable
+        as="p"
+        scope="stat.label"
+        className="text-[0.6875rem] font-medium uppercase tracking-wide text-[var(--ink-muted)]"
+      >
+        {label}
+      </Editable>
       <p className={clsx('mt-1 font-semibold tabular', sizeClass, toneClass)}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-[var(--ink-secondary)]">{hint}</p>}
+      {hint && (
+        <Editable as="p" scope="stat.hint" className="mt-0.5 block text-xs text-[var(--ink-secondary)]">
+          {hint}
+        </Editable>
+      )}
     </div>
   )
 }
@@ -243,7 +257,11 @@ export function Meter({
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
         <div className="h-full rounded-full transition-all" style={{ width: `${width}%`, background: color }} />
       </div>
-      {label && <p className="mt-1 text-xs text-[var(--ink-secondary)]">{label}</p>}
+      {label && (
+        <Editable as="p" scope="meter.label" className="mt-1 block text-xs text-[var(--ink-secondary)]">
+          {label}
+        </Editable>
+      )}
     </div>
   )
 }
@@ -305,8 +323,14 @@ export function KeyValue({ label, value, hint }: { label: string; value: React.R
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-[var(--line)] py-2 last:border-b-0">
       <div>
-        <span className="text-xs text-[var(--ink-secondary)]">{label}</span>
-        {hint && <p className="text-[0.6875rem] text-[var(--ink-muted)]">{hint}</p>}
+        <Editable scope="keyvalue.label" className="text-xs text-[var(--ink-secondary)]">
+          {label}
+        </Editable>
+        {hint && (
+          <Editable as="p" scope="keyvalue.hint" className="block text-[0.6875rem] text-[var(--ink-muted)]">
+            {hint}
+          </Editable>
+        )}
       </div>
       <span className="tabular text-sm font-medium text-[var(--ink)]">{value}</span>
     </div>

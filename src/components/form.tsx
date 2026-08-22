@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import type { ActionResult } from '@/server/actions'
 import { clsx } from './ui'
+import { Editable } from './site-text'
 
 /**
  * A form bound to a Server Action that reports back.
@@ -167,9 +168,18 @@ export function Field({
 }) {
   return (
     <div className={className}>
-      <label className="label">{label}</label>
+      {/* Editable, so every form label in the app can be reworded. In normal
+          use it renders as plain text — the affordance only appears in edit
+          mode, so clicking a label still focuses its input. */}
+      <label className="label">
+        <Editable scope="field.label">{label}</Editable>
+      </label>
       {children}
-      {hint && <p className="mt-1 text-[0.6875rem] leading-snug text-[var(--ink-muted)]">{hint}</p>}
+      {hint && (
+        <Editable as="p" scope="field.hint" className="mt-1 block text-[0.6875rem] leading-snug text-[var(--ink-muted)]">
+          {hint}
+        </Editable>
+      )}
     </div>
   )
 }

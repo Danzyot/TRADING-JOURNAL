@@ -27,7 +27,9 @@ or re-import) and rebuild.
 
 ## Words — the interface's own wording
 
-Every page title, standfirst, section heading and description can be rewritten.
+Almost every word the app writes can be rewritten: page titles and standfirsts,
+section headings and descriptions, **form labels and their hints**, stat tile
+labels and captions, key/value labels, meter captions, and empty-state copy.
 Press **✎ Edit text** at the bottom of the sidebar (or in the top bar on a
 phone). Editable text picks up a dashed underline; click any of it, type, and
 press Save — or Enter. **Clearing the box restores the original wording**, so
@@ -42,10 +44,9 @@ Overrides live in the `site_text` table, keyed by a slug derived from the
 default wording itself. That is what makes *every* heading editable without
 tagging hundreds of call sites individually — but it has two consequences:
 
-- **The same wording in two places is one entry.** If two cards are both called
-  "Notes", renaming one renames both. In practice headings are distinctive
-  enough that this rarely comes up, and when it does it is usually what you
-  wanted.
+- **The same wording in two places is one entry.** A label like "Share of
+  payout (%)" appearing under five allocation buckets is one entry, so
+  renaming it renames all five — which is almost always what you wanted.
 - **If a default changes in code, its override is orphaned** and the new
   default shows. That is deliberate: a heading that quietly kept old wording
   after the underlying feature changed would be worse than a visible reset.
