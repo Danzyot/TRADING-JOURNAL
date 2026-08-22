@@ -1,6 +1,7 @@
 import { ActionForm, Field, SubmitButton } from '@/components/form'
 import { ALL_SPECS } from '@/lib/symbols'
 import { SymbolField } from './symbol-field'
+import { AccountPicker } from './account-picker'
 import { saveManualTrade } from '@/server/actions'
 import type { listAccounts } from '@/server/trades'
 import type { Trade, TradingModel } from '@/db/schema'
@@ -23,11 +24,18 @@ export function TradeForm({
   accounts,
   models,
   trade,
+  firms = [],
+  lastUsed = [],
 }: {
   accounts: AccountRow[]
   models: TradingModel[]
   trade?: Trade
+  /** Names for the picker's groups. */
+  firms?: { id: number; name: string }[]
+  /** The accounts the last hand-logged trade went on, pre-ticked. */
+  lastUsed?: number[]
 }) {
+  const firmNames = new Map(firms.map((firm) => [firm.id, firm.name]))
   async function submit(formData: FormData) {
     'use server'
     return saveManualTrade(trade?.id ?? null, formData)
@@ -39,24 +47,51 @@ export function TradeForm({
 
   return (
     <ActionForm action={submit} className="space-y-4" resetOnSuccess={!trade}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Account">
-          <select name="accountId" className="select" required defaultValue={trade?.accountId}>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+      {/* Editing is one trade on one account; logging is usually the same
+          entry copied across several, so only the new-trade form offers the
+          picker. */}
+      {trade ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Account">
+            <select name="accountIds" className="select" required defaultValue={trade.accountId}>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.label}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label="Symbol" hint="Root symbol — MNQ, ES, CL">
-          <SymbolField
-            specs={ALL_SPECS.map((spec) => ({ root: spec.root, name: spec.name }))}
-            defaultValue={trade?.symbol ?? ''}
-          />
-        </Field>
-      </div>
+          <Field label="Symbol" hint="Root symbol — MNQ, ES, CL">
+            <SymbolField
+              specs={ALL_SPECS.map((spec) => ({ root: spec.root, name: spec.name }))}
+              defaultValue={trade.symbol}
+            />
+          </Field>
+        </div>
+      ) : (
+        <>
+          <Field label="Accounts" hint="One trade is logged on each — copier-style">
+            <AccountPicker
+              accounts={accounts.map((account) => ({
+                id: account.id,
+                label: account.label,
+                firm: firmNames.get(account.firmId ?? -1) ?? 'No firm',
+              }))}
+              defaultSelected={lastUsed}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Symbol" hint="Root symbol — MNQ, ES, CL">
+              <SymbolField
+                specs={ALL_SPECS.map((spec) => ({ root: spec.root, name: spec.name }))}
+                defaultValue=""
+              />
+            </Field>
+          </div>
+        </>
+      )}
 
       {/* The three prices sit together: entry, exit and the stop are read as one
           line when you check a trade, and the stop is what makes R possible. */}
