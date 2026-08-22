@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation'
 import type { FirmPlan } from '@/db/schema'
 import type { ActionResult } from '@/server/actions'
 import { money, moneyCompact, titleCase } from '@/lib/format'
+import { firmArt } from '@/lib/propfirm/firm-art'
 import { clsx } from '@/components/ui'
 
 export type GridFirm = {
@@ -868,7 +869,22 @@ export function AccountsGrid({
               // ------------------------------------------ view mode row ----
               return (
                 <tr key={row.id} className={row.status !== 'active' ? 'opacity-55' : undefined}>
-                  {show('firm') && <td className="max-w-[140px] truncate text-xs">{firm?.name ?? '—'}</td>}
+                  {show('firm') && (
+                    <td className="max-w-[140px] text-xs">
+                      <span className="flex items-center gap-1.5">
+                        {firm && firmArt(firm.name).mark && (
+                          <img
+                            src={firmArt(firm.name).mark}
+                            alt=""
+                            aria-hidden
+                            loading="lazy"
+                            className="h-4 w-4 shrink-0 rounded-full object-cover"
+                          />
+                        )}
+                        <span className="truncate">{firm?.name ?? '—'}</span>
+                      </span>
+                    </td>
+                  )}
                   <td className="max-w-[220px]">
                     <span className="block truncate font-medium text-[var(--ink)]">{row.label}</span>
                     <span className="text-[0.6875rem] text-[var(--ink-muted)]">

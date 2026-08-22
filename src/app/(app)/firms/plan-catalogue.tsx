@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { ActionForm, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, clsx } from '@/components/ui'
 import type { ActionResult } from '@/server/actions'
+import { firmArt } from '@/lib/propfirm/firm-art'
 import type { FirmCatalogue } from '@/lib/propfirm/catalogue'
 import type { FirmPlan } from '@/db/schema'
 
@@ -247,6 +248,7 @@ export function PlanCatalogue({
         <SizeGrid firm={firm} family={family} accent={accentFor(firm.slug)} onPick={open} />
       ) : firm ? (
         <div className="space-y-4">
+          <FirmWordmark name={firm.name} />
           {panels[firm.slug]}
           <FamilyGrid
             families={families}
@@ -307,13 +309,7 @@ function FirmGrid({
               style={{ background: accent }}
             />
             <div className="flex items-start gap-3">
-              <span
-                aria-hidden
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white"
-                style={{ background: accent }}
-              >
-                {firm.name.slice(0, 2).toUpperCase()}
-              </span>
+              <FirmMark name={firm.name} accent={accent} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-[var(--ink)] group-hover:text-[var(--accent)]">
                   {firm.name}
@@ -349,6 +345,51 @@ function FirmGrid({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/**
+ * A firm's mark, or its initials when nobody has a logo for it.
+ *
+ * Each logo carries its own background — Apex's navy, Tradeify's green — so the
+ * tile is a plain frame in both themes rather than something that has to guess
+ * a matching colour.
+ */
+function FirmMark({ name, accent }: { name: string; accent: string }) {
+  const { mark } = firmArt(name)
+
+  if (mark) {
+    return (
+      <img
+        src={mark}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        className="h-11 w-11 shrink-0 rounded-full border border-[var(--line)] object-cover"
+      />
+    )
+  }
+
+  return (
+    <span
+      aria-hidden
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white"
+      style={{ background: accent }}
+    >
+      {name.slice(0, 2).toUpperCase()}
+    </span>
+  )
+}
+
+/** The wide logo, across the top of the firm you opened. */
+function FirmWordmark({ name }: { name: string }) {
+  const { wordmark } = firmArt(name)
+  if (!wordmark) return null
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-[var(--line)]">
+      <img src={wordmark} alt={name} className="h-16 w-full object-cover sm:h-20" />
     </div>
   )
 }
@@ -550,11 +591,7 @@ function SearchResults({
               onClick={() => onPick(firm.slug, plan.label)}
               className="card flex items-center gap-3 p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              <span
-                aria-hidden
-                className="h-8 w-1 shrink-0 rounded-full"
-                style={{ background: accentFor(firm.slug) }}
-              />
+              <FirmChip name={firm.name} accent={accentFor(firm.slug)} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold text-[var(--ink)]">
                   {plan.label}
@@ -575,6 +612,25 @@ function SearchResults({
 }
 
 // ---------------------------------------------------------------------------
+
+/** The same idea as FirmMark, at the size a search result has room for. */
+function FirmChip({ name, accent }: { name: string; accent: string }) {
+  const { mark } = firmArt(name)
+  if (!mark) {
+    return (
+      <span aria-hidden className="h-8 w-1 shrink-0 rounded-full" style={{ background: accent }} />
+    )
+  }
+  return (
+    <img
+      src={mark}
+      alt=""
+      aria-hidden
+      loading="lazy"
+      className="h-7 w-7 shrink-0 rounded-md border border-[var(--line)] object-cover"
+    />
+  )
+}
 
 function Breadcrumb({
   firm,

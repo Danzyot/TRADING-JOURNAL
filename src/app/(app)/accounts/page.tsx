@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/components/form'
 import { PlanCatalogue } from '../firms/plan-catalogue'
 import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
+import { firmArt } from '@/lib/propfirm/firm-art'
 import { AccountsGrid, type GridFirm, type GridRow } from './accounts-grid'
 import { Card, EmptyState, PageHeader, Stat, StatGrid, clsx } from '@/components/ui'
 import { money, percent } from '@/lib/format'
@@ -232,6 +233,7 @@ export default async function AccountsPage({
                 href={`/accounts?firm=${firm.id}`}
                 active={firmFilter === String(firm.id)}
                 label={firm.name}
+                mark={firmArt(firm.name).mark}
               />
             ))}
             {hasUnassigned && (
@@ -275,17 +277,32 @@ export default async function AccountsPage({
 
 // ---------------------------------------------------------------------------
 
-function FilterTab({ href, active, label }: { href: string; active: boolean; label: string }) {
+function FilterTab({
+  href,
+  active,
+  label,
+  mark,
+}: {
+  href: string
+  active: boolean
+  label: string
+  /** The firm's logo, when there is one — a row of chips is scanned, not read. */
+  mark?: string
+}) {
   return (
     <Link
       href={href}
       className={clsx(
-        'rounded-full border px-3 py-1 text-xs transition-colors',
+        'inline-flex items-center gap-1.5 rounded-full border py-1 text-xs transition-colors',
+        mark ? 'pl-1 pr-3' : 'px-3',
         active
           ? 'border-transparent bg-[var(--accent)] font-medium text-white'
           : 'border-[var(--line)] text-[var(--ink-secondary)] hover:border-[var(--line-strong)]',
       )}
     >
+      {mark && (
+        <img src={mark} alt="" aria-hidden loading="lazy" className="h-5 w-5 rounded-full object-cover" />
+      )}
       {label}
     </Link>
   )
