@@ -117,9 +117,6 @@ export default async function LoginPage({
             <a href={demo} className="btn mt-3 w-full justify-center">
               View demo
             </a>
-            <p className="mt-2 text-center text-[0.6875rem] text-[var(--ink-muted)]">
-              Sample data, no password, nothing you do there is saved.
-            </p>
           </div>
         )}
 
@@ -130,10 +127,6 @@ export default async function LoginPage({
             password: remove <code>APP_PASSWORD</code> here, or unset <code>DEMO_MODE</code>.
           </p>
         )}
-
-        <p className="mt-4 text-center text-xs text-[var(--ink-muted)]">
-          Set <code>APP_PASSWORD</code> in your environment to change this.
-        </p>
       </div>
     </div>
   )
