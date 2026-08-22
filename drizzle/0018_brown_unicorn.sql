@@ -1,0 +1,1 @@
+ALTER TABLE "accounts" ADD COLUMN "payout_min_trading_days" integer;

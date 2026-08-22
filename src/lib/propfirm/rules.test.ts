@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { consistencyCheck, drawdownState, payoutEligibility } from './rules'
+import {
+  TRAIL_LOCK_ABOVE_START,
+  consistencyCheck,
+  drawdownState,
+  payoutEligibility,
+  payoutThreshold,
+} from './rules'
 import type { Account } from '@/db/schema'
 
 function account(overrides: Partial<Account> = {}): Account {
@@ -23,6 +29,7 @@ function account(overrides: Partial<Account> = {}): Account {
     profitSplit: null,
     payoutPolicy: null,
     minTradingDays: null,
+    payoutMinTradingDays: null,
     planLabel: null,
     minWinningDays: null,
     winningDayMinProfit: null,
@@ -166,15 +173,6 @@ describe('payoutEligibility', () => {
     expect(result.blockers.join(' ')).toContain('evaluation')
   })
 
-  it('does not treat the evaluation\'s minimum trading days as a payout rule', () => {
-    // That number comes off the plan catalogue, where it is what the
-    // *evaluation* required. Quoting it as the thing between the trader and
-    // their money invents a rule the firm never wrote.
-    const result = payoutEligibility(account({ minTradingDays: 15 }), options)
-    expect(result.blockers.join(' ')).not.toContain('trading days')
-    expect(result.eligible).toBe(true)
-  })
-
   it('enforces the winning-days gate with a profit threshold', () => {
     // 5 winning days exist, but only 3 cleared $350.
     const result = payoutEligibility(
@@ -212,7 +210,44 @@ describe('payoutEligibility', () => {
     const result = payoutEligibility(account({ consistencyPercent: 0.2 }), options)
     // Best day 600 of 2,000 total = 30%, above the 20% cap.
     expect(result.eligible).toBe(false)
-    expect(result.blockers.join(' ')).toContain('Consistency')
+    const rule = result.requirements.find((entry) => entry.key === 'consistency')
+    expect(rule).toMatchObject({ label: 'Consistency rule (20%)', met: false })
+    expect(rule?.detail).toContain('30%')
+  })
+
+  it('lists every rule that applies, met or not', () => {
+    const result = payoutEligibility(
+      account({
+        payoutMinTradingDays: 5,
+        minWinningDays: 5,
+        winningDayMinProfit: 250,
+        consistencyPercent: 0.5,
+        buffer: 2_100,
+        minPayout: 500,
+      }),
+      { ...options, tradingDays: 2 },
+    )
+    // The firm's own dashboard shows all of them; a list of only the failures
+    // cannot say that four of five gates are already cleared.
+    expect(result.requirements.map((entry) => entry.key)).toEqual([
+      'trading_days',
+      'winning_days',
+      'consistency',
+      'balance',
+    ])
+    expect(result.requirements.find((entry) => entry.key === 'trading_days')).toMatchObject({
+      label: '5 trading days',
+      met: false,
+      detail: '2 of 5 trading days completed',
+    })
+    expect(result.requirements.find((entry) => entry.key === 'winning_days')?.label).toBe(
+      '5 days with 250+ profit',
+    )
+  })
+
+  it('does not invent a trading-days rule from the evaluation\'s minimum', () => {
+    const result = payoutEligibility(account({ minTradingDays: 15 }), { ...options, tradingDays: 2 })
+    expect(result.requirements.some((entry) => entry.key === 'trading_days')).toBe(false)
   })
 })
 
@@ -244,7 +279,10 @@ describe('payoutEligibility — buffer and minimum payout', () => {
       currentEquity: 51_500,
     })
     expect(result.eligible).toBe(false)
-    expect(result.blockers.join(' ')).toContain('600 more is needed')
+    expect(result.requirements.find((entry) => entry.key === 'balance')).toMatchObject({
+      met: false,
+      detail: '51500 of 52100 (2100 buffer + 0 minimum payout)',
+    })
     expect(result.withdrawable).toBe(0)
   })
 
@@ -253,8 +291,11 @@ describe('payoutEligibility — buffer and minimum payout', () => {
       ...base,
       currentEquity: 52_400,
     })
+    // The bar is the buffer *and* the firm's minimum: $50,000 + $2,100 + $500.
     expect(result.eligible).toBe(false)
-    expect(result.blockers.join(' ')).toContain('minimum payout is 500')
+    expect(result.requirements.find((entry) => entry.key === 'balance')?.detail).toBe(
+      '52400 of 52600 (2100 buffer + 500 minimum payout)',
+    )
   })
 
   it('counts both the buffer and the minimum toward the first payout', () => {
@@ -280,5 +321,76 @@ describe('payoutEligibility — buffer and minimum payout', () => {
       minProfit: 5_000,
     })
     expect(result.withdrawable).toBe(300)
+  })
+})
+
+describe('the trailing drawdown stops $100 above the starting balance', () => {
+  const history = (...equities: number[]) =>
+    equities.map((equity, index) => ({ day: `2026-03-0${index + 1}`, equity }))
+
+  it('locks the floor at start + $100 however far the account runs', () => {
+    // $50k account, $2,000 trailing: the line follows to $50,100 and stops.
+    // Before this cap it kept climbing — a $55,723 account was reported as
+    // breaching at $53,723, which cannot happen on any of these accounts.
+    const state = drawdownState(
+      account({ startingBalance: 50_000, maxDrawdown: 2_000, drawdownType: 'trailing_eod' }),
+      history(51_000, 53_000, 55_723),
+    )
+    expect(state.line).toBe(50_000 + TRAIL_LOCK_ABOVE_START)
+    expect(state.locked).toBe(true)
+    expect(state.room).toBe(55_723 - 50_100)
+  })
+
+  it('still trails normally below that point', () => {
+    const state = drawdownState(
+      account({ startingBalance: 50_000, maxDrawdown: 2_000, drawdownType: 'trailing_eod' }),
+      history(51_000),
+    )
+    expect(state.line).toBe(49_000)
+    expect(state.locked).toBe(false)
+  })
+
+  it('applies to intraday accounts too, from the intraday peak', () => {
+    const state = drawdownState(
+      account({ startingBalance: 50_000, maxDrawdown: 2_500, drawdownType: 'trailing_intraday' }),
+      [{ day: '2026-03-01', equity: 51_000, peakEquity: 60_000 }],
+    )
+    expect(state.line).toBe(50_100)
+  })
+
+  it('leaves a static drawdown where it is', () => {
+    const state = drawdownState(
+      account({ startingBalance: 50_000, maxDrawdown: 2_000, drawdownType: 'static' }),
+      history(58_000),
+    )
+    expect(state.line).toBe(48_000)
+  })
+
+  it('honours an explicit lock point when the account carries one', () => {
+    const state = drawdownState(
+      account({
+        startingBalance: 50_000,
+        maxDrawdown: 2_000,
+        drawdownType: 'trailing_eod',
+        drawdownLocksAt: 50_500,
+      }),
+      history(60_000),
+    )
+    expect(state.line).toBe(50_500)
+  })
+})
+
+describe('payoutThreshold', () => {
+  it('is the buffer and the firm minimum on top of the account size', () => {
+    // The example that prompted it: $50k, $2,100 buffer, $500 minimum.
+    expect(payoutThreshold(account({ startingBalance: 50_000, buffer: 2_100, minPayout: 500 }))).toBe(
+      52_600,
+    )
+  })
+
+  it('falls back to the account size when the firm asks for neither', () => {
+    expect(payoutThreshold(account({ startingBalance: 25_000, buffer: null, minPayout: null }))).toBe(
+      25_000,
+    )
   })
 })

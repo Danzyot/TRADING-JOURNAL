@@ -230,7 +230,15 @@ export const accounts = pgTable(
   profitSplit: ratio('profit_split'),
   /** This account's payout rules in the trader's own words. */
   payoutPolicy: text('payout_policy'),
+    /** What the *evaluation* required. Says nothing about payouts. */
     minTradingDays: integer('min_trading_days'),
+    /**
+     * Trading days a *funded* account must have before a payout can be
+     * requested — Apex asks for five. Separate from `minTradingDays` on
+     * purpose: that one is the evaluation's rule, and quoting it as a payout
+     * gate invents a rule the firm never wrote.
+     */
+    payoutMinTradingDays: integer('payout_min_trading_days'),
     /**
      * Payout gate in the form most firms now use: N days that each netted at
      * least `winningDayMinProfit`. Distinct from minTradingDays, which counts

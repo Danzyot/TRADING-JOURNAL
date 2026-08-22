@@ -26,6 +26,15 @@ export type DrawdownState = {
   breached: boolean
 }
 
+/**
+ * How far above the starting balance a trailing drawdown is allowed to climb.
+ *
+ * $100, on every account these firms sell. Once the trailing line reaches
+ * `starting balance + $100` it locks there for the life of the account: the
+ * floor of a $50,000 account is $50,100 no matter how far into profit it runs.
+ */
+export const TRAIL_LOCK_ABOVE_START = 100
+
 export type EquityPoint = {
   /** End-of-day, or intraday peak, depending on the drawdown type. */
   day: string
@@ -72,9 +81,13 @@ export function drawdownState(account: Account, history: EquityPoint[]): Drawdow
   }
 
   const useIntraday = account.drawdownType === 'trailing_intraday'
-  // The lock point is where the firm freezes the line, typically once the
-  // account has earned back its buffer plus a margin.
-  const lockAt = account.drawdownLocksAt ?? null
+  // Where the line stops following. Every firm selling these accounts — end of
+  // day or intraday, evaluation or funded — freezes the trailing drawdown once
+  // it reaches $100 above the starting balance, and it never rises past that.
+  // Without the cap the floor kept climbing with the high-water mark, which
+  // reported a $50k account as breaching at $53,723 when it cannot ever breach
+  // above $50,100.
+  const lockAt = account.drawdownLocksAt ?? start + TRAIL_LOCK_ABOVE_START
 
   let highWater = start
   let locked = false
@@ -82,7 +95,7 @@ export function drawdownState(account: Account, history: EquityPoint[]): Drawdow
   for (const point of history) {
     const candidate = useIntraday ? (point.peakEquity ?? point.equity) : point.equity
     if (!locked && candidate > highWater) highWater = candidate
-    if (lockAt !== null && highWater - allowance >= lockAt) {
+    if (highWater - allowance >= lockAt) {
       // Once the trailing line reaches the lock threshold it stops moving.
       highWater = lockAt + allowance
       locked = true
@@ -146,9 +159,40 @@ export function consistencyCheck(
   }
 }
 
+/**
+ * The balance a funded account has to reach before a payout can be *requested*.
+ *
+ * Not the account size, and not the size plus the buffer: the firm will not
+ * process a request below its own minimum, so the real bar is the buffer you
+ * must leave behind *plus* the smallest amount it will send. A $50,000 account
+ * with a $2,100 buffer and a $500 minimum needs $52,600 — asking at $52,101
+ * leaves $1 of withdrawable profit and gets refused.
+ */
+export function payoutThreshold(account: Account, fallbackBuffer = 0): number {
+  const buffer = Math.max(0, account.buffer ?? fallbackBuffer ?? 0)
+  const minimum = Math.max(0, account.minPayout ?? 0)
+  return account.startingBalance + buffer + minimum
+}
+
+/** One firm rule, and whether this account has met it yet. */
+export type PayoutRequirement = {
+  key: 'trading_days' | 'winning_days' | 'consistency' | 'balance' | 'account'
+  /** The rule as the firm words it — "5 days with $250+ profit". */
+  label: string
+  met: boolean
+  /** Where this account stands against it. */
+  detail: string
+}
+
 export type PayoutEligibility = {
   eligible: boolean
   blockers: string[]
+  /**
+   * Every rule that applies, met or not, in the order a firm's own dashboard
+   * lists them. A list of only the failures cannot show that four of five
+   * gates are already cleared.
+   */
+  requirements: PayoutRequirement[]
   /**
    * Profit available to withdraw: everything above the account size, less the
    * buffer the firm requires you to leave behind.
@@ -175,7 +219,7 @@ export function payoutEligibility(
     minProfit?: number
   },
 ): PayoutEligibility {
-  const blockers: string[] = []
+  const requirements: PayoutRequirement[] = []
   const profit = options.currentEquity - account.startingBalance
 
   // Profit the firm makes you leave in the account. Withdrawing is allowed
@@ -183,67 +227,89 @@ export function payoutEligibility(
   // eligibility test and the figure quoted — a $2,300 profit on a $2,100
   // buffer is $200 of payout, not $2,300.
   const buffer = Math.max(0, account.buffer ?? options.minProfit ?? 0)
+  const minimum = Math.max(0, account.minPayout ?? 0)
+  const threshold = payoutThreshold(account, options.minProfit ?? 0)
 
-  if (account.phase !== 'funded' && account.phase !== 'live') {
-    blockers.push('Account is still in evaluation — payouts apply to funded accounts only.')
+  const funded = account.phase === 'funded' || account.phase === 'live'
+  if (!funded || account.status !== 'active') {
+    requirements.push({
+      key: 'account',
+      label: 'Funded and active',
+      met: false,
+      detail: !funded
+        ? 'Still an evaluation — payouts apply to funded accounts.'
+        : `Account status is "${account.status}".`,
+    })
   }
-  if (account.status !== 'active') {
-    blockers.push(`Account status is "${account.status}".`)
+
+  // Days traded since the account was funded. This is the firm's *payout* rule
+  // and nothing to do with what the evaluation asked for, which is why it has
+  // a field of its own: an evaluation minimum of one day says nothing about
+  // whether a funded account may withdraw.
+  if (account.payoutMinTradingDays) {
+    const met = options.tradingDays >= account.payoutMinTradingDays
+    requirements.push({
+      key: 'trading_days',
+      label: `${account.payoutMinTradingDays} trading days`,
+      met,
+      detail: `${options.tradingDays} of ${account.payoutMinTradingDays} trading days completed`,
+    })
   }
-  // `minTradingDays` is deliberately NOT checked here. It comes off the plan
-  // catalogue, where it is the *evaluation's* minimum — MyFundedFutures Rapid
-  // is one day, Builder is fourteen — and a firm's payout policy is a separate
-  // rule that most of them state in days-since-funding or winning days. Quoting
-  // an evaluation number as the thing standing between you and your money is
-  // inventing a rule the firm never wrote, so the eligibility test sticks to
-  // rules that are genuinely about payouts: the account being funded and
-  // active, profit above the buffer, the consistency limit, the firm's minimum
-  // payout, and `minWinningDays` where the firm actually sets one.
 
   // The gate most firms actually use now: N days each netting at least $X.
   // A day that made $40 counts toward trading days but not toward this.
   if (account.minWinningDays) {
-    const threshold = account.winningDayMinProfit ?? 0
-    const qualifying = options.dailyPnls.filter((d) => d.netPnl >= Math.max(threshold, 0.01)).length
-    if (qualifying < account.minWinningDays) {
-      blockers.push(
-        threshold > 0
-          ? `${qualifying} of ${account.minWinningDays} required winning days of at least ${threshold.toFixed(0)} completed.`
-          : `${qualifying} of ${account.minWinningDays} required winning days completed.`,
-      )
-    }
-  }
-  if (profit <= 0) {
-    blockers.push('Account is not above its starting balance.')
-  } else if (buffer > 0 && profit < buffer) {
-    blockers.push(
-      `Profit of ${profit.toFixed(0)} is below the ${buffer.toFixed(0)} buffer — ${(buffer - profit).toFixed(0)} more is needed before anything can be withdrawn.`,
-    )
+    const floor = account.winningDayMinProfit ?? 0
+    const qualifying = options.dailyPnls.filter((d) => d.netPnl >= Math.max(floor, 0.01)).length
+    requirements.push({
+      key: 'winning_days',
+      label:
+        floor > 0
+          ? `${account.minWinningDays} days with ${floor.toFixed(0)}+ profit`
+          : `${account.minWinningDays} winning days`,
+      met: qualifying >= account.minWinningDays,
+      detail: `${qualifying} of ${account.minWinningDays} completed`,
+    })
   }
 
   const consistency = consistencyCheck(options.dailyPnls, account.consistencyPercent ?? null)
-  if (consistency.applies && !consistency.passes) {
-    blockers.push(
-      `Consistency rule: best day is ${(consistency.bestDayShare * 100).toFixed(0)}% of total profit, above the ${((account.consistencyPercent ?? 0) * 100).toFixed(0)}% limit. About ${consistency.profitNeeded.toFixed(0)} more profit on other days is needed.`,
-    )
+  if (consistency.applies) {
+    requirements.push({
+      key: 'consistency',
+      label: `Consistency rule (${((account.consistencyPercent ?? 0) * 100).toFixed(0)}%)`,
+      met: consistency.passes,
+      detail: consistency.passes
+        ? `Best day is ${(consistency.bestDayShare * 100).toFixed(0)}% of profit`
+        : `Best day is ${(consistency.bestDayShare * 100).toFixed(0)}% of total profit — about ${consistency.profitNeeded.toFixed(0)} more on other days`,
+    })
   }
 
+  // The balance bar, stated the way the firm states it: one number to reach,
+  // not a buffer and a minimum to add up yourself.
+  requirements.push({
+    key: 'balance',
+    label: 'Minimum payout balance',
+    met: options.currentEquity >= threshold && profit > 0,
+    detail:
+      options.currentEquity >= threshold && profit > 0
+        ? `${threshold.toFixed(0)} has been met`
+        : `${options.currentEquity.toFixed(0)} of ${threshold.toFixed(0)}${
+            buffer > 0 || minimum > 0
+              ? ` (${buffer.toFixed(0)} buffer + ${minimum.toFixed(0)} minimum payout)`
+              : ''
+          }`,
+  })
+
+  const blockers = requirements.filter((rule) => !rule.met).map((rule) => rule.detail)
   const withdrawable = Math.max(0, profit - buffer)
-
-  // A firm that will not process less than $500 is not going to process $180,
-  // so an account over the buffer can still have nothing to request.
-  if (account.minPayout && withdrawable > 0 && withdrawable < account.minPayout) {
-    blockers.push(
-      `${withdrawable.toFixed(0)} is available but the firm's minimum payout is ${account.minPayout.toFixed(0)}.`,
-    )
-  }
 
   return {
     eligible: blockers.length === 0,
     blockers,
+    requirements,
     withdrawable: round(withdrawable),
     netToTrader: round(withdrawable * options.profitSplit),
-    toFirstPayout: round(Math.max(0, buffer + Math.max(account.minPayout ?? 0, 0) - profit)),
+    toFirstPayout: round(Math.max(0, threshold - options.currentEquity)),
   }
 }
 

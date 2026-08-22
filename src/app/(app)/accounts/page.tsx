@@ -5,10 +5,15 @@ import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import { firmArt } from '@/lib/propfirm/firm-art'
 import { AccountsGrid, type GridFirm, type GridRow } from './accounts-grid'
 import { Card, EmptyState, PageHeader, Stat, StatGrid, clsx } from '@/components/ui'
-import { money, percent } from '@/lib/format'
+import { money, percent, signed } from '@/lib/format'
 import { dailySeries } from '@/lib/analytics/metrics'
 import { accountEquity } from '@/lib/analytics/balance'
-import { consistencyCheck, drawdownState, payoutEligibility } from '@/lib/propfirm/rules'
+import {
+  consistencyCheck,
+  drawdownState,
+  payoutEligibility,
+  payoutThreshold,
+} from '@/lib/propfirm/rules'
 import {
   addAccountFromPlan,
   bulkUpdateAccounts,
@@ -49,9 +54,10 @@ export default async function AccountsPage({
   const attempts = Math.max(evaluations.length, passed.length + failed.length)
   const passRate = attempts > 0 ? passed.length / attempts : null
 
-  const totalSpent = accounts.reduce((sum, a) => sum + a.costBase, 0)
-  const totalPayouts = dashboard.money.payoutsPaid
-  const net = totalPayouts - totalSpent
+  // What the accounts have made *trading*. Costs and payouts live on the
+  // earnings page; mixing them in here produced a "Net P&L" of −$129 for an
+  // account that had not taken a trade yet.
+  const tradingPnl = dashboard.trades.reduce((sum, trade) => sum + trade.netPnl, 0)
 
   // --- Grid rows ------------------------------------------------------------
   const firmFilter = params.firm ?? ''
@@ -62,6 +68,7 @@ export default async function AccountsPage({
   })
 
   const fallbackDay = new Date().toISOString().slice(0, 10)
+  let payoutReady = 0
   const rows: GridRow[] = filtered.map((account) => {
     const accountTrades = dashboard.trades.filter((trade) => trade.accountId === account.id)
     const netPnl = accountTrades.reduce((sum, trade) => sum + trade.netPnl, 0)
@@ -78,6 +85,7 @@ export default async function AccountsPage({
     const firm = account.firmId === null ? undefined : firmsById.get(account.firmId)
 
     let payout: GridRow['payout'] = null
+    let requirements: GridRow['requirements'] = []
     if ((account.phase === 'funded' || account.phase === 'live') && account.status === 'active') {
       const eligibility = payoutEligibility(account, {
         currentEquity: equity,
@@ -86,6 +94,8 @@ export default async function AccountsPage({
         profitSplit: account.profitSplit ?? firm?.profitSplit ?? 0.9,
       })
       const split = account.profitSplit ?? firm?.profitSplit ?? 0.9
+      requirements = eligibility.requirements
+      if (eligibility.eligible) payoutReady += 1
       payout = eligibility.eligible
         ? {
             state: 'eligible',
@@ -123,6 +133,12 @@ export default async function AccountsPage({
       costBase: account.costBase,
       equity,
       netPnl,
+      payoutAt:
+        account.phase === 'funded' || account.phase === 'live' ? payoutThreshold(account) : null,
+      requirements,
+      todayPnl: accountTrades
+        .filter((trade) => trade.tradingDay === fallbackDay)
+        .reduce((sum, trade) => sum + trade.netPnl, 0),
       anchor: {
         source: balance.anchor.source,
         asOf: balance.anchor.asOf,
@@ -174,7 +190,7 @@ export default async function AccountsPage({
         subtitle="Every account you hold, in one table. Add one from a firm's plan and its rules come with it; edit any row inline, or apply one change across all of them."
       />
 
-      <StatGrid columns={5}>
+      <StatGrid columns={4}>
         <Card bodyClassName="p-4">
           <Stat
             label="Accounts"
@@ -183,17 +199,22 @@ export default async function AccountsPage({
           />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Total spent" value={money(totalSpent, ccy, 0)} hint="Sum of account costs" />
-        </Card>
-        <Card bodyClassName="p-4">
-          <Stat label="Total payouts" value={money(totalPayouts, ccy, 0)} hint="Paid out to date" />
+          {/* Trading only. What the accounts cost and what they have paid out
+              is the earnings page's business — this page is about whether they
+              are alive, passing and payable. */}
+          <Stat
+            label="Net P&L"
+            value={signed(tradingPnl, ccy, 0)}
+            tone="pnl"
+            hint="From trades, across every account"
+          />
         </Card>
         <Card bodyClassName="p-4">
           <Stat
-            label="Net P&L"
-            value={money(net, ccy, 0)}
-            tone={net > 0 ? 'good' : net < 0 ? 'critical' : 'neutral'}
-            hint="Payouts − account costs"
+            label="Payout-ready"
+            value={String(payoutReady)}
+            hint={payoutReady === 0 ? 'None eligible right now' : 'Eligible to request now'}
+            tone={payoutReady > 0 ? 'good' : 'neutral'}
           />
         </Card>
         <Card bodyClassName="p-4">
@@ -506,8 +527,19 @@ function AccountForm({ firms, ccy, account }: { firms: FirmRow[]; ccy: string; a
               className="input"
             />
           </Field>
-          <Field label="Min trading days">
+          <Field label="Min trading days" hint="What the evaluation required. Not a payout rule.">
             <input name="minTradingDays" type="number" defaultValue={account?.minTradingDays ?? ''} className="input" />
+          </Field>
+          <Field
+            label="Trading days for payout"
+            hint="e.g. 5 — days a funded account must trade before it can request. Separate from the evaluation's."
+          >
+            <input
+              name="payoutMinTradingDays"
+              type="number"
+              defaultValue={account?.payoutMinTradingDays ?? ''}
+              className="input"
+            />
           </Field>
           <Field label="Winning days for payout" hint="e.g. 5 — most firms now gate payouts on winning days, not just trading days">
             <input name="minWinningDays" type="number" defaultValue={account?.minWinningDays ?? ''} className="input" />

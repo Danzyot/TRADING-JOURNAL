@@ -242,6 +242,7 @@ const accountSchema = z.object({
   profitSplit: optionalNum,
   payoutPolicy: optionalText,
   minTradingDays: optionalNum,
+  payoutMinTradingDays: optionalNum,
   minWinningDays: optionalNum,
   winningDayMinProfit: optionalNum,
   consistencyPercent: optionalNum,
@@ -256,6 +257,57 @@ const accountSchema = z.object({
   notes: optionalText,
   excludeFromStats: z.coerce.boolean().default(false),
 })
+
+/**
+ * Keeps the expense ledger in step with what an account cost.
+ *
+ * The price of an evaluation is typed on the accounts page, because that is
+ * where you are when you buy one — and it is an expense, so it belongs in the
+ * expense ledger too. Typing it twice is how the two disagree.
+ *
+ * One row per account, marked `source: 'account'` so it can be found again:
+ * changing the cost edits that row, clearing it deletes the row, and an
+ * expense you wrote by hand is never touched.
+ */
+async function syncAccountCostExpense(
+  accountId: number,
+  values: { label: string; costBase: number; firmId: number | null; startedOn?: string | null },
+): Promise<void> {
+  const [existing] = await db
+    .select({ id: expenses.id })
+    .from(expenses)
+    .where(and(eq(expenses.accountId, accountId), eq(expenses.source, 'account')))
+    .limit(1)
+
+  if (!values.costBase || values.costBase <= 0) {
+    if (existing) await db.delete(expenses).where(eq(expenses.id, existing.id))
+    return
+  }
+
+  const settings = await getSettings()
+  const [firm] = values.firmId
+    ? await db.select({ name: propFirms.name }).from(propFirms).where(eq(propFirms.id, values.firmId)).limit(1)
+    : []
+
+  const row = {
+    spentOn: values.startedOn || today(settings.timezone),
+    category: 'eval_fee' as const,
+    vendor: firm?.name ?? 'Prop firm',
+    description: `${values.label} — account cost`,
+    amount: values.costBase,
+    currency: 'USD',
+    fxRate: 1,
+    amountBase: values.costBase,
+    firmId: values.firmId,
+    accountId,
+    deductiblePercent: defaultDeductibleFor('eval_fee'),
+    notes: 'Kept in step with the account\'s cost on the accounts page.',
+    source: 'account',
+  }
+
+  if (existing) await db.update(expenses).set(row).where(eq(expenses.id, existing.id))
+  else await db.insert(expenses).values(row)
+}
 
 export async function saveAccount(id: number | null, formData: FormData): Promise<ActionResult> {
   return guard(async () => {
@@ -273,6 +325,7 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
       maxMicroContracts: values.maxMicroContracts ?? null,
       profitSplit: values.profitSplit ?? null,
       minTradingDays: values.minTradingDays ?? null,
+      payoutMinTradingDays: values.payoutMinTradingDays ?? null,
       minWinningDays: values.minWinningDays ?? null,
       winningDayMinProfit: values.winningDayMinProfit ?? null,
       // Entered as a whole percentage; stored as a fraction.
@@ -318,8 +371,20 @@ export async function saveAccount(id: number | null, formData: FormData): Promis
       } else {
         await rollupDailyStats(id)
       }
+      await syncAccountCostExpense(id, {
+        label: values.label,
+        costBase: values.costBase,
+        firmId: values.firmId ?? null,
+        startedOn: values.startedOn,
+      })
     } else {
-      await db.insert(accounts).values(payload)
+      const [created] = await db.insert(accounts).values(payload).returning({ id: accounts.id })
+      await syncAccountCostExpense(created.id, {
+        label: values.label,
+        costBase: values.costBase,
+        firmId: values.firmId ?? null,
+        startedOn: values.startedOn,
+      })
     }
 
     revalidateAll()
@@ -408,7 +473,7 @@ export async function addAccountFromPlan(formData: FormData): Promise<ActionResu
     // account would show a progress bar toward a bar that no longer exists.
     const isEval = values.phase === 'eval'
 
-    await db.insert(accounts).values({
+    const [created] = await db.insert(accounts).values({
       firmId,
       label: values.label,
       externalId: values.externalId,
@@ -438,6 +503,13 @@ export async function addAccountFromPlan(formData: FormData): Promise<ActionResu
       startedOn: values.startedOn,
       openingBalance: values.openingBalanceAt === null ? null : values.openingBalance,
       openingBalanceAt: values.openingBalance === null ? null : values.openingBalanceAt,
+    }).returning({ id: accounts.id })
+
+    await syncAccountCostExpense(created.id, {
+      label: values.label,
+      costBase: values.costBase ?? plan.cost ?? 0,
+      firmId,
+      startedOn: values.startedOn,
     })
 
     revalidateAll()

@@ -20,7 +20,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { FirmPlan } from '@/db/schema'
 import type { ActionResult } from '@/server/actions'
-import { money, moneyCompact, titleCase } from '@/lib/format'
+import { money, moneyCompact, pnlClass, signed, titleCase } from '@/lib/format'
 import { firmArt } from '@/lib/propfirm/firm-art'
 import { clsx } from '@/components/ui'
 
@@ -50,6 +50,8 @@ export type GridRow = {
   costBase: number
   equity: number
   netPnl: number
+  /** This trading day's P&L on this account. */
+  todayPnl: number
   /**
    * Where the balance came from and what it already contains. A figure the
    * trader cannot account for is one they will not trust, and this is what
@@ -64,6 +66,10 @@ export type GridRow = {
   /** Best day as a share of profit, whole percent, when measurable. */
   bestDayPct: number | null
   payout: { state: 'eligible' | 'blocked'; text: string; detail: string } | null
+  /** Funded accounts: the balance a payout can be requested at. */
+  payoutAt: number | null
+  /** Every payout rule the firm applies, met or not. */
+  requirements: { key: string; label: string; met: boolean; detail: string }[]
   /** Size, drawdown or target missing — progress cannot be tracked yet. */
   needsSetup: boolean
 }
@@ -80,6 +86,44 @@ type Edits = {
   maxContracts: string
   maxMicroContracts: string
   costBase: string
+}
+
+/**
+ * The state of an account at a glance, before any number is read.
+ *
+ * Green is trading, amber is paused or waiting on the firm, red is done for —
+ * failed or breached. The colour is never alone: the label under the name says
+ * the same thing in words.
+ */
+function StatusDot({ status }: { status: string }) {
+  const colour =
+    status === 'active'
+      ? 'var(--good)'
+      : status === 'failed' || status === 'breached'
+        ? 'var(--critical)'
+        : status === 'passed'
+          ? 'var(--accent)'
+          : 'var(--ink-muted)'
+
+  return (
+    <span
+      aria-hidden
+      title={titleCase(status)}
+      className="inline-block h-2 w-2 shrink-0 rounded-full"
+      style={{ background: colour }}
+    />
+  )
+}
+
+/**
+ * How much room is left before the account is breached, coloured by how much
+ * of the allowance that is: comfortable, getting thin, or one bad trade away.
+ */
+function roomTone(roomPct: number | null): string {
+  if (roomPct === null) return 'text-[var(--ink-muted)]'
+  if (roomPct >= 0.5) return 'text-[var(--good-text)]'
+  if (roomPct >= 0.2) return 'text-[var(--serious)]'
+  return 'text-[var(--critical)]'
 }
 
 const DD_LABELS: Record<string, string> = {
@@ -162,6 +206,8 @@ const STATE_FILTERS: { key: StateKey; label: string; match: (row: GridRow) => bo
 const TABLE_COLUMNS = [
   { key: 'firm', label: 'Firm' },
   { key: 'type', label: 'Type' },
+  { key: 'today', label: 'Today' },
+  { key: 'distDd', label: 'Dist DD' },
   { key: 'progress', label: 'Progress' },
   { key: 'target', label: 'To target / payout' },
   { key: 'consistency', label: 'Consistency' },
@@ -535,6 +581,32 @@ export function AccountsGrid({
                   )}
                 </div>
 
+                {row.requirements.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {row.requirements.map((rule) => (
+                      <div
+                        key={rule.key}
+                        className={clsx(
+                          'rounded-md border-l-2 px-2 py-1',
+                          rule.met
+                            ? 'border-[var(--good)] bg-[color-mix(in_srgb,var(--good)_10%,transparent)]'
+                            : 'border-[var(--critical)] bg-[color-mix(in_srgb,var(--critical)_10%,transparent)]',
+                        )}
+                      >
+                        <p
+                          className={clsx(
+                            'text-[0.6875rem] font-semibold',
+                            rule.met ? 'text-[var(--good-text)]' : 'text-[var(--critical)]',
+                          )}
+                        >
+                          {rule.met ? '✓' : '✗'} {rule.label}
+                        </p>
+                        <p className="text-[0.625rem] text-[var(--ink-secondary)]">{rule.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mt-3 flex items-end justify-between gap-2">
                   <span className="text-[0.6875rem] text-[var(--ink-muted)]">
                     {row.consistencyPct === null
@@ -707,6 +779,8 @@ export function AccountsGrid({
                 {show('firm') && <th>Firm</th>}
                 <th>Account</th>
                 {show('type') && <th>Type</th>}
+                {show('today') && <th className="text-right">Today</th>}
+                {show('distDd') && <th className="text-right">Dist DD</th>}
                 {show('progress') && <th className="min-w-[220px]">Progress</th>}
                 {show('target') && <th className="text-right">To target / payout</th>}
                 {show('consistency') && <th className="text-right">Consistency</th>}
@@ -886,7 +960,18 @@ export function AccountsGrid({
                     </td>
                   )}
                   <td className="max-w-[220px]">
-                    <span className="block truncate font-medium text-[var(--ink)]">{row.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      <StatusDot status={row.status} />
+                      <span className="truncate font-medium text-[var(--ink)]">{row.label}</span>
+                      {row.needsSetup && (
+                        <span
+                          title="Size, max loss or target missing — nothing can be tracked until they are set"
+                          className="shrink-0 text-[var(--serious)]"
+                        >
+                          ⚠
+                        </span>
+                      )}
+                    </span>
                     <span className="text-[0.6875rem] text-[var(--ink-muted)]">
                       {row.platform}
                       {row.planLabel ? ` · ${row.planLabel}` : ''}
@@ -894,6 +979,31 @@ export function AccountsGrid({
                     </span>
                   </td>
                   {show('type') && <td className="whitespace-nowrap text-xs">{titleCase(row.phase)}</td>}
+                  {show('today') && (
+                    <td className="tabular whitespace-nowrap text-right text-xs">
+                      {row.todayPnl === 0 ? (
+                        <span className="text-[var(--ink-muted)]">—</span>
+                      ) : (
+                        <span className={pnlClass(row.todayPnl)}>{signed(row.todayPnl, ccy, 0)}</span>
+                      )}
+                    </td>
+                  )}
+                  {show('distDd') && (
+                    <td className="tabular whitespace-nowrap text-right text-xs">
+                      {row.line === null ? (
+                        <span className="text-[var(--ink-muted)]" title="No drawdown set on this account">
+                          —
+                        </span>
+                      ) : (
+                        <span
+                          className={roomTone(row.roomPct)}
+                          title={`Breaches at ${money(row.line, ccy, 0)}`}
+                        >
+                          {money(Math.max(0, row.equity - row.line), ccy, 0)}
+                        </span>
+                      )}
+                    </td>
+                  )}
                   {show('progress') && (
                   <td>
                     {row.needsSetup ? (
@@ -1052,7 +1162,11 @@ function anchorTitle(row: GridRow, ccy: string): string {
  */
 function JourneyBar({ row, ccy, labels = false }: { row: GridRow; ccy: string; labels?: boolean }) {
   const lo = row.line ?? row.size - (row.maxDrawdown ?? 0)
-  const hi = row.size + (row.profitTarget ?? Math.max(row.maxDrawdown ?? 0, row.size * 0.02))
+  // What the account is working toward. On a funded account that is the balance
+  // a payout can be *requested* at — the buffer plus the firm's minimum, not
+  // the evaluation's profit target, which no longer applies to it.
+  const hi =
+    row.payoutAt ?? row.size + (row.profitTarget ?? Math.max(row.maxDrawdown ?? 0, row.size * 0.02))
   const span = Math.max(1, hi - lo)
   const position = Math.min(1, Math.max(0, (row.equity - lo) / span))
   const startTick = Math.min(1, Math.max(0, (row.size - lo) / span))
@@ -1072,7 +1186,7 @@ function JourneyBar({ row, ccy, labels = false }: { row: GridRow; ccy: string; l
     `Floor (breach) ${money(lo, ccy, 0)}`,
     `Size ${money(row.size, ccy, 0)}`,
     `Now ${money(row.equity, ccy, 0)}`,
-    `Target ${money(hi, ccy, 0)}`,
+    `${row.payoutAt === null ? 'Target' : 'Payout at'} ${money(hi, ccy, 0)}`,
     `P&L ${money(row.netPnl, ccy, 0)}`,
   ].join('\n')
 
@@ -1106,7 +1220,9 @@ function JourneyBar({ row, ccy, labels = false }: { row: GridRow; ccy: string; l
           <span className="tabular font-medium" style={{ color: tone }}>
             Now {money(row.equity, ccy, 0)}
           </span>
-          <span className="text-[var(--ink-muted)]">Target {money(hi, ccy, 0)}</span>
+          <span className="text-[var(--ink-muted)]">
+            {row.payoutAt === null ? 'Target' : 'Payout at'} {money(hi, ccy, 0)}
+          </span>
         </div>
       )}
     </div>
