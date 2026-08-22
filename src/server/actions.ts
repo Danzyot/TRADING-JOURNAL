@@ -350,7 +350,22 @@ export async function addAccountFromPlan(formData: FormData): Promise<ActionResu
   return guard(async () => {
     const values = fromPlanSchema.parse(Object.fromEntries(formData))
 
-    const catalogue = FIRM_CATALOGUES.find((entry) => entry.slug === values.firmSlug)
+    // A firm added by hand has no catalogue entry, and the firms page lists it
+    // alongside the ones that do under a `db-<id>` slug. Its own stored plans
+    // are then the catalogue: same form, same rules, one list on screen.
+    const handAdded = /^db-(\d+)$/.exec(values.firmSlug)
+    const catalogue = handAdded
+      ? await (async () => {
+          const [row] = await db
+            .select({ name: propFirms.name, website: propFirms.website, plans: propFirms.plans })
+            .from(propFirms)
+            .where(eq(propFirms.id, Number(handAdded[1])))
+            .limit(1)
+          return row
+            ? { name: row.name, website: row.website ?? '', plans: row.plans ?? [] }
+            : undefined
+        })()
+      : FIRM_CATALOGUES.find((entry) => entry.slug === values.firmSlug)
     if (!catalogue) throw new Error(`No catalogue for "${values.firmSlug}".`)
     const plan = catalogue.plans.find((entry) => entry.label === values.planLabel)
     if (!plan) throw new Error(`${catalogue.name} has no plan called "${values.planLabel}".`)
@@ -359,7 +374,7 @@ export async function addAccountFromPlan(formData: FormData): Promise<ActionResu
     // duplicated — they would then have two "MyFundedFutures" rows and their
     // economics split across both.
     const [existing] = await db
-      .select({ id: propFirms.id })
+      .select({ id: propFirms.id, plans: propFirms.plans })
       .from(propFirms)
       .where(sql`lower(${propFirms.name}) = ${catalogue.name.toLowerCase()}`)
       .limit(1)
@@ -372,6 +387,14 @@ export async function addAccountFromPlan(formData: FormData): Promise<ActionResu
           .values({ name: catalogue.name, website: catalogue.website, plans: catalogue.plans })
           .returning({ id: propFirms.id })
       )[0].id
+
+    // A firm row that predates the catalogue — or one seeded by name alone —
+    // carries no plans, which leaves its price editor empty. Fill it the first
+    // time an account is added from that firm; never overwrite plans the user
+    // has already edited.
+    if (existing && (existing.plans ?? []).length === 0 && catalogue.plans.length > 0) {
+      await db.update(propFirms).set({ plans: catalogue.plans }).where(eq(propFirms.id, firmId))
+    }
 
     // A profit target belongs to an evaluation. Carrying it onto a funded
     // account would show a progress bar toward a bar that no longer exists.

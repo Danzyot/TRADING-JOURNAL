@@ -3,7 +3,18 @@ import { ActionButton, ActionForm, Disclosure, Field, SubmitButton } from '@/com
 import { EditableRow } from '@/components/editable-row'
 import { CryptoFields } from '@/components/crypto-fields'
 import { Editable } from '@/components/site-text'
-import { BarRow, Badge, Card, EmptyState, KeyValue, Meter, PageHeader, Stat, StatGrid } from '@/components/ui'
+import {
+  BarRow,
+  Badge,
+  Card,
+  CollapsibleCard,
+  EmptyState,
+  KeyValue,
+  Meter,
+  PageHeader,
+  Stat,
+  StatGrid,
+} from '@/components/ui'
 import { CATEGORY_LABELS, money, percent, relativeDays, shortDate, signed, titleCase } from '@/lib/format'
 import { EXPENSE_CATEGORIES } from '@/db/schema'
 import { allocatePayout, normalisePlan } from '@/lib/allocation'
@@ -64,6 +75,12 @@ export default async function MoneyPage() {
   }
 
   const nextPayoutPreview = allocatePayout(1000, plan, balances)
+  // The biggest single claim on a payout — the one figure worth reading off a
+  // folded header, because it is the one people misjudge.
+  const biggestClaim = nextPayoutPreview.lines.reduce<(typeof nextPayoutPreview.lines)[number] | null>(
+    (best, line) => (best === null || line.assigned > best.assigned ? line : best),
+    null,
+  )
   const cashflow = buildCashflow(expenses, paid)
   const accountName = (id: number | null): string =>
     id === null ? '—' : (accounts.find((a) => a.id === id)?.label ?? `#${id}`)
@@ -126,10 +143,12 @@ export default async function MoneyPage() {
       </div>
 
       {/* --- Allocation ----------------------------------------------------- */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card
+      {/* Both fold: the plan is set once and then read off the preview. */}
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <CollapsibleCard
           title="Payout allocation plan"
-          description="Buckets fill in order. Anything a capped bucket refuses cascades to the next one down, so the tax reserve never absorbs spare cash."
+          description="Buckets fill in order. Anything a capped bucket refuses cascades to the next one down."
+          summary={`${plan.buckets.length} buckets`}
         >
           <ActionForm action={saveAllocationPlan} className="space-y-4">
             {plan.buckets.map((bucket) => (
@@ -176,11 +195,16 @@ export default async function MoneyPage() {
             ))}
             <SubmitButton>Save plan</SubmitButton>
           </ActionForm>
-        </Card>
+        </CollapsibleCard>
 
-        <Card
+        <CollapsibleCard
           title="How the next payout would split"
           description={`Worked on a ${money(1000, ccy, 0)} payout, against your current bucket balances.`}
+          summary={
+            biggestClaim === null
+              ? undefined
+              : `${percent(biggestClaim.assigned / 1000, 0)} ${biggestClaim.label.toLowerCase()}`
+          }
         >
           <div className="space-y-0">
             {nextPayoutPreview.lines.map((line) => (
@@ -212,21 +236,22 @@ export default async function MoneyPage() {
             sitting in your account until the assessment. Move it to a separate account on the day the payout lands.
             Nobody withholds this for you, and the bill arrives long after the money feels spendable.
           </p>
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- Payouts -------------------------------------------------------- */}
-      <div className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">
-            <Editable scope="heading">Payouts</Editable>
-          </h2>
-          <Disclosure label="Record payout">
-            <PayoutForm accounts={accounts} firms={firms} ccy={ccy} wallets={wallets} />
-          </Disclosure>
-        </div>
-
-        <Card bodyClassName="p-0">
+      <div className="mt-8">
+        <CollapsibleCard
+          title="Payouts"
+          summary={`${payouts.length} recorded`}
+          defaultOpen
+          bodyClassName="p-0"
+        >
+          <div className="border-b border-[var(--line)] p-4">
+            <Disclosure label="Record payout">
+              <PayoutForm accounts={accounts} firms={firms} ccy={ccy} wallets={wallets} />
+            </Disclosure>
+          </div>
           {payouts.length === 0 ? (
             <EmptyState title="No payouts yet" body="Record each payout request so tax reserve and allocation stay accurate." />
           ) : (
@@ -305,27 +330,23 @@ export default async function MoneyPage() {
               </table>
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
 
-      {/* --- Wallets -------------------------------------------------------- */}
-      <div className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--ink)]">
-              <Editable scope="heading">Wallets</Editable>
-            </h2>
-            <Editable as="p" scope="body" className="text-xs text-[var(--ink-secondary)]">
-              Receiving addresses, so a crypto payout has a destination with a name. Nothing here can move money — an
-              address is what you hand a firm, not a key.
-            </Editable>
+      {/* --- Wallets and subscriptions -------------------------------------- */}
+      {/* Both are reference lists rather than daily reading, so they fold and
+          sit two across. */}
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <CollapsibleCard
+          title="Wallets"
+          description="Receiving addresses, so a crypto payout has a destination with a name. Nothing here can move money — an address is what you hand a firm, not a key."
+          summary={`${wallets.length} saved`}
+        >
+          <div className="mb-4">
+            <Disclosure label="Add wallet">
+              <WalletForm />
+            </Disclosure>
           </div>
-          <Disclosure label="Add wallet">
-            <WalletForm />
-          </Disclosure>
-        </div>
-
-        <Card>
           {wallets.length === 0 ? (
             <EmptyState
               title="No wallets saved"
@@ -396,28 +417,19 @@ export default async function MoneyPage() {
               </table>
             </div>
           )}
-        </Card>
-      </div>
+        </CollapsibleCard>
 
-      {/* --- Subscriptions -------------------------------------------------- */}
-      <div className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--ink)]">
-            <Editable scope="heading">Subscriptions</Editable>
-          </h2>
-            <p className="text-xs text-[var(--ink-secondary)]">
-              {money(summary.subscriptionAnnual, ccy, 0)} a year across{' '}
-              {subscriptions.filter((s) => s.active).length} active.{' '}
-              <Editable scope="body">Charges are logged automatically as they fall due.</Editable>
-            </p>
+        <CollapsibleCard
+          title="Subscriptions"
+          description={`${money(summary.subscriptionAnnual, ccy, 0)} a year across ${subscriptions.filter((s) => s.active).length} active. Charges are logged automatically as they fall due.`}
+          summary={`${money(summary.subscriptionAnnual, ccy, 0)}/yr`}
+          bodyClassName="p-0"
+        >
+          <div className="border-b border-[var(--line)] p-4">
+            <Disclosure label="Add subscription">
+              <SubscriptionForm accounts={accounts} />
+            </Disclosure>
           </div>
-          <Disclosure label="Add subscription">
-            <SubscriptionForm accounts={accounts} />
-          </Disclosure>
-        </div>
-
-        <Card bodyClassName="p-0">
           {subscriptions.length === 0 ? (
             <EmptyState
               title="No subscriptions tracked"
@@ -495,21 +507,22 @@ export default async function MoneyPage() {
               </table>
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
 
       {/* --- Expenses ------------------------------------------------------- */}
-      <div className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">
-            <Editable scope="heading">Expenses</Editable>
-          </h2>
-          <Disclosure label="Log expense">
-            <ExpenseForm accounts={accounts} firms={firms} wallets={wallets} ccy={ccy} />
-          </Disclosure>
-        </div>
-
-        <Card bodyClassName="p-0">
+      <div className="mt-6">
+        <CollapsibleCard
+          title="Expenses"
+          summary={`${expenses.length} logged`}
+          defaultOpen
+          bodyClassName="p-0"
+        >
+          <div className="border-b border-[var(--line)] p-4">
+            <Disclosure label="Log expense">
+              <ExpenseForm accounts={accounts} firms={firms} wallets={wallets} ccy={ccy} />
+            </Disclosure>
+          </div>
           {expenses.length === 0 ? (
             <EmptyState
               title="No expenses logged"
@@ -573,7 +586,7 @@ export default async function MoneyPage() {
               </table>
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
     </>
   )

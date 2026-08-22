@@ -131,7 +131,7 @@ export default async function ModelsPage() {
           </Card>
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           {models.map((model) => {
             const stats = statsFor(model.id)
             const reviews = recentReviews.filter((r) => r.modelId === model.id).slice(0, 4)

@@ -2,8 +2,7 @@ import Link from 'next/link'
 import { desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { importBatches, tradingModels } from '@/db/schema'
-import { DrawdownChart, EquityChart, RDistributionChart, RankedBarChart } from '@/components/charts'
-import { ActionButton } from '@/components/form'
+import { EquityChart, RankedBarChart } from '@/components/charts'
 import {
   Badge,
   BarRow,
@@ -13,7 +12,6 @@ import {
   KeyValue,
   PageHeader,
   Pnl,
-  SeverityIcon,
   Stat,
   StatGrid,
 } from '@/components/ui'
@@ -38,13 +36,10 @@ import {
 import { secondsToHuman, today } from '@/lib/time'
 import { getSettings } from '@/server/settings'
 import { listAccounts, listTrades, listTradesForStats, toTradeLike } from '@/server/trades'
-import { listInsights } from '@/server/insights'
 import {
   acceptChartReading,
   deleteSetup,
-  dismissInsightAction,
   readSetupChart,
-  refreshInsights,
   saveSetup,
 } from '@/server/actions'
 import { setupStats } from '@/server/setups'
@@ -73,12 +68,11 @@ export default async function TradesPage({
   const params = await searchParams
   const page = Math.max(0, Number(params.page ?? 0) || 0)
 
-  const [settings, accounts, allTrades, stats, insights, batches, models] = await Promise.all([
+  const [settings, accounts, allTrades, stats, batches, models] = await Promise.all([
     getSettings(),
     listAccounts(),
     listTradesForStats(),
     setupStats(),
-    listInsights(),
     db.select().from(importBatches).orderBy(desc(importBatches.createdAt)).limit(20),
     db
       .select({ id: tradingModels.id, name: tradingModels.name })
@@ -164,7 +158,6 @@ export default async function TradesPage({
       buckets: byMistake(allTrades),
     },
   ]
-  const rDistribution = buildRDistribution(allTrades.map((entry) => entry.rMultiple ?? null))
   const mistakes = mistakeCost(allTrades)
 
   // One figure per folded section, so a closed header still answers its own
@@ -173,8 +166,6 @@ export default async function TradesPage({
   // account sits right now.
   const curve = equityCurve(allTrades)
   const peak = curve.length ? Math.max(...curve.map((point) => point.equity)) : 0
-  const last = curve.length ? curve[curve.length - 1].equity : 0
-  const underwater = Math.max(0, peak - last)
   const mistakeTotal = mistakes.reduce((sum, entry) => sum + entry.cost, 0)
   const bestBucket = (buckets: Bucket[]): string => {
     const ranked = [...buckets].sort((a, b) => b.netPnl - a.netPnl)[0]
@@ -196,14 +187,9 @@ export default async function TradesPage({
         title="Journal"
         subtitle="Every trade you took: the setups you logged, and the round trips built from your fills."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <ActionButton action={refreshInsights} className="btn" pendingLabel="Analysing…">
-              Refresh insights
-            </ActionButton>
-            <Link href="/trades/new" className="btn btn-primary">
-              Log a trade
-            </Link>
-          </div>
+          <Link href="/trades/new" className="btn btn-primary">
+            Log a trade
+          </Link>
         }
       />
 
@@ -241,43 +227,6 @@ export default async function TradesPage({
         </Card>
       </StatGrid>
 
-      {insights.length > 0 && (
-        <div className="mt-6">
-          <CollapsibleCard
-            defaultOpen
-            title="Findings"
-            description="Rules run over your own trades. Each states its evidence."
-            summary={`${insights.length} open`}
-            bodyClassName="divide-y divide-[var(--line)]"
-          >
-            {insights.map((insight) => (
-              <div key={insight.id} className="flex gap-3 p-4 first:pt-0 last:pb-0">
-                <SeverityIcon severity={insight.severity} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <h3 className="text-sm font-medium text-[var(--ink)]">{insight.title}</h3>
-                    {insight.impactBase !== null && (
-                      <span className="tabular text-xs text-[var(--ink-muted)]">
-                        {signed(insight.impactBase, ccy, 0)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-sm leading-relaxed text-[var(--ink-secondary)]">{insight.body}</p>
-                </div>
-                <ActionButton
-                  action={async () => {
-                    'use server'
-                    return dismissInsightAction(insight.id)
-                  }}
-                  className="btn shrink-0 px-2 py-1 text-[var(--ink-muted)]"
-                >
-                  Dismiss
-                </ActionButton>
-              </div>
-            ))}
-          </CollapsibleCard>
-        </div>
-      )}
 
       <div className="mt-6">
         <DayView
@@ -434,25 +383,9 @@ export default async function TradesPage({
         >
           <EquityChart data={dailySeries(allTrades)} currency={ccy} height={280} />
         </CollapsibleCard>
-        <CollapsibleCard
-          title="Drawdown"
-          description="How far below the high-water mark, trade by trade."
-          summary={underwater > 0 ? `${money(underwater, ccy, 0)} below peak` : "at peak"}
-        >
-          <DrawdownChart data={equityCurve(allTrades)} currency={ccy} height={280} />
-        </CollapsibleCard>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {metrics.avgR !== null && (
-          <CollapsibleCard
-            title="R multiples"
-            description="Every trade measured against what it risked: a 2R win made twice what the stop would have cost."
-            summary={`avg ${number(metrics.avgR, 2)}R`}
-          >
-            <RDistributionChart data={rDistribution} height={220} />
-          </CollapsibleCard>
-        )}
 
         <CollapsibleCard
           title="Overview"
@@ -714,23 +647,3 @@ export default async function TradesPage({
   )
 }
 
-function buildRDistribution(values: (number | null)[]): { bucket: string; count: number; positive: boolean }[] {
-  const bands: { label: string; min: number; max: number; positive: boolean }[] = [
-    { label: '< -2R', min: -Infinity, max: -2, positive: false },
-    { label: '-2R to -1R', min: -2, max: -1, positive: false },
-    { label: '-1R to 0', min: -1, max: 0, positive: false },
-    { label: '0 to 1R', min: 0, max: 1, positive: true },
-    { label: '1R to 2R', min: 1, max: 2, positive: true },
-    { label: '2R to 3R', min: 2, max: 3, positive: true },
-    { label: '> 3R', min: 3, max: Infinity, positive: true },
-  ]
-
-  const present = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-  if (present.length === 0) return []
-
-  return bands.map((band) => ({
-    bucket: band.label,
-    positive: band.positive,
-    count: present.filter((value) => value > band.min && value <= band.max).length,
-  }))
-}

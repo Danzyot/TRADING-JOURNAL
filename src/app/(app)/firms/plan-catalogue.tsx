@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { ActionForm, Field, SubmitButton } from '@/components/form'
 import { Badge, Card, EmptyState, clsx } from '@/components/ui'
 import type { ActionResult } from '@/server/actions'
@@ -124,9 +124,21 @@ function sharedRules(plans: FirmPlan[]) {
  */
 export function PlanCatalogue({
   catalogues,
+  yours = {},
+  panels = {},
   addAction,
 }: {
   catalogues: FirmCatalogue[]
+  /** Firms you hold a record with, by slug, valued by how many accounts. */
+  yours?: Record<string, number>
+  /**
+   * Server-rendered editing panel per owned firm, shown once that firm is open.
+   *
+   * This is what keeps the page to a single list: the prices you paid and the
+   * firm record itself live inside the firm they belong to, rather than in a
+   * second list of the same firms above the first.
+   */
+  panels?: Record<string, ReactNode>
   addAction: (formData: FormData) => Promise<ActionResult>
 }) {
   const [query, setQuery] = useState('')
@@ -137,9 +149,16 @@ export function PlanCatalogue({
   const searching = query.trim() !== ''
   const needle = query.trim().toLowerCase()
 
+  // Your own firms sort to the front. Everything else keeps catalogue order, so
+  // a firm never moves around underneath you for any other reason.
+  const ordered = useMemo(
+    () => [...catalogues].sort((a, b) => Number(b.slug in yours) - Number(a.slug in yours)),
+    [catalogues, yours],
+  )
+
   const matches = useMemo(() => {
     if (!searching) return []
-    return catalogues
+    return ordered
       .map((firm) => ({
         firm,
         plans: firm.plans.filter((plan) =>
@@ -147,7 +166,7 @@ export function PlanCatalogue({
         ),
       }))
       .filter((entry) => entry.plans.length > 0)
-  }, [catalogues, needle, searching])
+  }, [ordered, needle, searching])
 
   const firm = firmSlug ? (catalogues.find((entry) => entry.slug === firmSlug) ?? null) : null
   const families = firm ? familiesOf(firm) : []
@@ -227,14 +246,18 @@ export function PlanCatalogue({
       ) : family && firm ? (
         <SizeGrid firm={firm} family={family} accent={accentFor(firm.slug)} onPick={open} />
       ) : firm ? (
-        <FamilyGrid
-          families={families}
-          accent={accentFor(firm.slug)}
-          onOpen={(name) => setFamilyName(name)}
-        />
+        <div className="space-y-4">
+          {panels[firm.slug]}
+          <FamilyGrid
+            families={families}
+            accent={accentFor(firm.slug)}
+            onOpen={(name) => setFamilyName(name)}
+          />
+        </div>
       ) : (
         <FirmGrid
-          catalogues={catalogues}
+          catalogues={ordered}
+          yours={yours}
           accentFor={accentFor}
           onOpen={(slug) => {
             setFirmSlug(slug)
@@ -251,15 +274,17 @@ export function PlanCatalogue({
 
 function FirmGrid({
   catalogues,
+  yours,
   accentFor,
   onOpen,
 }: {
   catalogues: FirmCatalogue[]
+  yours: Record<string, number>
   accentFor: (slug: string) => string
   onOpen: (slug: string) => void
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       {catalogues.map((firm) => {
         const accent = accentFor(firm.slug)
         const families = familiesOf(firm)
@@ -294,15 +319,28 @@ function FirmGrid({
                   {firm.name}
                 </p>
                 <p className="truncate text-[0.6875rem] text-[var(--ink-muted)]">
-                  {firm.website.replace(/^https?:\/\//, '')}
+                  {firm.website.replace(/^https?:\/\//, '') || 'No website saved'}
                 </p>
               </div>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <Bubble>{families.length} account types</Bubble>
-              <Bubble>{firm.plans.length} plans</Bubble>
-              {bestSplit !== null && <Bubble tone={accent}>up to {pct(bestSplit)}</Bubble>}
+              {firm.slug in yours && (
+                <Bubble tone={accent}>
+                  {yours[firm.slug] > 0
+                    ? `Yours · ${yours[firm.slug]} account${yours[firm.slug] === 1 ? '' : 's'}`
+                    : 'Yours · no accounts'}
+                </Bubble>
+              )}
+              {firm.plans.length === 0 ? (
+                <Bubble>No plans yet</Bubble>
+              ) : (
+                <>
+                  <Bubble>{families.length} account types</Bubble>
+                  <Bubble>{firm.plans.length} plans</Bubble>
+                  {bestSplit !== null && <Bubble tone={accent}>up to {pct(bestSplit)}</Bubble>}
+                </>
+              )}
             </div>
 
             <p className="mt-3 text-[0.6875rem] text-[var(--ink-secondary)]">
@@ -328,7 +366,7 @@ function FamilyGrid({
   onOpen: (name: string) => void
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+    <div className="grid grid-cols-2 gap-3">
       {families.map((family) => {
         const shared = sharedRules(family.plans)
         const prices = family.plans
@@ -407,7 +445,7 @@ function SizeGrid({
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {family.plans.map((plan) => (
           <article key={plan.label} className="card flex flex-col p-4">
             <div className="flex items-baseline justify-between gap-2">
@@ -503,7 +541,7 @@ function SearchResults({
           clear
         </button>
       </p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
         {matches.flatMap(({ firm, plans }) =>
           plans.map((plan) => (
             <button
