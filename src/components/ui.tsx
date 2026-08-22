@@ -94,6 +94,7 @@ export function Card({
 export function CollapsibleCard({
   title,
   description,
+  summary,
   defaultOpen = false,
   children,
   className,
@@ -101,6 +102,14 @@ export function CollapsibleCard({
 }: {
   title: string
   description?: string
+  /**
+   * The one figure this section is about, shown on the closed header.
+   *
+   * A folded card is a promise with nothing behind it until you open it. A
+   * heading that reads "R distribution · avg 1.4R" answers the question most
+   * of the time, and tells you whether opening it is worth the click.
+   */
+  summary?: React.ReactNode
   /** Sections worth reading every time start open. */
   defaultOpen?: boolean
   children: React.ReactNode
@@ -130,11 +139,15 @@ export function CollapsibleCard({
             </Editable>
           )}
         </div>
-        <span
-          aria-hidden
-          className="fold-chevron mt-0.5 shrink-0 text-lg leading-none text-[var(--ink-muted)]"
-        >
-          ›
+        <span className="flex shrink-0 items-center gap-2.5">
+          {summary !== undefined && summary !== null && (
+            <span className="tabular text-xs font-medium whitespace-nowrap text-[var(--ink-secondary)]">
+              {summary}
+            </span>
+          )}
+          <span aria-hidden className="fold-chevron text-lg leading-none text-[var(--ink-muted)]">
+            ›
+          </span>
         </span>
       </summary>
       {/* The divider lives on the body, so a closed card is not left with a

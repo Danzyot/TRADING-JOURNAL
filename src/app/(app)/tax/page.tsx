@@ -330,7 +330,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
       {/* --- Status comparison ---------------------------------------------- */}
       <div className="mt-6">
         <CollapsibleCard
-          title="Which status keeps the most"
+          title="Compare business statuses"
           description="The same revenue and expenses run through every option. Ineligible ones are shown so the ceiling is visible."
           bodyClassName="p-0"
         >
@@ -566,7 +566,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
       {/* --- Structures ----------------------------------------------------- */}
       <div className="mt-6">
         <CollapsibleCard
-          title="Company structures — the short answer"
+          title="Company structures"
           description={`"Run it through an S corp / LLC and write everything off" — checked against the actual rules, ${RELOCATION_VERIFIED}.`}
         >
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -588,7 +588,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
       {/* --- Relocation ----------------------------------------------------- */}
       <div className="mt-6">
         <CollapsibleCard
-          title="If you relocate — the honest comparison"
+          title="If you relocate"
           description={`Rough all-in burden on ~$100k of prop payouts under each country's 2026 rules. Researched ${RELOCATION_VERIFIED}; full write-up with sources in docs/TAX-RELOCATION.md.`}
           bodyClassName="p-0"
         >
@@ -679,7 +679,7 @@ function GettingPaid({
   return (
     <>
       <CollapsibleCard
-        title="Getting paid — where it lands, and what it costs to get there"
+        title="Getting paid"
         description={`Four accounts, each guarding against a different failure. Verified ${BANKING_VERIFIED}.`}
         bodyClassName="p-0"
         defaultOpen
@@ -734,7 +734,7 @@ function GettingPaid({
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="The rails, priced" bodyClassName="p-0"
+      <CollapsibleCard title="Transfer costs" bodyClassName="p-0"
   defaultOpen
 >
         <div className="scroll-x">
@@ -767,7 +767,7 @@ function GettingPaid({
         </p>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Rules that pay for themselves" bodyClassName="p-0">
+      <CollapsibleCard title="Rules worth following" bodyClassName="p-0">
         <div className="scroll-x">
           <table className="data">
             <thead>
@@ -788,7 +788,7 @@ function GettingPaid({
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Setting it up without getting frozen">
+      <CollapsibleCard title="Opening the accounts">
         <dl className="space-y-3">
           {SETUP_NOTES.map((note) => (
             <div key={note.title}>

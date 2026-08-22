@@ -174,6 +174,20 @@ export default async function TradesPage({
   const rDistribution = buildRDistribution(allTrades.map((entry) => entry.rMultiple ?? null))
   const mistakes = mistakeCost(allTrades)
 
+  // One figure per folded section, so a closed header still answers its own
+  // question. `equityCurve` is cumulative net P&L, so its peak is the
+  // high-water mark and the gap to the last point is how far underwater the
+  // account sits right now.
+  const curve = equityCurve(allTrades)
+  const peak = curve.length ? Math.max(...curve.map((point) => point.equity)) : 0
+  const last = curve.length ? curve[curve.length - 1].equity : 0
+  const underwater = Math.max(0, peak - last)
+  const mistakeTotal = mistakes.reduce((sum, entry) => sum + entry.cost, 0)
+  const bestBucket = (buckets: Bucket[]): string => {
+    const ranked = [...buckets].sort((a, b) => b.netPnl - a.netPnl)[0]
+    return ranked ? `${ranked.label} ${signed(ranked.netPnl, ccy, 0)}` : '—'
+  }
+
   const query = (overrides: Record<string, string | undefined>): string => {
     const next = new URLSearchParams()
     for (const [key, value] of Object.entries({ ...params, ...overrides })) {
@@ -240,6 +254,7 @@ export default async function TradesPage({
             defaultOpen
             title="Findings"
             description="Rules run over your own trades. Each states its evidence."
+            summary={`${insights.length} open`}
             bodyClassName="divide-y divide-[var(--line)]"
           >
             {insights.map((insight) => (
@@ -454,16 +469,28 @@ export default async function TradesPage({
       {/* --- The analysis, folded: read once, then scrolled past ------- */}
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <CollapsibleCard title="Equity curve" className="xl:col-span-2">
+        <CollapsibleCard
+          title="Equity curve"
+          summary={`peak ${signed(peak, ccy, 0)}`}
+          className="xl:col-span-2"
+        >
           <EquityChart data={dailySeries(allTrades)} currency={ccy} height={280} />
         </CollapsibleCard>
-        <CollapsibleCard title="Underwater" description="Distance below the high-water mark, trade by trade.">
+        <CollapsibleCard
+          title="Drawdown"
+          description="How far below the high-water mark, trade by trade."
+          summary={underwater > 0 ? `${money(underwater, ccy, 0)} below peak` : "at peak"}
+        >
           <DrawdownChart data={equityCurve(allTrades)} currency={ccy} height={280} />
         </CollapsibleCard>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CollapsibleCard title="Distribution of R" description="The shape of the edge, not just its average.">
+        <CollapsibleCard
+          title="R multiples"
+          description="The shape of the edge, not just its average."
+          summary={metrics.avgR === null ? "no stops recorded" : `avg ${number(metrics.avgR, 2)}R`}
+        >
           {rDistribution.length === 0 ? (
             <p className="py-8 text-center text-xs text-[var(--ink-muted)]">
               No stops recorded yet. Add a stop price on trades to unlock this.
@@ -473,7 +500,10 @@ export default async function TradesPage({
           )}
         </CollapsibleCard>
 
-        <CollapsibleCard title="The full picture">
+        <CollapsibleCard
+          title="Overview"
+          summary={`${percent(metrics.winRate)} win rate`}
+        >
           <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
             <div>
               <KeyValue label="Trades" value={String(metrics.trades)} />
@@ -547,8 +577,9 @@ export default async function TradesPage({
       {mistakes.length > 0 && (
         <div className="mt-4">
           <CollapsibleCard
-            title="What each mistake has cost"
+            title="Cost of mistakes"
             description="Measured against what a clean trade returned over the same period."
+            summary={money(mistakeTotal, ccy, 0)}
           >
             {mistakes.map((entry) => (
               <BarRow
@@ -568,7 +599,12 @@ export default async function TradesPage({
         {breakdowns
           .filter((breakdown) => breakdown.buckets.length > 0)
           .map((breakdown) => (
-            <CollapsibleCard key={breakdown.title} title={breakdown.title} description={breakdown.description}>
+            <CollapsibleCard
+              key={breakdown.title}
+              title={breakdown.title}
+              description={breakdown.description}
+              summary={bestBucket(breakdown.buckets)}
+            >
               <RankedBarChart
                 data={breakdown.buckets.slice(0, 12).map((bucket) => ({
                   label: bucket.label,
@@ -612,8 +648,9 @@ export default async function TradesPage({
       {/* --- Getting trades in -------------------------------------------- */}
       <div className="mt-4">
         <CollapsibleCard
-          title="Import an export"
-          description="Bring in trades from any platform's CSV export. Safe to re-run — anything already stored is skipped. The trade watcher in Settings does this from a folder on your computer, automatically."
+          title="Import trades"
+          description="From any platform's CSV export. Safe to re-run — anything already stored is skipped. The trade watcher in Settings does this from a folder on your computer, automatically."
+          summary={batches.length === 0 ? "nothing imported yet" : `${batches.length} imports`}
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
