@@ -3,8 +3,7 @@ import { PlanCatalogue } from './plan-catalogue'
 import { FirmForm } from './firm-form'
 import { FirmPlans } from './firm-plans'
 import { ActionButton, Disclosure } from '@/components/form'
-import { Card, EmptyState, KeyValue, PageHeader, Stat, StatGrid } from '@/components/ui'
-import { Editable } from '@/components/site-text'
+import { Card, EmptyState, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { FIRM_CATALOGUES } from '@/lib/propfirm/catalogue'
 import { addAccountFromPlan, deleteFirm, saveFirm, saveFirmPlans } from '@/server/actions'
 import { listAccounts } from '@/server/trades'
@@ -73,37 +72,6 @@ export default async function FirmsPage() {
           />
         </Card>
       </StatGrid>
-
-      <div className="mt-6">
-        <Card
-          title="How to read this"
-          description="These are the firms' own published numbers, not advice."
-        >
-          <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-            <KeyValue
-              label="Max loss"
-              value="The drawdown allowance. How it moves is the Drawdown column."
-            />
-            <KeyValue
-              label="Buffer"
-              value="Profit that must stay in the account. You withdraw down to this line, not to the account size."
-            />
-            <KeyValue
-              label="Contracts"
-              value="Minis, then micros — the two ceilings firms quote separately."
-            />
-            <KeyValue
-              label="Consistency"
-              value="The largest share of total profit any single day may be."
-            />
-          </div>
-          <Editable as="p" scope="body" className="mt-3 block text-xs leading-relaxed text-[var(--ink-muted)]">
-            Firm terms change constantly. Every value here is a starting point: adding a plan copies
-            it onto the account, and the account is yours to correct afterwards. A plus beside a plan
-            name opens the rules that resist being numbers.
-          </Editable>
-        </Card>
-      </div>
 
       {/* --- The firms you actually trade ---------------------------------- */}
       <div className="mt-6 space-y-4">
