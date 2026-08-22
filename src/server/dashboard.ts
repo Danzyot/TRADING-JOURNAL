@@ -18,7 +18,7 @@ import { calculateIsraeliTax, reservePercentFor } from '@/lib/tax/israel'
 import { boundariesFor, hasOther, pnlByPeriod, type PnlPeriod } from '@/lib/analytics/pnl-windows'
 import { today } from '@/lib/time'
 import type { Account, Insight } from '@/db/schema'
-import { brokerConnections, emailEvents, payouts, syncLog, tradingModels } from '@/db/schema'
+import { brokerConnections, emailEvents, payouts, pushSubscriptions, syncLog, tradingModels } from '@/db/schema'
 import { getSettings } from './settings'
 import { equityHistory, listAccounts, listTradesForStats } from './trades'
 import { listFirms } from './money'
@@ -49,6 +49,7 @@ export type SetupState = {
   watcherSeen: boolean
   /** The Gmail automation has delivered at least one event. */
   emailAutomation: boolean
+  notificationsOn: boolean
   complete: boolean
 }
 
@@ -129,6 +130,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     [lastPaidPayout],
     [{ modelCount }],
     [{ emailEventCount }],
+    [{ deviceCount }],
     [watcherRun],
   ] = await Promise.all([
     listTradesForStats(),
@@ -145,6 +147,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     db.select().from(payouts).where(eq(payouts.status, 'paid')).orderBy(desc(payouts.paidOn)).limit(1),
     db.select({ modelCount: sql<number>`count(*)::int` }).from(tradingModels),
     db.select({ emailEventCount: sql<number>`count(*)::int` }).from(emailEvents),
+    db.select({ deviceCount: sql<number>`count(*)::int` }).from(pushSubscriptions),
     db.select({ id: syncLog.id }).from(syncLog).where(eq(syncLog.job, 'watcher_upload')).limit(1),
   ])
 
@@ -261,6 +264,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     models: modelCount,
     watcherSeen: Boolean(watcherRun),
     emailAutomation: gmailConfigured() || emailEventCount > 0,
+    notificationsOn: deviceCount > 0,
     complete:
       firms.length > 0 &&
       accounts.length > 0 &&

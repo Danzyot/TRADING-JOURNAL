@@ -99,6 +99,14 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
       linkLabel: 'Connect inbox',
     },
     {
+      done: setup.notificationsOn,
+      title: 'Get it on your phone',
+      detail:
+        'Add the site to your home screen from Safari (Share → Add to Home Screen), open it from that icon, then turn on notifications here. Payouts and blown accounts reach you without opening anything.',
+      href: '/settings',
+      linkLabel: 'Set up notifications',
+    },
+    {
       done: setup.taxStatusChosen,
       title: 'Choose your tax status',
       detail:
