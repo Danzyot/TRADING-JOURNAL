@@ -115,17 +115,17 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           <Stat label="Deductible costs" value={money(breakdown.expenses, 'ILS', 0)} />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Net profit" value={money(breakdown.netProfit, 'ILS', 0)} />
-        </Card>
-        <Card bodyClassName="p-4">
-          <Stat label="Total tax + NI" value={money(breakdown.totalTax, 'ILS', 0)} tone="critical" />
-        </Card>
-        <Card bodyClassName="p-4">
           <Stat
             label="Effective rate"
             value={percent(breakdown.effectiveRate)}
             hint={`${percent(breakdown.marginalRate)} on the next shekel`}
           />
+        </Card>
+        <Card bodyClassName="p-4">
+          <Stat label="Total tax + NI" value={money(breakdown.totalTax, 'ILS', 0)} tone="critical" />
+        </Card>
+        <Card bodyClassName="p-4">
+          <Stat label="Net profit" value={money(breakdown.netProfit, 'ILS', 0)} />
         </Card>
       </StatGrid>
 

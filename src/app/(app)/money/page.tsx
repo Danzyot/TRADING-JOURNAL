@@ -108,14 +108,14 @@ export default async function MoneyPage() {
           <Stat label="Total costs" value={money(summary.expensesTotal, ccy, 0)} tone="critical" />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Net result" value={signed(summary.netBusinessResult, ccy, 0)} tone="pnl" />
-        </Card>
-        <Card bodyClassName="p-4">
           <Stat
             label="Deductible"
             value={money(summary.deductibleTotal, ccy, 0)}
             hint={`${percent(summary.expensesTotal > 0 ? summary.deductibleTotal / summary.expensesTotal : 0, 0)} of costs`}
           />
+        </Card>
+        <Card bodyClassName="p-4">
+          <Stat label="Net result" value={signed(summary.netBusinessResult, ccy, 0)} tone="pnl" />
         </Card>
       </StatGrid>
 

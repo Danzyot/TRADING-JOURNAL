@@ -205,7 +205,7 @@ export default async function TradesPage({
           />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Expectancy" value={signed(metrics.expectancy, ccy)} hint="per trade" tone="pnl" />
+          <Stat label="Max drawdown" value={money(-metrics.maxDrawdown, ccy, 0)} tone="critical" />
         </Card>
         <Card bodyClassName="p-4">
           <Stat
@@ -223,7 +223,7 @@ export default async function TradesPage({
           />
         </Card>
         <Card bodyClassName="p-4">
-          <Stat label="Max drawdown" value={money(-metrics.maxDrawdown, ccy, 0)} tone="critical" />
+          <Stat label="Expectancy" value={signed(metrics.expectancy, ccy)} hint="per trade" tone="pnl" />
         </Card>
       </StatGrid>
 
