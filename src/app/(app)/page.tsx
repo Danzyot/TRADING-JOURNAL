@@ -3,12 +3,12 @@ import { DailyPnlChart, EquityChart } from '@/components/charts'
 import { ActionButton } from '@/components/form'
 import {
   Badge,
-
   Card,
   EmptyState,
   KeyValue,
   Meter,
   PageHeader,
+  Pnl,
   SeverityIcon,
   Stat,
   StatGrid,
@@ -61,18 +61,24 @@ export default async function DashboardPage() {
 
       {/* --- Trading at a glance ------------------------------------------- */}
       <StatGrid columns={5}>
-        <Card bodyClassName="p-4">
-          <Stat label="P&L today" value={signed(data.todayPnl, ccy, 0)} tone="pnl" />
-        </Card>
-        <Card bodyClassName="p-4">
-          <Stat label="This week" value={signed(data.business.weekPnl, ccy, 0)} tone="pnl" />
-        </Card>
-        <Card bodyClassName="p-4">
-          <Stat label="This month" value={signed(data.monthPnl, ccy, 0)} tone="pnl" />
-        </Card>
-        <Card bodyClassName="p-4">
-          <Stat label="This year" value={signed(data.yearPnl, ccy, 0)} tone="pnl" />
-        </Card>
+        {data.pnlPeriods
+          .filter((period) => period.key !== 'all')
+          .map((period) => (
+            <Card key={period.key} bodyClassName="p-4">
+              <Stat
+                label={period.key === 'today' ? 'P&L today' : period.label}
+                value={signed(period.split.total, ccy, 0)}
+                // The split is the point: a good month on evaluations and a
+                // good month on funded accounts are not the same month.
+                hint={`eval ${signed(period.split.evaluation, ccy, 0)} · funded ${signed(
+                  period.split.funded,
+                  ccy,
+                  0,
+                )}`}
+                tone="pnl"
+              />
+            </Card>
+          ))}
         <Card bodyClassName="p-4">
           <Stat
             label="Profit factor"
@@ -91,6 +97,50 @@ export default async function DashboardPage() {
           />
         </Card>
       </StatGrid>
+
+      {/* --- P&L by account type -------------------------------------------- */}
+      <div className="mt-4">
+        <Card
+          title="P&L by account type"
+          description="Evaluation profit is a score — it proves the account should pass, and none of it is ever paid. Funded profit is the part that becomes money."
+          bodyClassName="p-0"
+        >
+          <div className="scroll-x">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th className="text-right">Evaluation</th>
+                  <th className="text-right">Funded</th>
+                  {data.showOtherPhase && <th className="text-right">Personal</th>}
+                  <th className="text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.pnlPeriods.map((period) => (
+                  <tr key={period.key}>
+                    <td className="whitespace-nowrap font-medium text-[var(--ink)]">{period.label}</td>
+                    <td className="tabular text-right">
+                      <Pnl value={period.split.evaluation} currency={ccy} />
+                    </td>
+                    <td className="tabular text-right">
+                      <Pnl value={period.split.funded} currency={ccy} />
+                    </td>
+                    {data.showOtherPhase && (
+                      <td className="tabular text-right">
+                        <Pnl value={period.split.other} currency={ccy} />
+                      </td>
+                    )}
+                    <td className="tabular text-right font-medium">
+                      <Pnl value={period.split.total} currency={ccy} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
 
       {/* --- Business at a glance ------------------------------------------- */}
       <div className="mt-4">

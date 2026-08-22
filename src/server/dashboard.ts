@@ -15,6 +15,7 @@ import {
 import { drawdownState, evaluationProgress, type DrawdownState } from '@/lib/propfirm/rules'
 import { deploymentAdvice, type DeploymentSuggestion } from '@/lib/allocation'
 import { calculateIsraeliTax, reservePercentFor } from '@/lib/tax/israel'
+import { boundariesFor, hasOther, pnlByPeriod, type PnlPeriod } from '@/lib/analytics/pnl-windows'
 import { today } from '@/lib/time'
 import type { Account, Insight } from '@/db/schema'
 import { brokerConnections, emailEvents, payouts, syncLog, tradingModels } from '@/db/schema'
@@ -62,6 +63,9 @@ export type BusinessSummary = {
 }
 
 export type DashboardData = {
+  /** P&L for each period, split by evaluation vs funded. */
+  pnlPeriods: PnlPeriod[]
+  showOtherPhase: boolean
   metrics: CoreMetrics
   /** Per-trade rows behind the metrics, for pages that need per-account slices. */
   trades: Awaited<ReturnType<typeof listTradesForStats>>
@@ -146,6 +150,18 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const metrics = computeMetrics(trades)
   const daily = dailySeries(trades)
+
+  // Evaluation profit is a score; funded profit is money. Tagging each trade
+  // with its account's phase is what lets every period be reported as both.
+  const phaseByAccount = new Map(accounts.map((account) => [account.id, account.phase]))
+  const pnlPeriods = pnlByPeriod(
+    trades.map((trade) => ({
+      tradingDay: trade.tradingDay,
+      netPnl: trade.netPnl,
+      phase: phaseByAccount.get(trade.accountId) ?? 'eval',
+    })),
+    boundariesFor(currentDay),
+  )
 
   const sumFrom = (start: string): number =>
     daily.filter((point) => point.day >= start).reduce((sum, point) => sum + point.netPnl, 0)
@@ -259,6 +275,8 @@ export async function getDashboardData(): Promise<DashboardData> {
   return {
     metrics,
     trades,
+    pnlPeriods,
+    showOtherPhase: hasOther(pnlPeriods),
     setup,
     business,
     daily,
