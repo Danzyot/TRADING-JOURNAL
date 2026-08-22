@@ -111,88 +111,90 @@ export default async function SettingsPage() {
             <SubmitButton>Save settings</SubmitButton>
           </ActionForm>
         </Card>
-      </div>
 
-      {/* --- Broker connections --------------------------------------------- */}
-      <div className="mt-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--ink)]">Broker connections</h2>
-            <p className="text-xs text-[var(--ink-secondary)]">
-              Credentials are encrypted with AES-256-GCM before they touch the database and never leave the server.
-            </p>
-          </div>
+        {/* Beside General rather than under it: this card is a short list or an
+            empty state, and the two together fill the row that General left
+            half blank. */}
+        <Card
+          title="Broker connections"
+          description="Credentials are encrypted with AES-256-GCM before they touch the database and never leave the server."
+        >
           <Disclosure label="Add Tradovate connection">
             <ConnectionForm />
           </Disclosure>
-        </div>
 
-        {connections.length === 0 ? (
-          <Card>
+          {connections.length === 0 ? (
             <EmptyState
               title="No connections"
               body="Tradovate is the only broker here with a usable retail API. Rithmic licenses R|API+ through your FCM under a professional agreement, and Tradecopia connects outward to brokers rather than offering an API to you — for both, use CSV import."
               action={{ href: '/trades', label: 'Import a CSV instead' }}
             />
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {connections.map((connection) => (
-              <Card
-                key={connection.id}
-                title={connection.label}
-                description={`${titleCase(connection.provider)} · ${connection.environment}`}
-                actions={
-                  <Badge
-                    tone={
-                      connection.lastSyncStatus === 'ok'
-                        ? 'good'
-                        : connection.lastSyncStatus === 'error'
-                          ? 'critical'
-                          : 'neutral'
-                    }
-                  >
-                    {connection.lastSyncStatus ? titleCase(connection.lastSyncStatus) : 'Never synced'}
-                  </Badge>
-                }
-              >
-                <KeyValue
-                  label="Last synced"
-                  value={connection.lastSyncedAt ? connection.lastSyncedAt.toLocaleString() : 'Never'}
-                />
-                <KeyValue label="Enabled" value={connection.enabled ? 'Yes' : 'No'} />
+          ) : (
+            // Bordered rows rather than nested cards: a card inside a card
+            // reads as a mistake, and there is no width here for two across.
+            <div className="mt-4 space-y-3">
+              {connections.map((connection) => (
+                <div key={connection.id} className="rounded-lg border border-[var(--line)] p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[var(--ink)]">{connection.label}</p>
+                      <p className="text-xs text-[var(--ink-secondary)]">
+                        {titleCase(connection.provider)} · {connection.environment}
+                      </p>
+                    </div>
+                    <Badge
+                      tone={
+                        connection.lastSyncStatus === 'ok'
+                          ? 'good'
+                          : connection.lastSyncStatus === 'error'
+                            ? 'critical'
+                            : 'neutral'
+                      }
+                    >
+                      {connection.lastSyncStatus ? titleCase(connection.lastSyncStatus) : 'Never synced'}
+                    </Badge>
+                  </div>
 
-                {connection.lastSyncError && (
-                  <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--critical)_10%,transparent)] p-2.5 text-xs text-[var(--critical)]">
-                    {connection.lastSyncError}
-                  </p>
-                )}
+                  <div className="mt-2">
+                    <KeyValue
+                      label="Last synced"
+                      value={connection.lastSyncedAt ? connection.lastSyncedAt.toLocaleString() : 'Never'}
+                    />
+                    <KeyValue label="Enabled" value={connection.enabled ? 'Yes' : 'No'} />
+                  </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <ActionButton
-                    action={async () => {
-                      'use server'
-                      return runSync(connection.id)
-                    }}
-                    pendingLabel="Syncing…"
-                  >
-                    Sync this connection
-                  </ActionButton>
-                  <ActionButton
-                    action={async () => {
-                      'use server'
-                      return deleteConnection(connection.id)
-                    }}
-                    className="btn btn-danger"
-                    confirm="Remove this connection and its stored credentials?"
-                  >
-                    Remove
-                  </ActionButton>
+                  {connection.lastSyncError && (
+                    <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--critical)_10%,transparent)] p-2.5 text-xs text-[var(--critical)]">
+                      {connection.lastSyncError}
+                    </p>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <ActionButton
+                      action={async () => {
+                        'use server'
+                        return runSync(connection.id)
+                      }}
+                      pendingLabel="Syncing…"
+                    >
+                      Sync this connection
+                    </ActionButton>
+                    <ActionButton
+                      action={async () => {
+                        'use server'
+                        return deleteConnection(connection.id)
+                      }}
+                      className="btn btn-danger"
+                      confirm="Remove this connection and its stored credentials?"
+                    >
+                      Remove
+                    </ActionButton>
+                  </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
       {/* --- Automation ------------------------------------------------------ */}
