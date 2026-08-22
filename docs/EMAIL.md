@@ -57,11 +57,16 @@ support-ticket replies never produce an event.
    thing in a single variable. All three forms can be mixed; an address that
    appears twice is read once. An address whose password is missing is named on
    the Settings page rather than skipped silently.
-3. **Turn on the hourly beat.** In the GitHub repository → Settings → Secrets
+3. **Turn on the schedule.** In the GitHub repository → Settings → Secrets
    and variables → Actions, add `CRON_SECRET` (the same value the app uses) as
    a **Secret** — a Variable would be printed in plain text in the run logs —
    and `JOURNAL_URL` (`https://your-app.vercel.app`) in either tab, since a URL
-   is not sensitive. The `Email ingest` workflow then runs every hour.
+   is not sensitive. The `Email ingest` workflow then runs twice a day, at 05:25
+   and 17:25 UTC.
+
+   `CRON_SECRET` must be **identical** to the app's own `CRON_SECRET`
+   environment variable. If it is not, every run fails with `HTTP 401` and
+   GitHub emails you about each one.
 4. **Backfill.** Open **Settings** in the app and press *Backfill 30 days*.
 
 Step 3 is optional: the daily cron reads the mail too, so skipping it costs
@@ -98,9 +103,9 @@ IMAP (read-only)  →  rules  →  AI fallback  →  effects  →  email_events
 - **Effects** are grouped by kind and written in batches, because the database
   is a network hop away.
 - **`email_events`** records every applied event against the email's
-  `Message-ID`. That is what makes the whole thing re-runnable: the hourly job
-  reads a two-day window on purpose, so any outage shorter than two days heals
-  itself, and re-reading costs one indexed lookup per message.
+  `Message-ID`. That is what makes the whole thing re-runnable: each run reads a
+  two-day window on purpose, so any outage shorter than two days heals itself,
+  and re-reading costs one indexed lookup per message.
 
 Two rules protect data that already exists: a balance snapshot only ever moves
 a balance *forward* in time, so a late-processed old email cannot overwrite a

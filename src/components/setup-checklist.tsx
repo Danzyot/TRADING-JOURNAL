@@ -94,7 +94,7 @@ export function SetupChecklist({ setup }: { setup: SetupState }) {
       done: setup.emailAutomation,
       title: 'Connect your prop-firm inbox',
       detail:
-        'The app reads your firm emails hourly and logs payouts, fees, passes, fails and daily balances by itself. Takes a Gmail app password.',
+        'The app reads your firm emails twice a day and logs payouts, fees, passes, fails and daily balances by itself. Takes a Gmail app password.',
       href: '/settings',
       linkLabel: 'Connect inbox',
     },

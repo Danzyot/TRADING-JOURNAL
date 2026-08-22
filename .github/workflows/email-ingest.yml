@@ -1,11 +1,16 @@
 name: Email ingest
 
-# Reads the prop-firm inboxes hourly.
+# Reads the prop-firm inboxes twice a day.
 #
 # Vercel's Hobby plan allows two cron jobs, both daily, and the journal already
-# spends them on the sync and housekeeping passes — so the hourly beat lives
-# here instead, where it costs nothing and does not depend on any machine being
+# spends them on the sync and housekeeping passes — so this beat lives here
+# instead, where it costs nothing and does not depend on any machine being
 # switched on. All it does is call the app; the work happens there.
+#
+# Twice a day is enough: firm mail is not urgent, each run reads a two-day
+# window so nothing is missed between runs, and a failing run emails you every
+# time it fires — an hourly schedule turns one misconfiguration into two dozen
+# notifications a day.
 #
 # Needs two repository values (Settings -> Secrets and variables -> Actions):
 #   CRON_SECRET  a Secret. Same value as the app's CRON_SECRET env var, and it
@@ -18,7 +23,8 @@ name: Email ingest
 
 on:
   schedule:
-    - cron: '25 * * * *'
+    # 05:25 and 17:25 UTC — morning and evening in Israel.
+    - cron: '25 5,17 * * *'
   workflow_dispatch:
     inputs:
       days:
@@ -51,10 +57,28 @@ jobs:
           status=$(echo "$response" | tail -n1)
 
           echo "$body"
-          if [ "$status" != "200" ]; then
-            echo "Journal returned HTTP $status"
-            exit 1
-          fi
+
+          # Say what to do, not just what happened: these runs are unattended,
+          # so the notification email is the whole diagnosis.
+          case "$status" in
+            200) ;;
+            401)
+              echo "::error::Journal rejected the token (HTTP 401). The CRON_SECRET secret in this repository does not match the CRON_SECRET environment variable in the app. Copy the value from Vercel (Settings > Environment Variables) into GitHub (Settings > Secrets and variables > Actions), or the other way round, then redeploy."
+              exit 1 ;;
+            404)
+              echo "::error::No such endpoint (HTTP 404). Check JOURNAL_URL points at the deployed app root, with no trailing path."
+              exit 1 ;;
+            000)
+              echo "::error::Could not reach $JOURNAL_URL at all. Check the URL and that the deployment is live."
+              exit 1 ;;
+            *)
+              echo "::error::Journal returned HTTP $status."
+              exit 1 ;;
+          esac
+
           # The route reports its own failures as ok:false with a 200, so that a
           # retry never double-writes; surface that as a failed run.
-          echo "$body" | grep -q '"ok":true' || { echo "Ingest reported a failure"; exit 1; }
+          if ! echo "$body" | grep -q '"ok":true'; then
+            echo "::error::The journal ran but reported a failure — see the JSON above. A mailbox that cannot be reached is the usual cause; Settings in the app shows the same message."
+            exit 1
+          fi

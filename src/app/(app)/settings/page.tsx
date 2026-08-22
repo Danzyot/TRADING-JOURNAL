@@ -265,7 +265,7 @@ export default async function SettingsPage() {
               />
               <Entry
                 name="email"
-                schedule="hourly, from GitHub Actions"
+                schedule="twice a day, from GitHub Actions"
                 detail="Reads the prop-firm inboxes and logs payouts, evaluation fees, account passes and failures, daily balances and subscription changes. The daily job runs it too, so it still works with no Action configured."
               />
             </dl>
@@ -409,7 +409,7 @@ function EmailAutomationCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="good">{inboxes.length === 1 ? 'Connected' : `${inboxes.length} inboxes`}</Badge>
             <span className="text-xs text-[var(--ink-secondary)]">
-              {inboxes.join(', ')} — watching {FIRM_DOMAINS.length} firms, hourly.
+              {inboxes.join(', ')} — watching {FIRM_DOMAINS.length} firms, twice a day.
             </span>
           </div>
 
@@ -478,9 +478,10 @@ function EmailAutomationCard({
               <code>address:apppassword</code> per line works too.)
             </li>
             <li>
-              Hourly checks run from the <code>Email ingest</code> GitHub Action — add repository secrets{' '}
-              <code>JOURNAL_URL</code> and <code>CRON_SECRET</code> to enable it. Without it the daily cron
-              still reads the mail once a day.
+              Scheduled checks run from the <code>Email ingest</code> GitHub Action twice a day — add{' '}
+              <code>JOURNAL_URL</code> and <code>CRON_SECRET</code> in the repository&apos;s Actions secrets to
+              enable it. <code>CRON_SECRET</code> must match this app&apos;s environment variable exactly, or
+              every run fails with a 401. Without the Action the daily cron still reads the mail once a day.
             </li>
           </ol>
           <p className="text-xs text-[var(--ink-muted)]">
