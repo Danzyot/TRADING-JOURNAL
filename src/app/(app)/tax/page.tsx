@@ -1,5 +1,5 @@
 import { ActionForm, Field, SubmitButton } from '@/components/form'
-import { Badge, Card, KeyValue, PageHeader, SeverityIcon, Stat, StatGrid } from '@/components/ui'
+import { Badge, Card, KeyValue, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { CATEGORY_LABELS, STATUS_LABELS, money, percent, titleCase } from '@/lib/format'
 import {
   advanceSchedule,
@@ -94,33 +94,6 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           </form>
         }
       />
-
-      {/* --- The framing that matters --------------------------------------- */}
-      <Card className="mb-6">
-        <div className="flex gap-3">
-          <SeverityIcon severity="info" />
-          <div className="text-sm leading-relaxed text-[var(--ink-secondary)]">
-            <p>
-              <strong className="text-[var(--ink)]">A prop payout is not a capital gain.</strong> You never owned
-              the capital, so there is no asset and no disposal — what you sold the firm is a service, and Israel
-              taxes that as business income at marginal rates with National Insurance on top. The 25% capital
-              gains rate that applies to your own brokerage account does not apply here.
-            </p>
-            <p className="mt-2">
-              The upside is that business income is <em>net</em> income. Evaluations, resets, data feeds,
-              platforms, hardware and a proportion of your internet and workspace all come off the top before a
-              shekel of tax is calculated. And because the firms are foreign residents buying a service from
-              Israel, the sale is an export — zero-rated for VAT under section 30(a)(5), which means you charge
-              no VAT while still reclaiming what you pay on Israeli purchases.
-            </p>
-            <p className="mt-2 text-[var(--ink-muted)]">
-              Everything on this page is arithmetic on published rates. It is not advice, and the classification
-              questions here have real consequences — take it to an Israeli accountant who has seen a funded
-              trader before, and read <code>docs/TAX-ISRAEL.md</code> in this repository for what specifically to ask.
-            </p>
-          </div>
-        </div>
-      </Card>
 
       <StatGrid columns={5}>
         <Card bodyClassName="p-4">
