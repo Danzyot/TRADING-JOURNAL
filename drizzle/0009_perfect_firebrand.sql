@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ALTER COLUMN "logo" SET DEFAULT 'neon-blue';

@@ -2,43 +2,65 @@ import sharp from 'sharp'
 import { mkdirSync } from 'node:fs'
 
 /**
- * Cuts the six app marks out of the reference sheet.
+ * Cuts the app marks out of the reference sheets.
  *
- * Kept as a script rather than done once by hand so the icons can be
- * regenerated if the artwork is ever replaced:
+ *   node scripts/generate-logos.mjs
  *
- *   node scripts/generate-logos.mjs <reference.png>
+ * Kept in the repo so the icons can be rebuilt if the artwork is replaced.
  *
- * The reference is a clean 3x2 grid. Tile edges are vignetted into the black
- * background, so thresholding them is unreliable — the crop is derived from
- * the glow centres, which are unambiguous.
+ * Two sets, six colours each, same mark:
+ *   ember — the first sheet, a softer glow
+ *   neon  — the second, brighter and sharper, with the TJ clearly legible
+ *
+ * Crop boxes are measured rather than guessed. Tile edges fade into the black
+ * surround, so thresholding a whole row is unreliable; scanning single lines
+ * through each tile's middle finds the true edges, and the tiles are square and
+ * evenly pitched from there.
  */
 
-const src = process.argv[2] ?? '96748366-cba3-48d2-8b71-b5f0233d9b80.png'
-const SIZE = 400
-const centres = { x: [300, 773, 1249], y: [281, 735] }
-const names = ['purple', 'gold', 'red', 'teal', 'blue', 'magenta']
+const SHEETS = [
+  {
+    set: 'ember',
+    src: '96748366-cba3-48d2-8b71-b5f0233d9b80.png',
+    size: 400,
+    // Centres of the glow, which are unambiguous on this softer sheet.
+    lefts: [100, 573, 1049],
+    tops: [81, 535],
+  },
+  {
+    set: 'neon',
+    src: '456b9324-caa0-49c7-83c8-880723772272 (1).png',
+    size: 418,
+    // Measured tile edges: left 74/558/1035, top 56/538.
+    lefts: [74, 558, 1035],
+    tops: [56, 538],
+  },
+]
 
-let index = 0
-for (const cy of centres.y) {
-  for (const cx of centres.x) {
-    const name = names[index++]
-    const dir = `public/logos/${name}`
-    mkdirSync(dir, { recursive: true })
+const COLOURS = ['purple', 'gold', 'red', 'teal', 'blue', 'magenta']
 
-    const tile = sharp(src).extract({
-      left: cx - SIZE / 2,
-      top: cy - SIZE / 2,
-      width: SIZE,
-      height: SIZE,
-    })
+for (const sheet of SHEETS) {
+  let index = 0
+  for (const top of sheet.tops) {
+    for (const left of sheet.lefts) {
+      const id = `${sheet.set}-${COLOURS[index++]}`
+      const dir = `public/logos/${id}`
+      mkdirSync(dir, { recursive: true })
 
-    // Sizes: 512 and 192 for the manifest, 180 for iOS (which applies its own
-    // corner mask), and a 64 for the sidebar.
-    for (const size of [512, 192, 64]) {
-      await tile.clone().resize(size, size).png({ compressionLevel: 9 }).toFile(`${dir}/icon-${size}.png`)
+      const tile = sharp(sheet.src).extract({
+        left,
+        top,
+        width: sheet.size,
+        height: sheet.size,
+      })
+
+      // 512 and 192 for the manifest, 180 for iOS (which masks its own
+      // corners), 64 for the sidebar.
+      for (const size of [512, 192, 64]) {
+        await tile.clone().resize(size, size).png({ compressionLevel: 9 }).toFile(`${dir}/icon-${size}.png`)
+      }
+      await tile.clone().resize(180, 180).png({ compressionLevel: 9 }).toFile(`${dir}/apple-touch-icon.png`)
+      console.log('wrote', id)
     }
-    await tile.clone().resize(180, 180).png({ compressionLevel: 9 }).toFile(`${dir}/apple-touch-icon.png`)
-    console.log('wrote', name)
   }
 }
