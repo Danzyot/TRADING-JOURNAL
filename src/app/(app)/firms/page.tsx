@@ -7,6 +7,7 @@ import { ActionButton, Disclosure } from '@/components/form'
 import { Card, CollapsibleCard, PageHeader, Stat, StatGrid } from '@/components/ui'
 import { FIRM_CATALOGUES, type FirmCatalogue } from '@/lib/propfirm/catalogue'
 import type { FirmPlan } from '@/db/schema'
+import { firmArt } from '@/lib/propfirm/firm-art'
 import { addAccountFromPlan, deleteFirm, saveFirm, saveFirmPlans } from '@/server/actions'
 import { listAccounts } from '@/server/trades'
 import { firmEconomics, listFirms } from '@/server/money'
@@ -189,8 +190,13 @@ type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]
  */
 function YourFirmPanel({ firm, fallback }: { firm: FirmRow; fallback: FirmPlan[] | null }) {
   const plans = fallback ?? firm.plans ?? []
+  const { wordmark } = firmArt(firm.name)
   return (
     <CollapsibleCard
+      // The firm's own wordmark, behind its own heading. It was a separate
+      // banner above this card, which meant the logo and the words it belongs
+      // to were two boxes apart.
+      backdrop={wordmark}
       title={`Your ${firm.name} record`}
       description={
         fallback

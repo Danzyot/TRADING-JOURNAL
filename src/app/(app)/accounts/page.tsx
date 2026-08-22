@@ -90,15 +90,18 @@ export default async function AccountsPage({
         ? {
             state: 'eligible',
             text: `≈ ${money(eligibility.netToTrader, ccy, 0)} to you after the ${percent(split, 0)} split`,
+            detail: `Eligible now — ${money(eligibility.netToTrader, ccy, 0)} to you after the ${percent(split, 0)} split.`,
           }
         : {
             state: 'blocked',
-            // The distance to the first payout is the actionable half of a
-            // blocker list; a count alone says nothing about how close it is.
+            // Say what is in the way. "1 blocker to payout" is a count of
+            // things the reader cannot see, which is no more use than no text
+            // at all — the rules engine already writes the reason out.
             text:
               eligibility.toFirstPayout > 0
                 ? `${money(eligibility.toFirstPayout, ccy, 0)} more to a first payout`
-                : `${eligibility.blockers.length} blocker${eligibility.blockers.length === 1 ? '' : 's'} to payout`,
+                : shortBlocker(eligibility.blockers),
+            detail: eligibility.blockers.join(' '),
           }
     }
 
@@ -324,6 +327,21 @@ function FilterTab({
       )}
     </Link>
   )
+}
+
+
+/**
+ * The one thing standing between this account and a payout, in a table cell.
+ *
+ * The blockers are written as full sentences for the account page, which is
+ * right there and wrong in a column six characters wide — so the leading clause
+ * of the first one is shown, and the rest is counted. All of them are in the
+ * cell's tooltip.
+ */
+function shortBlocker(blockers: string[]): string {
+  const first = (blockers[0] ?? 'Not eligible yet').split(' — ')[0].replace(/\.$/, '')
+  const rest = blockers.length - 1
+  return rest > 0 ? `${first} · +${rest} more` : first
 }
 
 type FirmRow = Awaited<ReturnType<typeof listFirms>>[number]

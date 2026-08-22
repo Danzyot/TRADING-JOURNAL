@@ -98,6 +98,7 @@ export function CollapsibleCard({
   description,
   summary,
   defaultOpen = false,
+  backdrop,
   children,
   className,
   bodyClassName,
@@ -106,6 +107,12 @@ export function CollapsibleCard({
   id?: string
   title: string
   description?: string
+  /**
+   * An image to sit behind the header text — a firm's wordmark on its own card.
+   * Held back to a low opacity and masked toward the text side, because a
+   * header nobody can read is a worse header than one with no picture in it.
+   */
+  backdrop?: string
   /**
    * The one figure this section is about, shown on the closed header.
    *
@@ -129,8 +136,20 @@ export function CollapsibleCard({
       className={clsx('card card-fold self-start overflow-hidden', className)}
       open={defaultOpen}
     >
-      <summary className="flex items-start justify-between gap-3 px-4 py-3">
-        <div className="min-w-0">
+      <summary className="relative flex items-start justify-between gap-3 px-4 py-3">
+        {backdrop && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-25"
+            style={{
+              backgroundImage: `url(${backdrop})`,
+              // Fades out under the text, so the words keep their contrast.
+              maskImage: 'linear-gradient(to right, transparent, black 45%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent, black 45%)',
+            }}
+          />
+        )}
+        <div className="relative min-w-0">
           <Editable as="h2" scope="card.title" className="text-sm font-semibold text-[var(--ink)]">
             {title}
           </Editable>
@@ -144,7 +163,7 @@ export function CollapsibleCard({
             </Editable>
           )}
         </div>
-        <span className="flex shrink-0 items-center gap-2.5">
+        <span className="relative flex shrink-0 items-center gap-2.5">
           {summary !== undefined && summary !== null && (
             <span className="tabular text-xs font-medium whitespace-nowrap text-[var(--ink-secondary)]">
               {summary}

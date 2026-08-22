@@ -31,7 +31,7 @@ import {
 } from '@/lib/analytics/metrics'
 import { secondsToHuman, today } from '@/lib/time'
 import { getSettings } from '@/server/settings'
-import { listAccounts, listTrades, listTradesForStats, toTradeLike } from '@/server/trades'
+import { calendarTrades, listAccounts, listTrades, listTradesForStats, toTradeLike } from '@/server/trades'
 import {
   acceptChartReading,
   deleteSetup,
@@ -43,6 +43,7 @@ import { aiConfigured } from '@/server/ai'
 import { ImportForm } from './import-form'
 import { DayView } from './day-view'
 import { OpenOnHash } from '@/components/open-on-hash'
+import { DialogButton } from '@/components/dialog-button'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Journal — Trading Journal' }
@@ -108,8 +109,12 @@ export default async function TradesPage({
   const day = params.date ?? todayStr
   const daily = dailySeries(allTrades)
   const month = /^\d{4}-\d{2}$/.test(params.month ?? '') ? params.month! : day.slice(0, 7)
+  const tradesByDay = await calendarTrades()
   const calendarDays = new Map(
-    daily.map((point) => [point.day, { netPnl: point.netPnl, trades: point.trades }]),
+    daily.map((point) => [
+      point.day,
+      { netPnl: point.netPnl, trades: point.trades, list: tradesByDay.get(point.day) ?? [] },
+    ]),
   )
 
   async function saveSetupAction(id: number | null, formData: FormData) {
@@ -170,15 +175,99 @@ export default async function TradesPage({
     return search ? `/trades?${search}` : '/trades'
   }
 
+  const overview = (
+    <>
+          <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+            <div>
+              <KeyValue label="Trades" value={String(metrics.trades)} />
+              <KeyValue label="Wins / losses" value={`${metrics.wins} / ${metrics.losses}`} />
+              <KeyValue label="Scratches" value={String(metrics.scratches)} />
+              <KeyValue label="Win rate" value={percent(metrics.winRate)} />
+              <KeyValue label="Average win" value={money(metrics.avgWin, ccy)} />
+              <KeyValue label="Average loss" value={money(-metrics.avgLoss, ccy)} />
+              <KeyValue
+                label="Payoff ratio"
+                value={metrics.payoffRatio === null ? '—' : `${number(metrics.payoffRatio)}:1`}
+              />
+              <KeyValue label="Largest win" value={money(metrics.largestWin, ccy)} />
+              <KeyValue label="Largest loss" value={money(metrics.largestLoss, ccy)} />
+            </div>
+            <div>
+              <KeyValue label="Gross profit" value={money(metrics.grossProfit, ccy)} />
+              <KeyValue label="Gross loss" value={money(-metrics.grossLoss, ccy)} />
+              <KeyValue label="Commission + fees" value={money(-metrics.totalCosts, ccy)} />
+              <KeyValue
+                label="Cost ratio"
+                value={metrics.costRatio === null ? '—' : percent(metrics.costRatio)}
+                hint="of gross profit"
+              />
+              <KeyValue label="Longest win streak" value={String(metrics.maxConsecutiveWins)} />
+              <KeyValue label="Longest loss streak" value={String(metrics.maxConsecutiveLosses)} />
+              <KeyValue label="Green / red days" value={`${metrics.greenDays} / ${metrics.redDays}`} />
+              <KeyValue label="Trades per day" value={number(metrics.avgTradesPerDay, 1)} />
+              <KeyValue
+                label="Sharpe (daily, annualised)"
+                value={metrics.sharpe === null ? '—' : number(metrics.sharpe)}
+              />
+              <KeyValue
+                label="SQN"
+                value={metrics.sqn === null ? '—' : number(metrics.sqn)}
+                hint={
+                  metrics.sqn === null
+                    ? 'needs 10+ trades with stops recorded'
+                    : metrics.sqn >= 3
+                      ? 'excellent system quality'
+                      : metrics.sqn >= 2
+                        ? 'average system quality'
+                        : metrics.sqn >= 1.6
+                          ? 'below average — tradeable, thin'
+                          : 'hard to trade — edge unstable'
+                }
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg bg-[var(--surface-sunken)] p-3 text-xs leading-relaxed text-[var(--ink-secondary)]">
+            <strong className="text-[var(--ink)]">Hold times.</strong> Winners average{' '}
+            {secondsToHuman(metrics.avgWinHoldSeconds)}, losers {secondsToHuman(metrics.avgLossHoldSeconds)}.
+            {metrics.avgWinHoldSeconds !== null &&
+              metrics.avgLossHoldSeconds !== null &&
+              metrics.avgLossHoldSeconds > metrics.avgWinHoldSeconds * 1.3 &&
+              ' Losers being held materially longer than winners is the classic pattern — the stop goes in at entry and does not move.'}
+            {metrics.kellyFraction !== null && (
+              <>
+                {' '}
+                <strong className="text-[var(--ink)]">Kelly.</strong> Full Kelly on these numbers is{' '}
+                {percent(metrics.kellyFraction)} of bankroll per trade — far too aggressive for a
+                drawdown-capped account. A quarter of it, {percent(metrics.kellyFraction / 4)}, is the
+                practical figure.
+              </>
+            )}
+          </div>
+    </>
+  )
+
   return (
     <>
       <PageHeader
         title="Journal"
         subtitle="Every trade you took: the setups you logged, and the round trips built from your fills."
         actions={
-          <Link href="/trades/new" className="btn btn-primary">
-            Log a trade
-          </Link>
+          <>
+            {/* Forty figures that are read occasionally and in one sitting: a
+                dialog suits that better than a folded card halfway down. */}
+            <DialogButton
+              label="Overview"
+              title="Overview"
+              description={`${metrics.trades} closed trades · ${percent(metrics.winRate)} win rate`}
+              className="rounded-full"
+            >
+              {overview}
+            </DialogButton>
+            <Link href="/trades/new" className="btn btn-primary">
+              Log a trade
+            </Link>
+          </>
         }
       />
 
@@ -190,7 +279,7 @@ export default async function TradesPage({
           <Stat
             label="Win rate"
             value={percent(metrics.winRate)}
-            hint={`${metrics.wins}W / ${metrics.losses}L`}
+            hint={`${metrics.wins}W / ${metrics.losses}L${metrics.scratches ? ` / ${metrics.scratches} BE` : ''}`}
           />
         </Card>
         <Card bodyClassName="p-4">
@@ -364,147 +453,21 @@ export default async function TradesPage({
 
       {/* --- The analysis, folded: read once, then scrolled past ------- */}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <CollapsibleCard
-          title="Equity curve"
-          summary={`peak ${signed(peak, ccy, 0)}`}
-          className="xl:col-span-2"
-        >
-          <EquityChart data={dailySeries(allTrades)} currency={ccy} height={280} />
-        </CollapsibleCard>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-
-        <CollapsibleCard
-          title="Overview"
-          summary={`${percent(metrics.winRate)} win rate`}
-        >
-          <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-            <div>
-              <KeyValue label="Trades" value={String(metrics.trades)} />
-              <KeyValue label="Wins / losses" value={`${metrics.wins} / ${metrics.losses}`} />
-              <KeyValue label="Scratches" value={String(metrics.scratches)} />
-              <KeyValue label="Win rate" value={percent(metrics.winRate)} />
-              <KeyValue label="Average win" value={money(metrics.avgWin, ccy)} />
-              <KeyValue label="Average loss" value={money(-metrics.avgLoss, ccy)} />
-              <KeyValue
-                label="Payoff ratio"
-                value={metrics.payoffRatio === null ? '—' : `${number(metrics.payoffRatio)}:1`}
-              />
-              <KeyValue label="Largest win" value={money(metrics.largestWin, ccy)} />
-              <KeyValue label="Largest loss" value={money(metrics.largestLoss, ccy)} />
-            </div>
-            <div>
-              <KeyValue label="Gross profit" value={money(metrics.grossProfit, ccy)} />
-              <KeyValue label="Gross loss" value={money(-metrics.grossLoss, ccy)} />
-              <KeyValue label="Commission + fees" value={money(-metrics.totalCosts, ccy)} />
-              <KeyValue
-                label="Cost ratio"
-                value={metrics.costRatio === null ? '—' : percent(metrics.costRatio)}
-                hint="of gross profit"
-              />
-              <KeyValue label="Longest win streak" value={String(metrics.maxConsecutiveWins)} />
-              <KeyValue label="Longest loss streak" value={String(metrics.maxConsecutiveLosses)} />
-              <KeyValue label="Green / red days" value={`${metrics.greenDays} / ${metrics.redDays}`} />
-              <KeyValue label="Trades per day" value={number(metrics.avgTradesPerDay, 1)} />
-              <KeyValue
-                label="Sharpe (daily, annualised)"
-                value={metrics.sharpe === null ? '—' : number(metrics.sharpe)}
-              />
-              <KeyValue
-                label="SQN"
-                value={metrics.sqn === null ? '—' : number(metrics.sqn)}
-                hint={
-                  metrics.sqn === null
-                    ? 'needs 10+ trades with stops recorded'
-                    : metrics.sqn >= 3
-                      ? 'excellent system quality'
-                      : metrics.sqn >= 2
-                        ? 'average system quality'
-                        : metrics.sqn >= 1.6
-                          ? 'below average — tradeable, thin'
-                          : 'hard to trade — edge unstable'
-                }
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-lg bg-[var(--surface-sunken)] p-3 text-xs leading-relaxed text-[var(--ink-secondary)]">
-            <strong className="text-[var(--ink)]">Hold times.</strong> Winners average{' '}
-            {secondsToHuman(metrics.avgWinHoldSeconds)}, losers {secondsToHuman(metrics.avgLossHoldSeconds)}.
-            {metrics.avgWinHoldSeconds !== null &&
-              metrics.avgLossHoldSeconds !== null &&
-              metrics.avgLossHoldSeconds > metrics.avgWinHoldSeconds * 1.3 &&
-              ' Losers being held materially longer than winners is the classic pattern — the stop goes in at entry and does not move.'}
-            {metrics.kellyFraction !== null && (
-              <>
-                {' '}
-                <strong className="text-[var(--ink)]">Kelly.</strong> Full Kelly on these numbers is{' '}
-                {percent(metrics.kellyFraction)} of bankroll per trade — far too aggressive for a
-                drawdown-capped account. A quarter of it, {percent(metrics.kellyFraction / 4)}, is the
-                practical figure.
-              </>
-            )}
-          </div>
-        </CollapsibleCard>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {breakdowns
-          .filter((breakdown) => breakdown.buckets.length > 0)
-          .map((breakdown) => (
-            <CollapsibleCard
-              key={breakdown.title}
-              title={breakdown.title}
-              description={breakdown.description}
-              summary={bestBucket(breakdown.buckets)}
-            >
-              <RankedBarChart
-                data={breakdown.buckets.slice(0, 12).map((bucket) => ({
-                  label: bucket.label,
-                  netPnl: bucket.netPnl,
-                }))}
-                currency={ccy}
-                height={180}
-              />
-              <div className="scroll-x mt-3">
-                <table className="data">
-                  <thead>
-                    <tr>
-                      <th>{breakdown.title.replace('By ', '')}</th>
-                      <th className="text-right">Trades</th>
-                      <th className="text-right">Win rate</th>
-                      <th className="text-right">Expectancy</th>
-                      <th className="text-right">PF</th>
-                      <th className="text-right">Net</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {breakdown.buckets.slice(0, 12).map((bucket) => (
-                      <tr key={bucket.key}>
-                        <td className="font-medium text-[var(--ink)]">{bucket.label}</td>
-                        <td className="tabular text-right">{bucket.trades}</td>
-                        <td className="tabular text-right">{percent(bucket.winRate, 0)}</td>
-                        <td className="tabular text-right">{signed(bucket.expectancy, ccy, 0)}</td>
-                        <td className="tabular text-right">
-                          {bucket.profitFactor === null ? '—' : number(bucket.profitFactor, 2)}
-                        </td>
-                        <td className="tabular text-right">{signed(bucket.netPnl, ccy, 0)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CollapsibleCard>
-          ))}
-      </div>
-
       {/* Lets /trades#import arrive with the section already open. */}
       <OpenOnHash />
 
-      {/* --- Getting trades in -------------------------------------------- */}
-      <div className="mt-4">
+      {/* The curve is the one chart worth seeing without asking, and the import
+          is the thing you reach for beside it — so they share a row rather than
+          each taking a full one. */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CollapsibleCard
+          title="Equity curve"
+          summary={`peak ${signed(peak, ccy, 0)}`}
+          defaultOpen
+        >
+          <EquityChart data={dailySeries(allTrades)} currency={ccy} height={280} />
+        </CollapsibleCard>
+
         <CollapsibleCard
           id="import"
           title="Import trades"
@@ -615,6 +578,57 @@ export default async function TradesPage({
           </div>
         </CollapsibleCard>
       </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {breakdowns
+          .filter((breakdown) => breakdown.buckets.length > 0)
+          .map((breakdown) => (
+            <CollapsibleCard
+              key={breakdown.title}
+              title={breakdown.title}
+              description={breakdown.description}
+              summary={bestBucket(breakdown.buckets)}
+            >
+              <RankedBarChart
+                data={breakdown.buckets.slice(0, 12).map((bucket) => ({
+                  label: bucket.label,
+                  netPnl: bucket.netPnl,
+                }))}
+                currency={ccy}
+                height={180}
+              />
+              <div className="scroll-x mt-3">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th>{breakdown.title.replace('By ', '')}</th>
+                      <th className="text-right">Trades</th>
+                      <th className="text-right">Win rate</th>
+                      <th className="text-right">Expectancy</th>
+                      <th className="text-right">PF</th>
+                      <th className="text-right">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {breakdown.buckets.slice(0, 12).map((bucket) => (
+                      <tr key={bucket.key}>
+                        <td className="font-medium text-[var(--ink)]">{bucket.label}</td>
+                        <td className="tabular text-right">{bucket.trades}</td>
+                        <td className="tabular text-right">{percent(bucket.winRate, 0)}</td>
+                        <td className="tabular text-right">{signed(bucket.expectancy, ccy, 0)}</td>
+                        <td className="tabular text-right">
+                          {bucket.profitFactor === null ? '—' : number(bucket.profitFactor, 2)}
+                        </td>
+                        <td className="tabular text-right">{signed(bucket.netPnl, ccy, 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleCard>
+          ))}
+      </div>
+
     </>
   )
 }

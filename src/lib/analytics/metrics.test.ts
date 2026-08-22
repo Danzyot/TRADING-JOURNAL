@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BREAK_EVEN_BAND,
   bySession,
   bySymbol,
   computeMetrics,
@@ -43,11 +44,45 @@ describe('computeMetrics', () => {
     expect(metrics.expectancy).toBe(0)
   })
 
-  it('counts wins, losses and scratches separately', () => {
-    const metrics = computeMetrics([trade(100), trade(-50), trade(0), trade(0.001)])
+  it('counts wins, losses and break-evens separately', () => {
+    const metrics = computeMetrics([trade(100), trade(-100), trade(0), trade(0.001)])
     expect(metrics.wins).toBe(1)
     expect(metrics.losses).toBe(1)
-    // Anything inside the half-cent band is neither a win nor a loss.
+    // Anything inside the break-even band is neither a win nor a loss.
+    expect(metrics.scratches).toBe(2)
+  })
+
+  it('treats anything within the break-even band as flat, either side of zero', () => {
+    const metrics = computeMetrics([
+      trade(BREAK_EVEN_BAND),
+      trade(-BREAK_EVEN_BAND),
+      trade(BREAK_EVEN_BAND - 0.01),
+      trade(-BREAK_EVEN_BAND + 0.01),
+    ])
+    expect(metrics.scratches).toBe(4)
+    expect(metrics.wins).toBe(0)
+    expect(metrics.losses).toBe(0)
+
+    // And a cent past the edge decides it.
+    const decided = computeMetrics([trade(BREAK_EVEN_BAND + 0.01), trade(-BREAK_EVEN_BAND - 0.01)])
+    expect(decided.wins).toBe(1)
+    expect(decided.losses).toBe(1)
+  })
+
+  it('leaves break-even money in the gross totals, so they still reconcile', () => {
+    // A scratch is still real money. Dropping it from both sides would break
+    // the first check anyone makes: gross profit minus gross loss is net.
+    const metrics = computeMetrics([trade(200), trade(40), trade(-30), trade(-150)])
+    expect(metrics.grossProfit).toBe(240)
+    expect(metrics.grossLoss).toBe(180)
+    expect(metrics.grossProfit - metrics.grossLoss).toBeCloseTo(metrics.netPnl, 10)
+  })
+
+  it('keeps break-evens out of the win rate rather than counting them as losses', () => {
+    const metrics = computeMetrics([trade(200), trade(-150), trade(10), trade(-10)])
+    // One win, one loss, two scratches — a coin flip, not 25%.
+    expect(metrics.winRate).toBe(0.5)
+    expect(metrics.lossRate).toBe(0.5)
     expect(metrics.scratches).toBe(2)
   })
 
@@ -89,7 +124,7 @@ describe('computeMetrics', () => {
   it('averages hold time separately for winners and losers', () => {
     const metrics = computeMetrics([
       trade(100, { durationSeconds: 60 }),
-      trade(-50, { durationSeconds: 600 }),
+      trade(-100, { durationSeconds: 600 }),
     ])
     expect(metrics.avgWinHoldSeconds).toBe(60)
     expect(metrics.avgLossHoldSeconds).toBe(600)
@@ -169,9 +204,9 @@ describe('drawdownOf', () => {
 describe('streaksOf', () => {
   it('finds the longest winning and losing runs', () => {
     const result = streaksOf([
-      trade(10), trade(10), trade(10),
-      trade(-10), trade(-10),
-      trade(10),
+      trade(100), trade(100), trade(100),
+      trade(-100), trade(-100),
+      trade(100),
     ])
     expect(result.maxWins).toBe(3)
     expect(result.maxLosses).toBe(2)
@@ -179,11 +214,13 @@ describe('streaksOf', () => {
   })
 
   it('reports a live losing streak as a negative number', () => {
-    expect(streaksOf([trade(10), trade(-10), trade(-10)]).current).toBe(-2)
+    expect(streaksOf([trade(100), trade(-100), trade(-100)]).current).toBe(-2)
   })
 
   it('does not let a scratch break a streak', () => {
-    expect(streaksOf([trade(10), trade(0), trade(10)]).maxWins).toBe(2)
+    expect(streaksOf([trade(100), trade(0), trade(100)]).maxWins).toBe(2)
+    // Including one that is only flat because of the band.
+    expect(streaksOf([trade(100), trade(20), trade(100)]).maxWins).toBe(2)
   })
 })
 

@@ -251,8 +251,7 @@ export function PlanCatalogue({
         <SizeGrid firm={firm} family={family} accent={accentFor(firm.slug)} onPick={open} />
       ) : firm ? (
         <div className="space-y-4">
-          <FirmWordmark name={firm.name} />
-          {panels[firm.slug]}
+          {panels[firm.slug] ?? <FirmWordmark name={firm.name} />}
           <FamilyGrid
             families={families}
             accent={accentFor(firm.slug)}
@@ -383,7 +382,12 @@ function FirmMark({ name, accent }: { name: string; accent: string }) {
   )
 }
 
-/** The wide logo, across the top of the firm you opened. */
+/**
+ * The wide logo, across the top of a firm you have no record with.
+ *
+ * When there is a record, its own card carries the wordmark behind its heading
+ * instead — one box rather than two.
+ */
 function FirmWordmark({ name }: { name: string }) {
   const { wordmark } = firmArt(name)
   if (!wordmark) return null

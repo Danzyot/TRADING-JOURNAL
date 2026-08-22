@@ -63,7 +63,7 @@ export type GridRow = {
   toTarget: number | null
   /** Best day as a share of profit, whole percent, when measurable. */
   bestDayPct: number | null
-  payout: { state: 'eligible' | 'blocked'; text: string } | null
+  payout: { state: 'eligible' | 'blocked'; text: string; detail: string } | null
   /** Size, drawdown or target missing — progress cannot be tracked yet. */
   needsSetup: boolean
 }
@@ -545,7 +545,7 @@ export function AccountsGrid({
                   </span>
                   {row.payout ? (
                     <span
-                      title={row.payout.text}
+                      title={row.payout.detail}
                       className={clsx(
                         'text-right text-sm font-semibold',
                         row.payout.state === 'eligible' ? 'text-[var(--good-text)]' : 'text-[var(--serious)]',
@@ -913,7 +913,7 @@ export function AccountsGrid({
                   <td className="whitespace-nowrap text-right">
                     {row.payout ? (
                       <span
-                        title={row.payout.text}
+                        title={row.payout.detail}
                         className={clsx(
                           'tabular text-xs font-medium',
                           row.payout.state === 'eligible' ? 'text-[var(--good-text)]' : 'text-[var(--serious)]',

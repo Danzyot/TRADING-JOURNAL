@@ -109,8 +109,28 @@ export type CoreMetrics = {
   dayWinRate: number
 }
 
-/** A trade within this band of zero is neither a win nor a loss. */
-const SCRATCH_BAND = 0.005
+/**
+ * A trade this close to zero is neither a win nor a loss — it is break-even.
+ *
+ * Fifty dollars, not a cent, because that is the size of the band the trader
+ * works in: on a micro contract, being a few ticks either side of flat after
+ * commission is a scratch, and counting it as a win flatters the win rate while
+ * counting it as a loss makes a disciplined exit look like a failure. Every
+ * "W / BE / L" on the site comes from here.
+ *
+ * It is a currency amount in the account's own currency, deliberately not a
+ * percentage: what counts as flat is about the size traded, not the balance.
+ */
+export const BREAK_EVEN_BAND = 50
+
+export type Outcome = 'win' | 'breakEven' | 'loss'
+
+/** The label a single P&L figure earns. */
+export function outcomeOf(netPnl: number): Outcome {
+  if (netPnl > BREAK_EVEN_BAND) return 'win'
+  if (netPnl < -BREAK_EVEN_BAND) return 'loss'
+  return 'breakEven'
+}
 
 const sum = (values: number[]): number => values.reduce((total, value) => total + value, 0)
 const mean = (values: number[]): number => (values.length ? sum(values) / values.length : 0)
@@ -126,11 +146,15 @@ function safeDiv(numerator: number, denominator: number): number | null {
 }
 
 export function isWin(trade: TradeLike): boolean {
-  return trade.netPnl > SCRATCH_BAND
+  return outcomeOf(trade.netPnl) === 'win'
 }
 
 export function isLoss(trade: TradeLike): boolean {
-  return trade.netPnl < -SCRATCH_BAND
+  return outcomeOf(trade.netPnl) === 'loss'
+}
+
+export function isBreakEven(trade: TradeLike): boolean {
+  return outcomeOf(trade.netPnl) === 'breakEven'
 }
 
 /** Only closed trades count toward performance; open ones have no outcome yet. */
@@ -145,17 +169,24 @@ export function computeMetrics(input: TradeLike[]): CoreMetrics {
   const losses = trades.filter(isLoss)
   const scratches = trades.length - wins.length - losses.length
 
-  const grossProfit = sum(wins.map((t) => t.netPnl))
-  const grossLoss = Math.abs(sum(losses.map((t) => t.netPnl)))
+  // By sign rather than by label: a scratch inside the band is still real money,
+  // and dropping it from both sides would leave grossProfit − grossLoss no
+  // longer equal to net P&L, which is the first thing anyone checks.
+  const grossProfit = sum(trades.filter((t) => t.netPnl > 0).map((t) => t.netPnl))
+  const grossLoss = Math.abs(sum(trades.filter((t) => t.netPnl < 0).map((t) => t.netPnl)))
   const netPnl = sum(trades.map((t) => t.netPnl))
   const grossPnl = sum(trades.map((t) => t.grossPnl))
   const commission = sum(trades.map((t) => t.commission))
   const fees = sum(trades.map((t) => t.fees))
 
-  const avgWin = wins.length ? grossProfit / wins.length : 0
-  const avgLoss = losses.length ? grossLoss / losses.length : 0
-  const winRate = trades.length ? wins.length / trades.length : 0
-  const lossRate = trades.length ? losses.length / trades.length : 0
+  const avgWin = wins.length ? mean(wins.map((t) => t.netPnl)) : 0
+  const avgLoss = losses.length ? Math.abs(mean(losses.map((t) => t.netPnl))) : 0
+
+  // Break-evens are in neither half. A trade that finished flat did not lose,
+  // and calling it one drags a win rate down for having managed risk well.
+  const decided = wins.length + losses.length
+  const winRate = decided ? wins.length / decided : 0
+  const lossRate = decided ? losses.length / decided : 0
 
   const rValues = trades
     .map((t) => t.rMultiple)
@@ -177,8 +208,8 @@ export function computeMetrics(input: TradeLike[]): CoreMetrics {
     .filter((d): d is number => typeof d === 'number' && d >= 0)
 
   const dailyStdev = stdev(dailyPnls)
-  const greenDays = daily.filter((d) => d.netPnl > SCRATCH_BAND).length
-  const redDays = daily.filter((d) => d.netPnl < -SCRATCH_BAND).length
+  const greenDays = daily.filter((d) => outcomeOf(d.netPnl) === 'win').length
+  const redDays = daily.filter((d) => outcomeOf(d.netPnl) === 'loss').length
 
   const sorted = daily.slice().sort((a, b) => a.netPnl - b.netPnl)
 
@@ -244,7 +275,8 @@ export function computeMetrics(input: TradeLike[]): CoreMetrics {
     worstDay: sorted.length ? { day: sorted[0].day, netPnl: sorted[0].netPnl } : null,
     greenDays,
     redDays,
-    dayWinRate: daily.length ? greenDays / daily.length : 0,
+    // Same reasoning as the trade win rate: a flat day is not a losing one.
+    dayWinRate: greenDays + redDays ? greenDays / (greenDays + redDays) : 0,
   }
 }
 

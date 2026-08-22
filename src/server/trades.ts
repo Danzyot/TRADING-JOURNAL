@@ -393,3 +393,48 @@ export async function readTradeScreenshot(
   if (!row?.data) return null
   return { data: decryptBytes(Buffer.from(row.data)), type: row.type ?? 'application/octet-stream' }
 }
+
+export type CalendarTrade = {
+  id: number
+  netPnl: number
+  /** Whether a chart is attached, so the calendar knows what it can draw. */
+  hasShot: boolean
+}
+
+/**
+ * Every trade's day, result and whether it has a chart — the calendar's data.
+ *
+ * Deliberately three columns and no more: the grid draws thumbnails for a whole
+ * month at once, and pulling the notes, the model review and the screenshot
+ * bytes along with them would be megabytes to render a wall of 40px pictures.
+ * The images themselves are fetched one at a time by the route that serves
+ * them, which is also the only place the decryption happens.
+ */
+export async function calendarTrades(): Promise<Map<string, CalendarTrade[]>> {
+  const included = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.excludeFromStats, false))
+  const ids = included.map((row) => row.id)
+  if (ids.length === 0) return new Map()
+
+  const rows = await db
+    .select({
+      id: trades.id,
+      tradingDay: trades.tradingDay,
+      netPnl: trades.netPnl,
+      hasShot: sql<boolean>`${trades.screenshot} is not null`,
+      entryAt: trades.entryAt,
+    })
+    .from(trades)
+    .where(inArray(trades.accountId, ids))
+    .orderBy(asc(trades.entryAt))
+
+  const byDay = new Map<string, CalendarTrade[]>()
+  for (const row of rows) {
+    const list = byDay.get(row.tradingDay) ?? []
+    list.push({ id: row.id, netPnl: row.netPnl, hasShot: Boolean(row.hasShot) })
+    byDay.set(row.tradingDay, list)
+  }
+  return byDay
+}

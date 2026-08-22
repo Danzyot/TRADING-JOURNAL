@@ -2,8 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { moneyCompact } from '@/lib/format'
+import { outcomeOf, type Outcome } from '@/lib/analytics/metrics'
+import type { CalendarTrade } from '@/server/trades'
 
-export type CalendarDay = { netPnl: number; trades: number }
+export type CalendarDay = { netPnl: number; trades: number; list: CalendarTrade[] }
+
+/** W, BE or L — the same band the rest of the site counts by. */
+const MARK: Record<Outcome, { text: string; className: string }> = {
+  win: { text: 'W', className: 'bg-[var(--good)] text-white' },
+  loss: { text: 'L', className: 'bg-[var(--critical)] text-white' },
+  breakEven: { text: 'BE', className: 'bg-[var(--ink-muted)] text-white' },
+}
+
+const TONE: Record<Outcome, string> = {
+  win: 'text-[var(--good-text)]',
+  loss: 'text-[var(--critical)]',
+  breakEven: 'text-[var(--ink-secondary)]',
+}
 
 /**
  * The month at a glance: one cell per day, tinted by that day's net P&L with
@@ -139,58 +154,106 @@ export function PnlCalendar({
                     if (day === null) return <td key={dayIndex} className="p-0.5" />
                     const date = iso(day)
                     const stats = days.get(date)
+                    const dayResult = stats ? outcomeOf(stats.netPnl) : null
                     const intensity = stats ? Math.min(1, Math.abs(stats.netPnl) / monthMax) : 0
-                    const tint = stats
-                      ? `color-mix(in srgb, ${stats.netPnl >= 0 ? 'var(--good)' : 'var(--critical)'} ${Math.round(
-                          8 + intensity * 26,
-                        )}%, transparent)`
-                      : undefined
+                    // A break-even day gets no colour: the point of the band is
+                    // that flat is flat, and a green wash on +$12 says otherwise.
+                    const tint =
+                      stats && dayResult && dayResult !== 'breakEven'
+                        ? `color-mix(in srgb, ${
+                            dayResult === 'win' ? 'var(--good)' : 'var(--critical)'
+                          } ${Math.round(8 + intensity * 26)}%, transparent)`
+                        : undefined
                     return (
                       <td key={dayIndex} className="p-0.5 align-top">
-                        <button
-                          type="button"
-                          onClick={() => onPickDay(date)}
-                          className="block h-[4.25rem] w-full rounded-md border p-1.5 text-left transition-transform hover:scale-[1.03]"
+                        {/* Not one big button any more: the strip of charts in
+                            the middle scrolls, and a swipe inside a button is
+                            read as a press. The day number and the total are
+                            the buttons; the strip carries its own. */}
+                        <div
+                          className="flex h-[6.25rem] w-full flex-col rounded-md border p-1 text-left"
                           style={{
                             background: tint ?? 'var(--surface-sunken)',
                             borderColor: date === today ? 'var(--accent)' : 'var(--line)',
                           }}
                         >
-                          <span className="flex items-center justify-between text-[0.6875rem] text-[var(--ink-muted)]">
+                          <button
+                            type="button"
+                            onClick={() => onPickDay(date)}
+                            className="flex items-center justify-between px-0.5 text-[0.6875rem] text-[var(--ink-muted)]"
+                          >
                             {day}
                             {journaled.has(date) && (
                               <span aria-label="journalled" title="Journal entry written" className="text-[var(--accent)]">
                                 ✎
                               </span>
                             )}
-                          </span>
-                          {stats && (
-                            <>
-                              <span
-                                className={`tabular block text-xs font-semibold ${
-                                  stats.netPnl >= 0 ? 'text-[var(--good-text)]' : 'text-[var(--critical)]'
-                                }`}
+                          </button>
+
+                          <div className="min-h-0 flex-1 py-0.5">
+                            {stats && stats.list.length > 0 && (
+                              <div
+                                className="scroll-x flex h-full snap-x items-center gap-1 overscroll-x-contain"
+                                aria-label={`${stats.list.length} trades`}
                               >
-                                {stats.netPnl >= 0 ? '+' : '−'}
-                                {moneyCompact(Math.abs(stats.netPnl), ccy)}
-                              </span>
-                              <span className="block text-[0.625rem] text-[var(--ink-muted)]">
-                                {stats.trades} trade{stats.trades === 1 ? '' : 's'}
-                              </span>
-                            </>
+                                {stats.list.map((entry) => {
+                                  const mark = MARK[outcomeOf(entry.netPnl)]
+                                  return (
+                                    <button
+                                      key={entry.id}
+                                      type="button"
+                                      onClick={() => onPickDay(date)}
+                                      title={`${moneyCompact(entry.netPnl, ccy)} — open the day`}
+                                      className="relative h-full w-11 shrink-0 snap-start overflow-hidden rounded border border-[var(--line)] bg-[var(--surface)]"
+                                    >
+                                      {entry.hasShot ? (
+                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                        <img
+                                          src={`/api/trades/${entry.id}/screenshot`}
+                                          alt=""
+                                          loading="lazy"
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <span
+                                          className={`tabular flex h-full w-full items-center justify-center text-[0.5625rem] font-medium ${
+                                            TONE[outcomeOf(entry.netPnl)]
+                                          }`}
+                                        >
+                                          {moneyCompact(entry.netPnl, ccy)}
+                                        </span>
+                                      )}
+                                      <span
+                                        className={`absolute left-0 top-0 rounded-br px-0.5 text-[0.5rem] font-bold leading-tight ${mark.className}`}
+                                      >
+                                        {mark.text}
+                                      </span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {stats && dayResult && (
+                            <button
+                              type="button"
+                              onClick={() => onPickDay(date)}
+                              className={`tabular px-0.5 text-left text-xs font-semibold ${TONE[dayResult]}`}
+                            >
+                              {dayResult === 'breakEven' && Math.abs(stats.netPnl) < 1
+                                ? moneyCompact(0, ccy)
+                                : `${stats.netPnl >= 0 ? '+' : '−'}${moneyCompact(Math.abs(stats.netPnl), ccy)}`}
+                            </button>
                           )}
-                        </button>
+                        </div>
                       </td>
                     )
                   })}
                   <td className="border-l border-[var(--line)] p-0.5 align-middle">
                     {weekStats.trades > 0 ? (
                       <div className="px-2 text-right">
-                        <span
-                          className={`tabular block text-xs font-semibold ${
-                            weekStats.netPnl >= 0 ? 'text-[var(--good-text)]' : 'text-[var(--critical)]'
-                          }`}
-                        >
+                        <span className={`tabular block text-xs font-semibold ${TONE[outcomeOf(weekStats.netPnl)]}`}>
                           {weekStats.netPnl >= 0 ? '+' : '−'}
                           {moneyCompact(Math.abs(weekStats.netPnl), ccy)}
                         </span>
