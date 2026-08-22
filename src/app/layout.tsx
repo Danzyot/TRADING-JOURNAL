@@ -33,7 +33,11 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: {
       capable: true,
       title: 'Journal',
-      statusBarStyle: 'black-translucent',
+      // 'default', not 'black-translucent': translucent makes the app draw
+      // *under* the status bar, which put the menu button behind the clock and
+      // the notch where it could not be tapped. The immersive look is not
+      // worth an unreachable control.
+      statusBarStyle: 'default',
     },
     formatDetection: { telephone: false },
   }

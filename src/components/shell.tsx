@@ -35,7 +35,10 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex items-center justify-between px-4 py-4">
+        <div
+          className="flex items-center justify-between px-4 py-4"
+          style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+        >
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element -- a 64px
                 static mark; the optimiser adds a round trip for no gain. */}
@@ -74,7 +77,10 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
           })}
         </nav>
 
-        <div className="border-t border-[var(--line)] p-3">
+        <div
+          className="border-t border-[var(--line)] p-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="mb-2">
             <EditModeToggle />
           </div>
@@ -96,7 +102,17 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--plane)]/90 px-4 py-3 backdrop-blur lg:hidden">
+        {/* The safe-area inset keeps the bar clear of the notch and the
+            rounded corners when the app runs full screen; it is zero in a
+            normal browser tab. */}
+        <header
+          className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--plane)]/90 px-4 py-3 backdrop-blur lg:hidden"
+          style={{
+            paddingTop: 'calc(0.75rem + env(safe-area-inset-top))',
+            paddingLeft: 'calc(1rem + env(safe-area-inset-left))',
+            paddingRight: 'calc(1rem + env(safe-area-inset-right))',
+          }}
+        >
           <button onClick={() => setOpen(true)} className="text-[var(--ink)]" aria-label="Open navigation">
             ☰
           </button>
@@ -108,7 +124,10 @@ export function Shell({ children, logo }: { children: React.ReactNode; logo: str
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
+        <main
+          className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8"
+          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="mx-auto w-full max-w-[1400px]">{children}</div>
         </main>
       </div>
