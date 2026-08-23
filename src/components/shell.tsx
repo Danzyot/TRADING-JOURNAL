@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react'
 import { clsx } from './ui'
 import { EditModeToggle } from './site-text'
 
-const NAV = [
+type NavItem = { href: string; label: string; glyph: string }
+
+const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', glyph: '◧' },
   { href: '/trades', label: 'Journal', glyph: '✎' },
   { href: '/accounts', label: 'Accounts', glyph: '▤' },
@@ -16,6 +18,20 @@ const NAV = [
   { href: '/tax', label: 'Tax', glyph: '%' },
   { href: '/documents', label: 'Documents', glyph: '🗎' },
   { href: '/settings', label: 'Settings', glyph: '⚙' },
+]
+
+/**
+ * A second section, set apart from the journal.
+ *
+ * These pages are not about trading — they are research about where to live —
+ * and putting them in the same list would suggest they belong to the same job.
+ * The gap and the heading say they do not.
+ */
+const RESEARCH_LABEL = 'Living abroad'
+
+const RESEARCH_NAV: NavItem[] = [
+  { href: '/abroad', label: 'Where to live', glyph: '◎' },
+  { href: '/abroad/greece', label: 'Greece in depth', glyph: '⛱' },
 ]
 
 export function Shell({
@@ -63,26 +79,16 @@ export function Shell({
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-          {NAV.map((item) => {
-            const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={clsx(
-                  'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
-                  active
-                    ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
-                    : 'text-[var(--ink-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--ink)]',
-                )}
-              >
-                <span aria-hidden className="w-4 text-center text-[0.8125rem]">
-                  {item.glyph}
-                </span>
-                {item.label}
-              </Link>
-            )
-          })}
+          {NAV.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ))}
+
+          <p className="px-3 pb-1 pt-6 text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+            {RESEARCH_LABEL}
+          </p>
+          {RESEARCH_NAV.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ))}
         </nav>
 
         <div
@@ -158,6 +164,27 @@ export function Shell({
  * risk: without this strip, a visitor filling in a form and watching it refuse
  * would reasonably conclude the app is broken.
  */
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+
+  return (
+    <Link
+      href={item.href}
+      className={clsx(
+        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+        active
+          ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
+          : 'text-[var(--ink-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--ink)]',
+      )}
+    >
+      <span aria-hidden className="w-4 text-center text-[0.8125rem]">
+        {item.glyph}
+      </span>
+      {item.label}
+    </Link>
+  )
+}
+
 function DemoBanner() {
   return (
     <div className="border-b border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[var(--accent-soft)] px-4 py-2 text-center text-xs text-[var(--accent)] lg:px-8">
