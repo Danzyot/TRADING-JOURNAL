@@ -31,6 +31,7 @@ const RESEARCH_LABEL = 'Living abroad'
 
 const RESEARCH_NAV: NavItem[] = [
   { href: '/abroad', label: 'Where to live', glyph: '◎' },
+  { href: '/abroad/places', label: 'Every place', glyph: '⌖' },
   { href: '/abroad/greece', label: 'Greece in depth', glyph: '⛱' },
 ]
 
@@ -45,6 +46,7 @@ export function Shell({
   demo?: boolean
 }) {
   const pathname = usePathname()
+  const current = activeHref(pathname, [...NAV, ...RESEARCH_NAV])
   const [open, setOpen] = useState(false)
 
   // Navigating on a phone should close the drawer; leaving it open hides the
@@ -80,14 +82,14 @@ export function Shell({
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
           {NAV.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
+            <NavLink key={item.href} item={item} active={item.href === current} />
           ))}
 
           <p className="px-3 pb-1 pt-6 text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
             {RESEARCH_LABEL}
           </p>
           {RESEARCH_NAV.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
+            <NavLink key={item.href} item={item} active={item.href === current} />
           ))}
         </nav>
 
@@ -164,8 +166,24 @@ export function Shell({
  * risk: without this strip, a visitor filling in a form and watching it refuse
  * would reasonably conclude the app is broken.
  */
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
-  const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+/**
+ * The longest matching href wins.
+ *
+ * A plain startsWith lights up "Where to live" whenever you are on
+ * /abroad/greece, so two items look selected at once. The deepest nav entry that
+ * still prefixes the path is the one you are actually on.
+ */
+export function activeHref(pathname: string, items: NavItem[]): string | null {
+  const matches = items.filter((item) =>
+    item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(`${item.href}/`),
+  )
+  return matches.reduce<string | null>(
+    (best, item) => (best === null || item.href.length > best.length ? item.href : best),
+    null,
+  )
+}
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
   return (
     <Link

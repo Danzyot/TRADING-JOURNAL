@@ -104,7 +104,7 @@ export default function GreecePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
           {PLACES.map((place) => (
             <CollapsibleCard
               key={place.slug}
@@ -138,7 +138,7 @@ export default function GreecePage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <Card
           title="Before you sign for a house"
           description="In the order these things bite, not the order an agent raises them."
