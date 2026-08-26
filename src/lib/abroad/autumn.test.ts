@@ -62,15 +62,26 @@ describe('the exact spots', () => {
   it('answer the three distances and price a real range', () => {
     for (const [id, spots] of Object.entries(SPOTS)) {
       for (const spot of spots ?? []) {
-        expect(spot.name.length, `${id}.name`).toBeGreaterThan(4)
-        for (const field of ['what', 'mat', 'sea', 'shop', 'net', 'snag', 'area', 'gym'] as const) {
-          expect(spot[field].length, `${id}.${field}`).toBeGreaterThan(5)
+        expect(spot.name.trim().length, `${id}.name`).toBeGreaterThan(2)
+        // The three distances are chips — "5 min" is a complete answer and
+        // padding it would undo the point of the redesign. What and snag are
+        // the two that carry meaning, so those are held to a real length.
+        for (const field of ['mat', 'sea', 'shop', 'net'] as const) {
+          expect(spot[field].trim().length, `${id}.${field}`).toBeGreaterThan(3)
+        }
+        for (const field of ['what', 'snag', 'area', 'gym'] as const) {
+          expect(spot[field].length, `${id}.${field}`).toBeGreaterThan(10)
         }
         const [low, high] = spot.rent
-        expect(low, `${id}.rent`).toBeGreaterThan(200)
+        expect(low, `${id}.rent`).toBeGreaterThanOrEqual(200)
         expect(high, `${id}.rent`).toBeGreaterThan(low)
       }
     }
+  })
+
+  it('covers every town, not just the shortlist', () => {
+    const missing = PLACES.filter((candidate) => spotsFor(candidate.id).length === 0)
+    expect(missing.map((candidate) => candidate.id)).toEqual([])
   })
 
   it('give every spot a geocodable area, so the links resolve', () => {

@@ -377,9 +377,7 @@ function Box({
               ))}
             </div>
           ) : (
-            <Note>
-              Street-level spots are written for Malta, Italy, Spain, Greece and Cyprus first.
-            </Note>
+            <Note>No street-level spot written for this town yet.</Note>
           )}
         </Shell>
       )

@@ -3,7 +3,7 @@ import { Card, PageHeader } from '@/components/ui'
 import { ABROAD_VERIFIED, CANDIDATES } from '@/lib/abroad/countries'
 import { PLACES } from '@/lib/abroad/places'
 import { monthlyOf } from '@/lib/abroad/costs'
-import { autumnFor } from '@/lib/abroad/autumn'
+import { SPOTS } from '@/lib/abroad/stays'
 import { PlacesBrowser } from './browser'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +12,7 @@ export const metadata = { title: 'Every place — Trading Journal' }
 const withMat = PLACES.filter((place) => place.mma).length
 const withHouse = PLACES.filter((place) => place.house === 'normal').length
 const underTwoK = PLACES.filter((place) => monthlyOf(place) < 2000).length
+const spotCount = Object.values(SPOTS).reduce((sum, spots) => sum + (spots?.length ?? 0), 0)
 
 export default async function PlacesPage({
   searchParams,
@@ -39,10 +40,10 @@ export default async function PlacesPage({
       <Card title="Before you read the list">
         <div className="grid grid-cols-1 gap-3 text-xs leading-relaxed text-[var(--ink-secondary)] sm:grid-cols-3">
           <p>
-            <strong className="text-[var(--ink)]">{withMat} of {PLACES.length} take a beginner.</strong>{' '}
-            A named room you could walk into next week with no
-            experience — a fundamentals class, not one open mat a fortnight. Where a town has
-            nothing, the entry says where the nearest mat is instead of padding the line.
+            <strong className="text-[var(--ink)]">{spotCount} named neighbourhoods.</strong>{' '}
+            Not a town — a street. Each one carries the rent for your
+            months, minutes to the mat, the water and a shop, the fibre at that address, and links
+            to the map, to listings for 25 September to 20 December, and to the gym.
           </p>
           <p>
             <strong className="text-[var(--ink)]">{withHouse} make a whole house normal.</strong>{' '}
