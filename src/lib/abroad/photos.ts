@@ -105,7 +105,74 @@ export const WIKI_TITLE: Record<PlaceId, string> = {
   austin: 'Austin, Texas',
 }
 
-/** Where the page asks for the photograph. Our own origin, so no CSP change. */
-export function photoUrl(id: PlaceId): string {
+/** Our own origin, used as the second attempt if the browser cannot reach Wikipedia. */
+export function proxyUrl(id: PlaceId): string {
   return `/api/place-photo/${encodeURIComponent(id)}`
+}
+
+/**
+ * One request for fifty photographs.
+ *
+ * The MediaWiki API takes up to fifty titles at a time and `origin=*` makes it
+ * answer anonymous cross-origin requests, so the whole page's photographs cost
+ * two requests from the browser rather than ninety from the server. Doing it in
+ * the browser also removes the one thing that cannot be tested from here —
+ * whether the deployment itself is allowed to call out.
+ */
+export const TITLES_PER_REQUEST = 50
+
+export function thumbnailsEndpoint(titles: string[], size = 800): string {
+  const params = new URLSearchParams({
+    action: 'query',
+    format: 'json',
+    formatversion: '2',
+    prop: 'pageimages',
+    piprop: 'thumbnail',
+    pithumbsize: String(size),
+    redirects: '1',
+    origin: '*',
+    titles: titles.join('|'),
+  })
+  return `https://en.wikipedia.org/w/api.php?${params.toString()}`
+}
+
+export type ThumbnailResponse = {
+  query?: {
+    pages?: { title?: string; thumbnail?: { source?: string } }[]
+    redirects?: { from?: string; to?: string }[]
+    normalized?: { from?: string; to?: string }[]
+  }
+}
+
+/**
+ * Map the answer back onto our place ids.
+ *
+ * Wikipedia normalises and redirects titles — ask for "Rhodes (city)" and the
+ * page comes back under a different name — so the mapping has to be followed
+ * rather than assumed.
+ */
+export function thumbnailsById(
+  response: ThumbnailResponse,
+  asked: Record<string, PlaceId>,
+): Record<PlaceId, string> {
+  const trail = new Map<string, string>()
+  for (const hop of [...(response.query?.normalized ?? []), ...(response.query?.redirects ?? [])]) {
+    if (hop.from && hop.to) trail.set(hop.to, hop.from)
+  }
+
+  const found: Record<PlaceId, string> = {}
+  for (const page of response.query?.pages ?? []) {
+    const source = page.thumbnail?.source
+    if (!page.title || !source) continue
+    // Walk back through any redirects to the title we actually asked for.
+    let title: string | undefined = page.title
+    const seen = new Set<string>()
+    while (title && !asked[title] && !seen.has(title)) {
+      seen.add(title)
+      title = trail.get(title)
+    }
+    const id = title ? asked[title] : undefined
+    if (id) found[id] = source
+  }
+  return found
 }

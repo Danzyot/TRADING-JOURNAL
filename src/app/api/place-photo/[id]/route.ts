@@ -29,7 +29,7 @@ async function withTimeout(url: string, headers: Record<string, string> = {}) {
       signal: controller.signal,
       headers: {
         // Wikimedia requires a real user agent and blocks anonymous scripts.
-        'user-agent': 'TradingJournal/1.0 (personal relocation research; contact via repository)',
+        'user-agent': 'TradingJournal/1.0 (https://github.com/Danzyot/TRADING-JOURNAL) personal relocation research',
         ...headers,
       },
     })

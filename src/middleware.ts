@@ -75,10 +75,14 @@ function contentSecurityPolicy(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline'`,
     "style-src 'self' 'unsafe-inline'",
-    // data: for inline SVG marks, blob: for anything rendered client-side.
-    "img-src 'self' data: blob:",
+    // data: for inline SVG marks, blob: for anything rendered client-side, and
+    // Wikimedia for the town photographs on the Living abroad pages — images
+    // only, from the one host that serves them.
+    "img-src 'self' data: blob: https://upload.wikimedia.org",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    // The photograph lookup is a batch call to the MediaWiki API, made from the
+    // browser because it can reach Wikipedia whether or not the deployment can.
+    "connect-src 'self' https://en.wikipedia.org",
     // Nothing on this site should ever be framed, or frame anything else.
     "frame-ancestors 'none'",
     "frame-src 'none'",
