@@ -10,7 +10,9 @@
  *
  * All figures are euros per month for one person living comfortably: eating
  * well, training properly, running a car or a scooter, insured. Not a backpacker
- * budget and not a family budget. They are honest estimates from 2026 published
+ * budget and not a family budget, and not compared to anything — living at home
+ * with your parents costs nothing, so there is no baseline worth measuring
+ * against. These numbers are for ordering towns against each other. They are honest estimates from 2026 published
  * cost-of-living data, and they are for ordering towns — not for a spreadsheet.
  */
 import type { Place, PlaceId } from './places'
@@ -62,7 +64,6 @@ export const EVERYDAY: Record<string, Everyday> = {
   albania: { utilities: 80, internet: 20, groceries: 210, eatingOut: 110, transport: 45, training: 35, health: 45, everyday: 75 },
   bulgaria: { utilities: 100, internet: 15, groceries: 230, eatingOut: 120, transport: 45, training: 40, health: 45, everyday: 80 },
   poland: { utilities: 120, internet: 18, groceries: 270, eatingOut: 150, transport: 50, training: 50, health: 50, everyday: 95 },
-  turkey: { utilities: 90, internet: 15, groceries: 220, eatingOut: 110, transport: 40, training: 35, health: 45, everyday: 75 },
   georgia: { utilities: 85, internet: 15, groceries: 200, eatingOut: 110, transport: 40, training: 35, health: 45, everyday: 70 },
   uae: { utilities: 260, internet: 70, groceries: 480, eatingOut: 320, transport: 150, training: 140, health: 180, everyday: 220 },
   thailand: { utilities: 110, internet: 20, groceries: 240, eatingOut: 150, transport: 50, training: 70, health: 70, everyday: 100 },
@@ -70,27 +71,6 @@ export const EVERYDAY: Record<string, Everyday> = {
   mexico: { utilities: 90, internet: 35, groceries: 280, eatingOut: 150, transport: 70, training: 55, health: 70, everyday: 100 },
   panama: { utilities: 130, internet: 45, groceries: 340, eatingOut: 190, transport: 90, training: 60, health: 90, everyday: 115 },
   usa: { utilities: 180, internet: 70, groceries: 470, eatingOut: 330, transport: 160, training: 130, health: 380, everyday: 200 },
-}
-
-/**
- * Home, on exactly the same basis, so every row above is a real comparison.
- *
- * Health is low because it is the state system plus a supplementary fund;
- * groceries and eating out are the two lines that make Tel Aviv what it is.
- */
-export const HOME = {
-  label: 'Tel Aviv',
-  rent: 2300,
-  everyday: {
-    utilities: 180,
-    internet: 45,
-    groceries: 520,
-    eatingOut: 300,
-    transport: 120,
-    training: 110,
-    health: 90,
-    everyday: 200,
-  } satisfies Everyday,
 }
 
 /** A good one-or-two-bed, or the low end of a whole house, long term. */
@@ -108,7 +88,6 @@ export const RENT: Record<PlaceId, number> = {
   vlore: 450, sarande: 480, golem: 400, himare: 520,
   varna: 550, burgas: 450, sozopol: 480, sofia: 700,
   sopot: 800, gdynia: 700, krakow: 700, warsaw: 950,
-  konyaalti: 600, cesme: 750, fethiye: 500, bodrum: 750, alanya: 400,
   batumi: 500, tbilisi: 600, kobuleti: 320,
   jbr: 2400, 'dubai-hills': 2000, saadiyat: 1900,
   rawai: 800, bangtao: 1250, 'koh-samui': 800, 'chiang-mai': 500, 'ao-nang': 550,
@@ -134,8 +113,6 @@ export const LOCAL: Partial<Record<PlaceId, number>> = {
   dubrovnik: 1.2,
   tivat: 1.15,
   warsaw: 1.1,
-  cesme: 1.2,
-  bodrum: 1.2,
   saadiyat: 0.95,
   bangtao: 1.1,
   'chiang-mai': 0.85,
@@ -176,9 +153,6 @@ export function totalOf(lines: CostLines): number {
 export function monthlyOf(place: Place): number {
   return totalOf(costsFor(place))
 }
-
-export const HOME_LINES: CostLines = { rent: HOME.rent, ...HOME.everyday }
-export const HOME_TOTAL = totalOf(HOME_LINES)
 
 /**
  * A country's own line-by-line month, using its cheapest and dearest towns for

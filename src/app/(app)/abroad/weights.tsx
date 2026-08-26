@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { CANDIDATES } from '@/lib/abroad/countries'
+import { CANDIDATES, shortlistRank } from '@/lib/abroad/countries'
 import { CRITERIA, type CriterionKey } from '@/lib/abroad/criteria'
-import { countryCosts, CATEGORIES, HOME, HOME_LINES, HOME_TOTAL } from '@/lib/abroad/costs'
+import { countryCosts, CATEGORIES } from '@/lib/abroad/costs'
 import { PLACES, placesOf } from '@/lib/abroad/places'
 import { drivers, rank } from '@/lib/abroad/score'
 import { monthlyForStay } from '@/lib/abroad/stay'
+import { countryAutumnScore } from '@/lib/abroad/autumn'
 import { Card, clsx } from '@/components/ui'
 import { PriorityList, StayToggle, planWeights, usePlan } from './controls'
 
@@ -23,7 +24,13 @@ const LABEL = new Map(CRITERIA.map((criterion) => [criterion.key, criterion.labe
 export function WeightedRanking() {
   const plan = usePlan()
   const weights = planWeights(plan)
-  const ranked = rank(CANDIDATES, weights)
+  // The climate score is the September-to-December one, from each country's
+  // best town — an annual average would rank places on months you are not going.
+  const scored = CANDIDATES.map((candidate) => ({
+    ...candidate,
+    scores: { ...candidate.scores, climate: countryAutumnScore(candidate.slug, PLACES) },
+  }))
+  const ranked = rank(scored, weights)
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
@@ -54,6 +61,11 @@ export function WeightedRanking() {
                   {candidate.rank}
                 </span>
                 <p className="text-sm font-semibold text-[var(--ink)]">{candidate.country}</p>
+                {shortlistRank(candidate.slug) ? (
+                  <span className="rounded-full border border-[var(--accent)] px-1.5 py-px text-[0.5625rem] text-[var(--accent)]">
+                    your #{shortlistRank(candidate.slug)}
+                  </span>
+                ) : null}
                 <span className="truncate text-[0.6875rem] text-[var(--ink-muted)]">
                   {candidate.spots.slice(0, 2).join(' · ')}
                 </span>
@@ -127,22 +139,11 @@ function CostStrip({ slug }: { slug: string }) {
       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">
         {CATEGORIES.map((category) => {
           const value = category.key === 'rent' ? costs.lines.rent : costs.lines[category.key]
-          const home = HOME_LINES[category.key]
-          const cheaper = value < home
           return (
             <div key={category.key} className="flex items-baseline justify-between gap-2 text-[0.625rem]">
               <span className="truncate text-[var(--ink-muted)]">{category.label}</span>
               <span className="tabular shrink-0 text-[var(--ink)]">
                 €{value.toLocaleString()}
-                <span
-                  className={clsx(
-                    'ml-1',
-                    cheaper ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
-                  )}
-                >
-                  {cheaper ? '−' : '+'}
-                  {Math.abs(value - home).toLocaleString()}
-                </span>
               </span>
             </div>
           )
@@ -150,8 +151,7 @@ function CostStrip({ slug }: { slug: string }) {
       </div>
       <p className="mt-1.5 text-[0.625rem] text-[var(--ink-muted)]">
         Rent is the median of this country&apos;s towns and spans €{costs.rentLow.toLocaleString()}–
-        {costs.rentHigh.toLocaleString()}. The second figure on each line is the gap against{' '}
-        {HOME.label}, where the same month costs €{HOME_TOTAL.toLocaleString()}.
+        {costs.rentHigh.toLocaleString()} depending on the town.
       </p>
     </details>
   )

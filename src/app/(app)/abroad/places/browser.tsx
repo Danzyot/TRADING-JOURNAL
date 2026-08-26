@@ -1,8 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CANDIDATES } from '@/lib/abroad/countries'
-import { CATEGORIES, HOME, HOME_LINES, HOME_TOTAL, type CostLines } from '@/lib/abroad/costs'
+import { CANDIDATES, SHORTLIST, shortlistRank } from '@/lib/abroad/countries'
+import { CATEGORIES, type CostLines } from '@/lib/abroad/costs'
+import { MONTHS, autumnFor, autumnScore } from '@/lib/abroad/autumn'
+import { staysFor } from '@/lib/abroad/stays'
 import { CONNECTIVITY } from '@/lib/abroad/connectivity'
 import type { CriterionKey } from '@/lib/abroad/criteria'
 import { PLACES, filterPlaces, tierOf, type Place, type SortKey } from '@/lib/abroad/places'
@@ -10,7 +12,8 @@ import { sceneryFor } from '@/lib/abroad/scenery'
 import { SAFETY } from '@/lib/abroad/safety'
 import { ENTRY, FLIGHT_HOME, costsForStay, monthlyForStay, shortLetFactor, type StayKey } from '@/lib/abroad/stay'
 import { BEGINNER, TRAINING_CLIMATE } from '@/lib/abroad/training'
-import { GymTile, HouseTile, PlaceScene, ShoreTile } from '@/components/abroad/scene'
+import { GymTile, HouseTile, ShoreTile } from '@/components/abroad/scene'
+import { PlacePhoto } from '@/components/abroad/photo'
 import { clsx } from '@/components/ui'
 import { PriorityList, StayToggle, activeOrder, usePlan } from '../controls'
 
@@ -92,6 +95,21 @@ export function PlacesBrowser({ initialCountry }: { initialCountry?: string }) {
                 ))}
               </Group>
 
+              <Group label="Shortlist">
+                <Chip
+                  on={countries.length === SHORTLIST.length && SHORTLIST.every((slug) => countries.includes(slug))}
+                  onClick={() =>
+                    setCountries((current) =>
+                      SHORTLIST.every((slug) => current.includes(slug)) && current.length === SHORTLIST.length
+                        ? []
+                        : [...SHORTLIST],
+                    )
+                  }
+                >
+                  My five
+                </Chip>
+              </Group>
+
               <Group label="Must have">
                 <Chip on={mmaOnly} onClick={() => setMmaOnly(!mmaOnly)}>
                   Beginner classes
@@ -133,6 +151,7 @@ export function PlacesBrowser({ initialCountry }: { initialCountry?: string }) {
                   onClick={() => toggleCountry(candidate.slug)}
                 >
                   {candidate.country}
+                  {shortlistRank(candidate.slug) ? ' ★' : ''}
                 </Chip>
               ))}
             </div>
@@ -158,8 +177,7 @@ export function PlacesBrowser({ initialCountry }: { initialCountry?: string }) {
         </div>
 
         <p className="text-[0.6875rem] text-[var(--ink-muted)]">
-          {shown.length} of {PLACES.length} places · {HOME.label} on the same basis is €
-          {HOME_TOTAL.toLocaleString()} a month
+          {shown.length} of {PLACES.length} places, priced for late September to December
         </p>
       </div>
 
@@ -191,7 +209,10 @@ function scoreFor(place: Place, order: CriterionKey[]): number {
   let total = 0
   order.forEach((key, index) => {
     const weight = 5 - (index / span) * 3.5
-    weighted += (country.scores[key] ?? 0) * weight
+    // The climate score is this town's own late-September-to-December score,
+    // not the country's annual average — Chania and Thessaloniki are not alike.
+    const score = key === 'climate' ? autumnScore(place) : (country.scores[key] ?? 0)
+    weighted += score * weight
     total += weight
   })
   // The town's own fit carries half the answer; the country carries the rest.
@@ -240,7 +261,7 @@ const TILE: Partial<Record<CriterionKey, { label: string }>> = {
   training: { label: 'Training as a beginner' },
   connectivity: { label: 'Internet' },
   food: { label: 'Food' },
-  safety: { label: 'Being Israeli there' },
+  safety: { label: 'Safe as an Israeli' },
   home: { label: 'A home' },
   proximity: { label: 'Getting home' },
   tax: { label: 'Tax' },
@@ -253,15 +274,14 @@ function PlaceCard({ place, order, stay }: { place: Place; order: CriterionKey[]
   const lines = costsForStay(place, stay)
   const total = monthlyForStay(place, stay)
   const tier = tierOf(total)
-  const versus = Math.round((1 - total / HOME_TOTAL) * 100)
+  const autumn = autumnFor(place)
 
   return (
     <details className="card card-fold overflow-hidden">
       <summary className="cursor-pointer list-none p-3">
         <div className="flex items-start gap-3">
-          <PlaceScene
-            scenery={scenery}
-            alt={`${place.name}, ${place.where}`}
+          <PlacePhoto
+            place={place}
             className="h-12 w-20 shrink-0 rounded-md object-cover"
           />
           <div className="min-w-0 flex-1">
@@ -282,9 +302,7 @@ function PlaceCard({ place, order, stay }: { place: Place; order: CriterionKey[]
             <div className={clsx('tabular text-sm font-semibold', TIER_TONE[tier])}>
               €{total.toLocaleString()}
             </div>
-            <div className="text-[0.625rem] text-[var(--ink-muted)]">
-              {versus > 0 ? `${versus}% under` : `${-versus}% over`} {HOME.label}
-            </div>
+            <div className="text-[0.625rem] text-[var(--ink-muted)]">a month{stay === 'test' ? ', short let' : ''}</div>
           </div>
           <span className="fold-chevron mt-1 text-[var(--ink-muted)]" aria-hidden>
             ›
@@ -293,9 +311,8 @@ function PlaceCard({ place, order, stay }: { place: Place; order: CriterionKey[]
       </summary>
 
       <div className="border-t border-[var(--line)]">
-        <PlaceScene
-          scenery={scenery}
-          alt={`${place.name}, ${place.where}`}
+        <PlacePhoto
+          place={place}
           className="h-24 w-full object-cover"
         />
         <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
@@ -339,18 +356,47 @@ function Box({
           <CostTable lines={lines} total={total} stay={stay} place={place} />
         </Shell>
       )
-    case 'home':
+    case 'home': {
+      const options = staysFor(place.id)
+      const autumn = autumnFor(place)
       return (
-        <Shell title="A home" tile={<HouseTile scenery={scenery} />}>
+        <Shell title="Where exactly to stay" wide tile={<HouseTile scenery={scenery} />}>
           <p>{place.rent}</p>
-          {stay === 'test' ? (
+          {autumn ? (
             <Note>
-              Furnished and short — reckon on about {Math.round((shortLetFactor(place) - 1) * 100)}%
-              over the long-lease figures above.
+              A furnished let for late September to December runs about{' '}
+              {Math.round(autumn.offSeasonRent * 100)}% of the annual-lease figure —{' '}
+              {autumn.offSeasonRent < 1
+                ? 'the off season is cheaper here, not dearer.'
+                : 'these are peak months here, so you pay more.'}
             </Note>
           ) : null}
+          {options.length > 0 ? (
+            <div className="mt-2 space-y-2">
+              {options.map((option) => (
+                <div key={option.name} className="rounded-md border border-[var(--line)] p-2">
+                  <p className="text-[0.6875rem] font-semibold text-[var(--ink)]">{option.name}</p>
+                  <p className="mt-0.5">{option.what}</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Fact label="Rent, Sep–Dec">{option.rent}</Fact>
+                    <Fact label="To the mat">{option.toGym}</Fact>
+                    <Fact label="To the water">{option.toBeach}</Fact>
+                    <Fact label="To a supermarket">{option.toShops}</Fact>
+                    <Fact label="Fibre here">{option.net}</Fact>
+                    <Fact label="The problem with this street" tone="warn">{option.downside}</Fact>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Note>
+              Street-level detail for this country is not written yet — Malta, Italy, Spain, Greece
+              and Cyprus have it first.
+            </Note>
+          )}
         </Shell>
       )
+    }
     case 'beach':
       return (
         <Shell title="The sea" tile={<ShoreTile scenery={scenery} />}>
@@ -396,22 +442,59 @@ function Box({
           <p>{place.food}</p>
         </Shell>
       )
-    case 'climate':
+    case 'climate': {
+      const autumn = autumnFor(place)
+      if (!autumn) return null
       return (
-        <Shell title="Winter">
-          <p>{country?.winter}</p>
+        <Shell title="Late September to December" wide accent>
+          <p className="font-medium text-[var(--ink)]">{autumn.verdict}</p>
+          <table className="mt-1.5 w-full text-[0.6875rem]">
+            <thead>
+              <tr className="text-[var(--ink-muted)]">
+                <th className="text-left font-normal" />
+                <th className="text-right font-normal">Day</th>
+                <th className="text-right font-normal">Sea</th>
+                <th className="text-right font-normal">Rain days</th>
+                <th className="pl-3 text-left font-normal">What it is like</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MONTHS.map(({ key, label }) => {
+                const month = autumn.months[key]
+                return (
+                  <tr key={key}>
+                    <td className="py-0.5 pr-2 font-medium text-[var(--ink)]">{label}</td>
+                    <td className="tabular py-0.5 text-right">{month.day}°C</td>
+                    <td className="tabular py-0.5 text-right">{month.sea === null ? '—' : `${month.sea}°C`}</td>
+                    <td
+                      className={clsx(
+                        'tabular py-0.5 text-right',
+                        month.rain >= 14 && 'text-amber-600 dark:text-amber-400',
+                      )}
+                    >
+                      {month.rain}
+                    </td>
+                    <td className="py-0.5 pl-3">{month.note}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <p className="mt-1.5 text-[0.625rem] text-[var(--ink-muted)]">
+            <strong className="text-[var(--ink)]">Still open in November and December:</strong>{' '}
+            {autumn.open}
+          </p>
         </Shell>
       )
+    }
     case 'safety':
       return safety ? (
-        <Shell title="Being Israeli there" wide>
+        <Shell title="Safe as an Israeli" wide>
           <p className="font-medium text-[var(--ink)]">{safety.verdict}</p>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            <Fact label="Chabad and kosher">{safety.chabad}</Fact>
-            <Fact label="Community">{safety.community}</Fact>
-            <Fact label="Recorded">{safety.incidents}</Fact>
-            <Fact label="Israelis" tone={safety.score <= 2 ? 'warn' : undefined}>{safety.israelis}</Fact>
-            <Fact label="Religion">{safety.faith}</Fact>
+            <Fact label="On the street" tone={safety.score <= 2 ? 'warn' : undefined}>{safety.street}</Fact>
+            <Fact label="Recorded incidents">{safety.incidents}</Fact>
+            <Fact label="Official">{safety.official}</Fact>
           </div>
         </Shell>
       ) : null
@@ -474,8 +557,6 @@ function CostTable({
         <tbody>
           {CATEGORIES.map((category) => {
             const value = lines[category.key]
-            const home = HOME_LINES[category.key]
-            const cheaper = value < home
             return (
               <tr key={category.key}>
                 <td className="py-0.5 pr-2 align-middle text-[var(--ink-secondary)]">{category.label}</td>
@@ -488,14 +569,6 @@ function CostTable({
                 <td className="tabular py-0.5 text-right align-middle font-medium text-[var(--ink)]">
                   €{value.toLocaleString()}
                 </td>
-                <td
-                  className={clsx(
-                    'tabular w-16 py-0.5 pl-2 text-right align-middle',
-                    cheaper ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
-                  )}
-                >
-                  {cheaper ? '−' : '+'}€{Math.abs(value - home).toLocaleString()}
-                </td>
               </tr>
             )
           })}
@@ -505,16 +578,14 @@ function CostTable({
             <td className="tabular pt-1 text-right font-semibold text-[var(--ink)]">
               €{total.toLocaleString()}
             </td>
-            <td className="tabular pt-1 pl-2 text-right text-[var(--ink-muted)]">
-              vs €{HOME_TOTAL.toLocaleString()}
-            </td>
+
           </tr>
         </tbody>
       </table>
       <p className="mt-1 text-[0.625rem] text-[var(--ink-muted)]">
         {stay === 'test'
           ? `Priced as a three-month stay: furnished short let, travel insurance, and eating out more. Three months here is about €${(total * 3 + (FLIGHT_HOME[place.country] ?? 0)).toLocaleString()} including flights.`
-          : 'Priced as a twelve-month lease with local health cover. The right-hand column is the gap against the same line in Tel Aviv.'}
+          : 'Priced as a twelve-month lease with local health cover and a local tax number.'}
       </p>
     </div>
   )

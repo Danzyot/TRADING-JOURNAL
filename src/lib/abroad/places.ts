@@ -3,7 +3,7 @@
  *
  * A country is the wrong unit for this decision. "Greece" is Chania and it is
  * also a mountain village on 8 Mbps; "Spain" is Valencia and it is also a
- * Marbella that costs Tel Aviv money. So the comparison happens at the level of
+ * Marbella at €3,000 a month. So the comparison happens at the level of
  * a town you could actually sign a lease in.
  *
  * Every entry answers the same eight questions, in the same order, so two towns
@@ -65,8 +65,6 @@ export function tierOf(monthly: number): TierKey {
   return (TIERS.find((tier) => monthly <= tier.max) ?? TIERS[TIERS.length - 1]).key
 }
 
-/** Tel Aviv, for scale — the number every row below is implicitly against. */
-export const TEL_AVIV_MONTHLY = 3900
 
 export const PLACES: Place[] = [
   // ── Greece ────────────────────────────────────────────────────────────────
@@ -84,7 +82,8 @@ export const PLACES: Place[] = [
     food: 'A daily market, Cretan meat and fish, and an olive-oil culture that is not a marketing line. Organic is the default rather than a premium aisle.',
     net: 'Fibre through the town and Akrotiri. Ten minutes inland it becomes a lottery — check the specific address, not the village.',
     town: 'Public hospital plus private clinics. CHQ flies to Athens hourly and direct to Tel Aviv in season. Lives all year, not a resort that shuts.',
-    catch: 'January. About 18 rain days and six hours of sun — survivable in a town with a gym and fibre, grim in a village 20 minutes from anything.',
+    catch:
+      'January is 18 rain days and about six hours of sun a day. Everything outside town — Stavros, Marathi, the tavernas on the coast road — is shut from November to April.',
   },
   {
     id: 'rethymno',
@@ -100,7 +99,8 @@ export const PLACES: Place[] = [
     food: 'Same Cretan supply as Chania, one notch cheaper, with a proper Thursday market.',
     net: 'Fibre in town. Same rural caveat as everywhere on the island.',
     town: 'General hospital, university town so it stays awake in winter, but the airport is Chania or Heraklion, an hour either way.',
-    catch: 'February is genuinely quiet, and the training ceiling is lower. Cheaper Chania with less to do.',
+    catch:
+      'The nearest MMA room is an hour away in Chania, so you would be driving two hours round trip for a session. The town loses roughly half its restaurants in February.',
   },
   {
     id: 'heraklion',
@@ -116,7 +116,8 @@ export const PLACES: Place[] = [
     food: 'The island’s main market city — best fish and meat supply on Crete, and the cheapest.',
     net: 'The best fibre on the island, and a second provider almost everywhere.',
     town: 'University hospital, the island’s main airport with year-round direct flights, and a city that does not notice the season.',
-    catch: 'It is a working port city. Concrete, traffic, and you have to leave it to find the Crete people move here for.',
+    catch:
+      'It is a working port: container traffic, concrete apartment blocks, and traffic on the coast road at 08:00. The Crete people move for starts 40 minutes outside it.',
   },
   {
     id: 'athens-riviera',
@@ -124,7 +125,7 @@ export const PLACES: Place[] = [
     name: 'Athens Riviera',
     where: 'Glyfada · Voula · Vouliagmeni',
     fit: 4,
-    rent: '€14–20.5/m²/month — so €1,400–2,000 for a good 100 m² flat. Detached houses exist in Voula and Vouliagmeni and cost like Tel Aviv.',
+    rent: '€14–20.5/m²/month — so €1,400–2,000 for a good 100 m² flat. Detached houses exist in Voula and Vouliagmeni at €2,500–4,000.',
     house: 'possible',
     beach: 'Organised beaches the length of the coast, tram to the city, Vouliagmeni for the good water.',
     train: 'The deepest scene in the country: Alliance Jiu Jitsu Athens, MMA Draculino Team Greece, Kimura BJJ, Pirates HQ, Grind Athens. Nothing here is a compromise.',
@@ -132,7 +133,8 @@ export const PLACES: Place[] = [
     food: 'Everything, all year, including the imported and the specialist. The one place in Greece where diet is never a constraint.',
     net: 'Full fibre, multiple providers, gigabit normal.',
     town: 'Best hospitals in the country, a 25-minute drive to ATH, and daily direct flights to Tel Aviv.',
-    catch: 'The price. This is the one Greek option that is not meaningfully cheaper than Israel, and July–August is a heat-island.',
+    catch:
+      '€14–20.5 per square metre per month means €1,400–2,000 for a decent 100 m² flat, which is the only Greek option that is not meaningfully cheaper than Israel. July and August hit 38°C in a heat island.',
   },
   {
     id: 'kalamata',
@@ -148,7 +150,8 @@ export const PLACES: Place[] = [
     food: 'The olive and fig country. Producer-direct meat, oil and vegetables, and prices well under the islands.',
     net: 'Fibre in the town; the mountain villages are copper.',
     town: 'General hospital, its own airport with seasonal European flights, and a town that lives all year on agriculture rather than tourism.',
-    catch: 'Drier in December than Athens, which is the point — but it is small, and you connect through Athens to go anywhere.',
+    catch:
+      'Population 70,000, one airport with three or four European routes in season, and everything else routed through Athens — 2.5 hours by road or a 45-minute flight.',
   },
   {
     id: 'rhodes',
@@ -164,7 +167,8 @@ export const PLACES: Place[] = [
     food: 'Good in season, thinner in February when half the supply chain is aimed at hotels.',
     net: 'Fibre in the town and Ialysos.',
     town: 'General hospital, an international airport, but the island empties from November and a lot of it shuts.',
-    catch: 'Winter is genuinely dead outside the town, and everything arrives by boat or plane — you feel the island in the prices.',
+    catch:
+      'From early November the east coast closes: Faliraki, Lindos, most restaurants, most car hire. Everything on the island arrives by ferry or plane, so groceries cost 15–20% more than Athens.',
   },
   {
     id: 'thessaloniki',
@@ -180,7 +184,8 @@ export const PLACES: Place[] = [
     food: 'The best food city in Greece, and the cheapest of the big ones. Modiano market, proper butchers, everything in season.',
     net: 'Full fibre.',
     town: 'University hospitals, an international airport, a student city that never goes quiet.',
-    catch: 'Cold and grey from December to February — 5–10°C, and the sea is an hour away. It fails the brief on exactly the point you were worried about.',
+    catch:
+      'December and January are 5–10°C, the city waterfront is not swimmable, and the nearest real beach is 60–90 minutes away in Halkidiki, closed for the season.',
   },
   {
     id: 'corfu',
@@ -196,7 +201,8 @@ export const PLACES: Place[] = [
     food: 'Ionian rather than Aegean — more greens, more beef, good oil, and a real market.',
     net: 'Fibre in the town and the main coast road.',
     town: 'General hospital, international airport, 40 minutes by ferry to Italy-bound routes.',
-    catch: 'It is the wettest place in Greece. Corfu takes over 1,100 mm a year, more than double Athens, and it lands in exactly Q4.',
+    catch:
+      'Over 1,100 mm of rain a year, more than double Athens, and it falls in October to January — 14 rain days in November, 15 in December.',
   },
 
   // ── Cyprus ────────────────────────────────────────────────────────────────
@@ -214,7 +220,8 @@ export const PLACES: Place[] = [
     food: 'Everything Israeli-familiar, including the Middle Eastern staples, plus a Russian-run import trade that fills the gaps.',
     net: 'Gigabit fibre citywide, and the most reliable connection on this entire list.',
     town: 'Private hospitals to a genuinely high standard, Larnaca airport 45 minutes, and 45 minutes in the air to Tel Aviv.',
-    catch: 'It costs Tel Aviv money and it feels like a finance suburb. You would be moving for a tax rate, not for a life.',
+    catch:
+      'A furnished 2-bed near the sea is €1,100–1,600 even off-season, twice what the same thing costs in Chania. The population is Russian and Israeli finance staff; it is a business district with a beach, not a Cypriot town.',
   },
   {
     id: 'paphos',
@@ -230,7 +237,8 @@ export const PLACES: Place[] = [
     food: 'Good local produce and fish, thinner on specialist supply than Limassol.',
     net: 'Fibre through the town and the coastal strip.',
     town: 'General and private hospitals, its own international airport, and a town with a large permanent foreign population so it does not shut.',
-    catch: 'Quiet to the point of dull if you are 21, and the working population skews retired British.',
+    catch:
+      'The resident foreign population is largely retired British — the median age in Peyia is over 50. Without a car you cannot reach the gym, the beach or a supermarket.',
   },
   {
     id: 'larnaca',
@@ -246,7 +254,8 @@ export const PLACES: Place[] = [
     food: 'Fine, unremarkable, cheaper than Limassol.',
     net: 'Fibre.',
     town: 'The island’s main airport is here — a 10-minute drive and you are at check-in for Tel Aviv.',
-    catch: 'It is the airport town. Convenient, and not a reason to move anywhere.',
+    catch:
+      'The serious training is 45 minutes away in Limassol, so you would drive 90 minutes round trip several times a week. The town itself has one beach strip and little else.',
   },
   {
     id: 'protaras',
@@ -262,7 +271,8 @@ export const PLACES: Place[] = [
     food: 'Tourist supply in season, a short list of supermarkets out of it.',
     net: 'Fibre in the resort strip.',
     town: 'Paralimni hospital, and Larnaca airport 45 minutes away.',
-    catch: 'It empties in November. Beautiful water attached to a town with no year-round life and no training.',
+    catch:
+      'From early November roughly four in five restaurants, bars and shops close until April. There is no mat within 45 minutes.',
   },
   {
     id: 'nicosia',
@@ -278,7 +288,8 @@ export const PLACES: Place[] = [
     food: 'The best supply and the lowest prices in Cyprus.',
     net: 'Fibre.',
     town: 'The main hospitals, the government offices, and a real working city.',
-    catch: 'It is 40°C and landlocked in August. Choosing an island and then living inland on it defeats the exercise.',
+    catch:
+      'It is 45 minutes from the sea in every direction and hits 40°C in August. You would be on an island and never see it.',
   },
 
   // ── Spain ─────────────────────────────────────────────────────────────────
@@ -296,7 +307,8 @@ export const PLACES: Place[] = [
     food: 'Mercado Central and Mercado de Ruzafa — the best everyday market food in Western Europe at these prices. Horchata, rice, fish, and cheap good meat.',
     net: 'Gigabit fibre for €30. Spain has the best fibre coverage in Europe and Valencia is fully covered.',
     town: 'Excellent public hospitals, an international airport 20 minutes out, 4-hour flight to Tel Aviv with a stop.',
-    catch: 'The tax. Spain will tax a self-employed trader at 19–47% plus €350–400/month social security, and the Beckham regime specifically excludes autónomos.',
+    catch:
+      'Spain taxes a self-employed trader at 19–47% plus €350–400 a month of social security, and the Beckham regime excludes autónomos by name — so the headline expat tax break does not apply to you.',
   },
   {
     id: 'malaga',
@@ -312,7 +324,8 @@ export const PLACES: Place[] = [
     food: 'Atarazanas market, Mediterranean supply, strong fish. Organic is normal and not expensive.',
     net: 'Full fibre.',
     town: 'Regional hospital, a major international airport, and the warmest winter on mainland Europe — 17–18°C in January.',
-    catch: 'The Costa del Sol has become expensive and crowded, and Spain’s tax answer is the same bad one as Valencia’s.',
+    catch:
+      'The same Spanish tax answer, and the Costa del Sol is now expensive: €1,000–1,400 for a furnished flat in the centre even in December, because these months are a season here rather than a lull.',
   },
   {
     id: 'alicante',
@@ -328,7 +341,8 @@ export const PLACES: Place[] = [
     food: 'Good, cheap, Mediterranean. Slightly below Valencia for markets.',
     net: 'Full fibre.',
     town: 'Hospital General, international airport 15 minutes, and a city with a real year-round population.',
-    catch: 'Same Spanish tax problem, and the city is less interesting than Valencia at every hour that is not training.',
+    catch:
+      'Playa de San Juan is a summer suburb — by November the beachfront bars are shut and the neighbourhood is quiet after 20:00. The city is duller than Valencia at every hour that is not training.',
   },
   {
     id: 'marbella',
@@ -344,7 +358,8 @@ export const PLACES: Place[] = [
     food: 'Excellent and priced for the market that lives here.',
     net: 'Full fibre.',
     town: 'Best private healthcare in southern Spain, Málaga airport 45 minutes.',
-    catch: 'It costs more than Tel Aviv and the population is retired money and people selling to retired money. You would be 40 years younger than the median.',
+    catch:
+      '€1,300–1,900 for a flat in a gated complex, more than Valencia and Málaga, in a town where the median resident is retired and you need a car for everything.',
   },
   {
     id: 'palma',
@@ -360,7 +375,8 @@ export const PLACES: Place[] = [
     food: 'Mercat de l’Olivar is excellent. Island prices on everything imported.',
     net: 'Full fibre.',
     town: 'Son Espases hospital is one of Spain’s best, and the airport is a major hub.',
-    catch: 'Island economics plus Spanish tax. The rental market in June is unwinnable and you will pay it anyway.',
+    catch:
+      'From November most of the island outside Palma closes — the coast road restaurants, the coves, the bus routes. You would be living in one neighbourhood of one city.',
   },
   {
     id: 'las-palmas',
@@ -376,7 +392,8 @@ export const PLACES: Place[] = [
     food: 'Atlantic fish, year-round local vegetables, and the Canaries’ own low-VAT regime keeps prices under the mainland.',
     net: 'Full fibre. The submarine cables land here.',
     town: 'University hospital, an international airport, and a working city rather than a resort.',
-    catch: 'Four hours further from Israel than anywhere else in Europe, and it is Spanish tax on an island in the Atlantic. Nothing else about it is wrong.',
+    catch:
+      'Four hours further from Israel than mainland Europe, with no direct flights, and your months are peak season here so rent is 25% above the annual rate rather than below it.',
   },
   {
     id: 'costa-adeje',
@@ -392,7 +409,8 @@ export const PLACES: Place[] = [
     food: 'Tourist-facing in the south; the real markets are in La Laguna and Santa Cruz.',
     net: 'Fibre through the resort strip.',
     town: 'Hospiten private hospitals, TFS airport 20 minutes.',
-    catch: 'The south of Tenerife is a resort with residents attached. Warmest winter on the list and the least like living somewhere.',
+    catch:
+      'A resort with residents attached. The nearest serious mat is 70 minutes north in Santa Cruz, and your months are high season so you pay the most and it is busiest.',
   },
 
   // ── Portugal ──────────────────────────────────────────────────────────────
@@ -410,7 +428,8 @@ export const PLACES: Place[] = [
     food: 'Best fish in Europe, a good market, and organic produce that is genuinely cheap for Western Europe.',
     net: 'Full fibre, and Portugal’s network is among the best in the EU.',
     town: 'Private hospitals, 25 minutes to Lisbon airport, one of the safest towns in Europe.',
-    catch: 'The Atlantic is 16–18°C in summer — cold, and it never really warms. And IFICI, the regime that replaced NHR, specifically excludes remote work for foreign clients, so the tax story people move here for does not apply to you.',
+    catch:
+      'The Atlantic is 16–19°C and never warms, so this is not a swimming trip. IFICI, the regime that replaced NHR, excludes remote work for foreign clients — the tax reason people move here does not apply to you.',
   },
   {
     id: 'carcavelos',
@@ -426,7 +445,8 @@ export const PLACES: Place[] = [
     food: 'Same as Cascais at 80% of the price.',
     net: 'Full fibre.',
     town: 'Between Cascais and Lisbon — hospitals both ways, airport 20 minutes.',
-    catch: 'The commuter belt. Cheaper than Cascais and correspondingly less pleasant, and the Atlantic is still cold.',
+    catch:
+      'A commuter suburb between Cascais and Lisbon, with the same cold Atlantic and the same tax answer, and less to do than either end of the line.',
   },
   {
     id: 'lagos-pt',
@@ -442,7 +462,8 @@ export const PLACES: Place[] = [
     food: 'Excellent fish and a Saturday market; the supermarket end is thinner than the cities.',
     net: 'Fibre in the town.',
     town: 'Health centre in town, hospital at Portimão 20 minutes, Faro airport 80 minutes.',
-    catch: 'A summer town. It halves in November, and the Algarve winter is 16°C and wet — mild, but not warm.',
+    catch:
+      'From early November most of the town closes and rent halves — €900–1,500 becomes negotiable — because there is nobody there. 9 rain days a month and a 19°C sea.',
   },
   {
     id: 'portimao',
@@ -458,7 +479,8 @@ export const PLACES: Place[] = [
     food: 'Good market, working fishing port, genuinely cheap.',
     net: 'Fibre.',
     town: 'The Algarve’s main hospital, Faro airport an hour.',
-    catch: 'It is a working town with a resort strip attached, and it does not look like the brochure Algarve.',
+    catch:
+      'A working fishing and industrial town with a resort strip attached. The nearest BJJ is 25 minutes in Lagos, and there is no MMA in the Algarve at all.',
   },
   {
     id: 'ericeira',
@@ -474,7 +496,8 @@ export const PLACES: Place[] = [
     food: 'Small-town Portuguese: fish, bread, produce, all good.',
     net: 'Fibre in the town.',
     town: 'Health centre only; Mafra and Lisbon for hospitals. Airport 50 minutes.',
-    catch: 'It is for surfers. If you do not surf, it is a windy village with expensive rent.',
+    catch:
+      'A surf village. If you do not surf it is a windy town of 7,000 people with expensive rent, 13 rain days in November, and the nearest mat 45 minutes away in Lisbon.',
   },
   {
     id: 'funchal',
@@ -490,7 +513,8 @@ export const PLACES: Place[] = [
     food: 'The Mercado dos Lavradores, tropical fruit, Atlantic fish. Imported goods carry the island tax.',
     net: 'Full fibre, and a large remote-work population that depends on it.',
     town: 'Central hospital, an airport with direct Lisbon flights hourly, and a mild 19°C January.',
-    catch: 'No real beach and a long way from anywhere. Running is all hills, which you may consider a feature.',
+    catch:
+      'No sand anywhere on the island — you swim off lidos and rock platforms. Every road is a 10% gradient, and the nearest real BJJ scene is a two-hour flight away in Lisbon.',
   },
 
   // ── Italy ─────────────────────────────────────────────────────────────────
@@ -508,7 +532,8 @@ export const PLACES: Place[] = [
     food: 'The single best argument for Sicily. Catania’s fish market is a working one, the produce is the best in the Mediterranean, and it costs nothing.',
     net: 'Fibre in Catania and the coastal towns.',
     town: 'University hospitals, an international airport, Etna behind you, and a city that lives all year.',
-    catch: 'Sicilian bureaucracy is the real thing, not a joke, and Catania is scruffy in a way that takes getting used to.',
+    catch:
+      'Sicilian paperwork is slow in a specific way: a residency registration that takes a week in Milan takes six to eight in Catania, and offices open 08:30–12:30 on three or four mornings a week. Catania itself is a scruffy port city — graffiti, uncollected bins on some streets, and Etna ash on the cars a few times a year. Neither is dangerous; both take getting used to.',
   },
   {
     id: 'mondello',
@@ -524,7 +549,8 @@ export const PLACES: Place[] = [
     food: 'Ballarò and Capo markets; street food culture; the cheapest good eating in Italy.',
     net: 'Fibre in the city.',
     town: 'Major hospitals, an international airport, a real capital city.',
-    catch: 'Palermo is chaotic and the infrastructure shows it. Mondello empties out of season.',
+    catch:
+      'A summer suburb of Palermo that empties in November, 20 minutes from the city for anything serious, and Palermo traffic makes that 40 in the morning.',
   },
   {
     id: 'monopoli',
@@ -540,7 +566,8 @@ export const PLACES: Place[] = [
     food: 'Puglia is the vegetable and olive-oil heartland of Italy. Burrata, orecchiette, sea urchin, and a weekly market in every town.',
     net: 'Fibre in the towns; rural masserie are a genuine problem — check the address.',
     town: 'Hospitals at Monopoli and Bari, Bari airport an hour, and towns that stay alive in winter on their own economy.',
-    catch: 'You need a car for everything, and the training answer is a 40-minute drive each way.',
+    catch:
+      'You need a car for everything, and the nearest mat is a 40-minute drive or a 45-minute train to Bari — each way. Stone houses at 14°C in December with electric heating are expensive to keep warm.',
   },
   {
     id: 'lecce',
@@ -556,7 +583,8 @@ export const PLACES: Place[] = [
     food: 'Same Puglian supply as Monopoli, plus a university city’s restaurants.',
     net: 'Fibre in Lecce.',
     town: 'Vito Fazzi hospital, Brindisi airport 40 minutes.',
-    catch: 'The Salento is genuinely seasonal — the coast towns close, and Lecce itself is 25 minutes from the sea.',
+    catch:
+      'It is 25 minutes from the sea and the coastal towns it serves close in November. The training is university-club level with no serious MMA.',
   },
   {
     id: 'cagliari',
@@ -572,7 +600,8 @@ export const PLACES: Place[] = [
     food: 'Sardinian meat and cheese, San Benedetto market — the largest covered market in Italy.',
     net: 'Fibre in the city.',
     town: 'University hospital, an international airport, a capital city on a beach.',
-    catch: 'Island prices on anything shipped in, and winter is windier and cooler than Sicily.',
+    catch:
+      'The mistral makes the beachfront genuinely cold from November, and most of the Poetto kiosks and beach bars shut. Everything shipped to the island costs 10–15% more.',
   },
   {
     id: 'sanremo',
@@ -588,7 +617,8 @@ export const PLACES: Place[] = [
     food: 'Ligurian: excellent, and priced for the Riviera.',
     net: 'Fibre.',
     town: 'Hospital in town, Nice airport 50 minutes.',
-    catch: 'Northern-Italian prices with a northern-Italian winter — 13°C in January and grey. It is on the list to be ruled out.',
+    catch:
+      '12°C in December, grey, and the seafront economy is seasonal and quiet. It costs more than Sicily for a worse winter.',
   },
 
   // ── Malta ─────────────────────────────────────────────────────────────────
@@ -606,7 +636,8 @@ export const PLACES: Place[] = [
     food: 'Everything imported, so quality is good and prices are high. Local fish and tomatoes are the exceptions.',
     net: 'Full fibre island-wide — Malta has near-universal gigabit coverage.',
     town: 'Mater Dei is a good hospital, the airport is 15 minutes from everywhere, English is an official language, and the whole island works in English.',
-    catch: 'It is small, over-built and crowded, the traffic is genuinely bad, and there is no nature to escape into.',
+    catch:
+      'A whole house effectively does not exist here at any price — the island is flats. The Gżira–Sliema seafront road is one of the worst traffic corridors in Malta and it is loud until midnight, and there is no central heating anywhere on Malta, so a stone flat in December is 15°C indoors.',
   },
   {
     id: 'gzira',
@@ -622,7 +653,8 @@ export const PLACES: Place[] = [
     food: 'Same island supply.',
     net: 'Full fibre.',
     town: 'University of Malta is here, so it is young and awake in winter.',
-    catch: 'Construction noise is constant and the seafront road is a traffic sewer.',
+    catch:
+      'Continuous construction noise, the worst traffic road on the island outside your window, and the Manoel Island redevelopment is an active building site.',
   },
   {
     id: 'mellieha',
@@ -638,7 +670,8 @@ export const PLACES: Place[] = [
     food: 'Village supply plus supermarkets; you drive for choice.',
     net: 'Fibre.',
     town: 'Health centre; Mater Dei is 30 minutes. Gozo ferry is 10 minutes.',
-    catch: 'It is the quiet end of an island whose selling point is convenience — you give up the convenience and keep the smallness.',
+    catch:
+      'The nearest mat is 35–45 minutes away by car depending on traffic, which is most of the reason to be in Malta gone. The town is on a hill and the bus to Valletta takes 50 minutes.',
   },
   {
     id: 'gozo',
@@ -654,7 +687,8 @@ export const PLACES: Place[] = [
     food: 'Farm produce, cheese, and a genuinely rural food economy.',
     net: 'Fibre reaches the main towns.',
     town: 'Gozo General Hospital, and everything else is 25 minutes of ferry plus 45 of Malta.',
-    catch: 'It is an island off an island. Beautiful, and the isolation in February is real.',
+    catch:
+      'By December perhaps a third of Marsalforn is open and Xlendi mostly is not. Every training session is a 25-minute ferry plus 45 minutes of Malta, and the last ferry back shapes your evenings.',
   },
 
   // ── Croatia ───────────────────────────────────────────────────────────────
@@ -672,7 +706,8 @@ export const PLACES: Place[] = [
     food: 'Adriatic fish, Dalmatian meat, the green market under Diocletian’s walls. Very good, and not cheap in summer.',
     net: 'Fibre in the city.',
     town: 'Clinical hospital centre, an international airport, and a city that keeps working out of season.',
-    catch: 'The bura wind, a January that sits at 10°C, and a summer where the old town belongs to cruise ships.',
+    catch:
+      '11°C in December with the bura wind behind it, and the ferries to the islands drop to a skeleton timetable. The old town belongs to cruise passengers from May to September.',
   },
   {
     id: 'zadar',
@@ -688,7 +723,8 @@ export const PLACES: Place[] = [
     food: 'Excellent market, cheaper than Split, strong fish supply.',
     net: 'Fibre.',
     town: 'General hospital, an international airport, a university town that stays busy.',
-    catch: 'Same Adriatic winter as Split, and less to do when it rains.',
+    catch:
+      'The same cold Adriatic winter as Split with less to do in it, and no dedicated MMA — Ju-Jitsu Klub Zadar and Checkmat are grappling only.',
   },
   {
     id: 'sibenik',
@@ -704,7 +740,8 @@ export const PLACES: Place[] = [
     food: 'Market town supply, very cheap.',
     net: 'Fibre in the centre.',
     town: 'General hospital; airports at Split or Zadar, an hour either way.',
-    catch: 'Small and quiet, and the winter is the Adriatic winter without the compensation of a city.',
+    catch:
+      'Population 34,000, no mat, and Split is 45 minutes each way. In December it is a quiet stone town at 11°C.',
   },
   {
     id: 'opatija',
@@ -720,7 +757,8 @@ export const PLACES: Place[] = [
     food: 'Kvarner scampi, Istrian truffle and oil an hour away, a proper market in Rijeka.',
     net: 'Fibre.',
     town: 'Rijeka clinical hospital, an airport on Krk, and Trieste or Ljubljana within two hours.',
-    catch: 'The wettest, greyest corner of the Croatian coast. It rains more here than anywhere else on this list except Corfu.',
+    catch:
+      'The wettest corner of Croatia in its wettest season — 13 rain days in November. Opatija itself is a seasonal promenade that closes; Rijeka is a working port 15 minutes away.',
   },
   {
     id: 'dubrovnik',
@@ -736,7 +774,8 @@ export const PLACES: Place[] = [
     food: 'Priced for tourists year-round.',
     net: 'Fibre.',
     town: 'General hospital, an international airport, and a town whose economy is one thing only.',
-    catch: 'The most expensive and least liveable town on the Croatian coast. Included so it can be crossed off.',
+    catch:
+      'Landlords would rather rent nightly than to you, so a winter lease is a negotiation. In December the old town is nearly empty and there is essentially no training on the whole southern coast.',
   },
 
   // ── Montenegro ────────────────────────────────────────────────────────────
@@ -754,7 +793,8 @@ export const PLACES: Place[] = [
     food: 'Balkan meat and Adriatic fish, cheap. Organic in the sense that the supply chain is short, not certified.',
     net: 'Fibre in the town, and it is adequate rather than good.',
     town: 'Health centre in town, hospital at Kotor, Tivat airport 25 minutes.',
-    catch: 'Budva in August is a nightclub strip; Budva in January is empty. And Montenegro is not in the EU, so the residence paperwork is real.',
+    catch:
+      'From November the beach strip is boarded up — the bars, most restaurants, the promenade kiosks. Montenegro is not in the EU, so your Polish passport buys you 90 days and then an application.',
   },
   {
     id: 'tivat',
@@ -770,7 +810,8 @@ export const PLACES: Place[] = [
     food: 'Good, and Porto Montenegro prices sit on top of a cheap country.',
     net: 'Fibre around the marina.',
     town: 'The country’s main international airport is here, and the private clinics serve a yachting market.',
-    catch: 'A marina with a town attached. Sheltered, pretty, and it rains hard here in winter.',
+    catch:
+      'A marina with a town attached. Porto Montenegro prices sit on top of a cheap country, and the Bay of Kotor takes 14 rain days in November and December alike.',
   },
   {
     id: 'herceg-novi',
@@ -786,7 +827,8 @@ export const PLACES: Place[] = [
     food: 'Cheap market, good fish.',
     net: 'Fibre in the town.',
     town: 'General hospital, Tivat airport 30 minutes, Dubrovnik airport 40.',
-    catch: 'The mildest Montenegrin winter and also the wettest. It is a beautiful, steep, rainy town.',
+    catch:
+      'One of the rainiest towns on the Adriatic — 14 rain days in November — and the town is built up a steep hill, so everything is stairs.',
   },
   {
     id: 'bar',
@@ -802,7 +844,8 @@ export const PLACES: Place[] = [
     food: 'Olives, citrus, and the cheapest market on the Adriatic.',
     net: 'Fibre in the centre.',
     town: 'General hospital, the country’s main port, a rail line to Belgrade.',
-    catch: 'It is a port town chosen on price. Nothing here serves the training or the food half of the brief.',
+    catch:
+      'A working container port chosen purely on price. No mat, no scene, and the nearest of either is Podgorica, 45 minutes inland.',
   },
 
   // ── Albania ───────────────────────────────────────────────────────────────
@@ -820,7 +863,8 @@ export const PLACES: Place[] = [
     food: 'Genuinely farm-to-table because the industrial supply chain never arrived. Excellent produce, cheap meat and fish.',
     net: 'Fibre in the city and it is surprisingly good — Albania rebuilt its network late and therefore new.',
     town: 'Regional hospital, Tirana airport 2 hours, and the new Vlorë airport opening changes that.',
-    catch: 'Construction everywhere, chaotic driving, and outside the season the town is very quiet. This is the cheap option, chosen knowingly.',
+    catch:
+      'Continuous construction along the whole seafront, driving that is genuinely chaotic, and the nearest jiu-jitsu club is an hour south in Sarandë. Out of season the town is very quiet.',
   },
   {
     id: 'sarande',
@@ -836,7 +880,8 @@ export const PLACES: Place[] = [
     food: 'Ionian fish, citrus, and prices roughly a third of Greece across the water.',
     net: 'Fibre in the town.',
     town: 'Regional hospital, a 30-minute ferry to Corfu, and Ioannina in Greece 2.5 hours by road.',
-    catch: 'Overbuilt fast and badly, and it empties completely from November to April.',
+    catch:
+      'From November Sarandë and Ksamil close almost entirely — restaurants, shops, most transport. It was built out fast and badly in the last fifteen years and it shows.',
   },
   {
     id: 'golem',
@@ -852,7 +897,8 @@ export const PLACES: Place[] = [
     food: 'The main agricultural region — the cheapest good food on this entire list.',
     net: 'Fibre.',
     town: 'Regional hospital, the country’s main port, Tirana airport 30 minutes.',
-    catch: 'The beach is not good enough to justify the rest, and the traffic on the Durrës–Tirana road is genuinely bad.',
+    catch:
+      'The beach is shallow, crowded and murky in summer and empty in winter, and the Durrës–Tirana road is one of the worst traffic corridors in the Balkans.',
   },
   {
     id: 'himare',
@@ -868,7 +914,8 @@ export const PLACES: Place[] = [
     food: 'Village supply: olive oil, citrus, goat, fish. Very good and very limited in choice.',
     net: 'Fibre reaches the town; the coves do not.',
     town: 'Health centre only. Vlorë is 90 minutes for a hospital.',
-    catch: 'It is a village on a mountain road. Beautiful in June, isolated in January, and the training answer is no.',
+    catch:
+      'A village on a mountain road with no mat within an hour and a half, a health centre rather than a hospital, and almost everything closed from November to May.',
   },
 
   // ── Bulgaria ──────────────────────────────────────────────────────────────
@@ -886,7 +933,8 @@ export const PLACES: Place[] = [
     food: 'The best-value market food in the EU. Bulgarian produce, dairy and meat are excellent and cost a third of Israel.',
     net: 'Bulgaria has some of the fastest and cheapest fibre in Europe — gigabit for €15.',
     town: 'University hospital, an international airport, and the country’s third city so it works all year.',
-    catch: 'The sea is 8°C in February and the winter is a proper continental one. Four months of beach a year, not eight.',
+    catch:
+      'The sea is 8°C in February and the season is four months, not eight. December is 8°C and the whole coastal strip is shut.',
   },
   {
     id: 'burgas',
@@ -902,7 +950,8 @@ export const PLACES: Place[] = [
     food: 'Same excellent Bulgarian supply, slightly cheaper than Varna.',
     net: 'Gigabit fibre.',
     town: 'Regional hospital, an international airport, an oil-refinery economy that does not depend on tourists.',
-    catch: 'Industrial, flat, and the same short beach season as Varna.',
+    catch:
+      'An oil-refinery city, flat and industrial, with the same four-month beach season and a coast that closes completely in October.',
   },
   {
     id: 'sozopol',
@@ -918,7 +967,8 @@ export const PLACES: Place[] = [
     food: 'Seasonal; the supermarkets are in Burgas.',
     net: 'Fibre in the town.',
     town: 'Health centre; Burgas for everything else.',
-    catch: 'A summer town of 5,000 people. In January it is a stone village in the wind.',
+    catch:
+      'A summer town of about 5,000 people. In December it is a stone village in the wind with no gym, no mat and two shops open.',
   },
   {
     id: 'sofia',
@@ -934,7 +984,8 @@ export const PLACES: Place[] = [
     food: 'Best supply in the country, still cheap.',
     net: 'Gigabit fibre.',
     town: 'The main hospitals, a hub airport with direct Tel Aviv flights, and a capital city.',
-    catch: 'Landlocked and cold, with genuinely bad winter air quality. It answers the cost question and fails the brief.',
+    catch:
+      'Landlocked, cold, and with genuinely bad winter air quality — Sofia regularly exceeds EU particulate limits from November to February.',
   },
 
   // ── Poland ────────────────────────────────────────────────────────────────
@@ -952,7 +1003,8 @@ export const PLACES: Place[] = [
     food: 'Excellent and cheap: Polish meat, dairy and bread, plus Baltic fish. Organic is mainstream and affordable.',
     net: 'Full fibre, cheap.',
     town: 'University hospitals, an international airport with direct Tel Aviv flights, and a real tri-city of 1.5 million.',
-    catch: 'The reason this is a 3 and not a 5: December in Gdańsk is 2°C, dark by 15:30, and the beach is decorative for eight months. Poland is the passport answer, not the climate answer.',
+    catch:
+      'December is 3°C and dark by 15:30, and the Baltic is 6°C and unswimmable for eight months of the year. The Sopot seafront is dead from October.',
   },
   {
     id: 'gdynia',
@@ -968,7 +1020,8 @@ export const PLACES: Place[] = [
     food: 'Same as Gdańsk.',
     net: 'Full fibre.',
     town: 'Modernist port city, hospital, and the airport 25 minutes.',
-    catch: 'The same Baltic winter as Gdańsk, with less of a city to spend it in.',
+    catch:
+      'The same Baltic winter as Sopot with less of a town to spend it in, and the beach is decorative from September.',
   },
   {
     id: 'krakow',
@@ -984,7 +1037,8 @@ export const PLACES: Place[] = [
     food: 'Very good markets, very cheap, and the best restaurant city in Poland.',
     net: 'Full fibre.',
     town: 'University hospitals, an international airport with Tel Aviv flights, a large young international population.',
-    catch: 'No sea at all, and Kraków winter smog is a real and measured problem.',
+    catch:
+      'No sea at all, and Kraków winter smog is a measured problem — the city regularly exceeds EU particulate limits from November to February.',
   },
   {
     id: 'warsaw',
@@ -1000,90 +1054,10 @@ export const PLACES: Place[] = [
     food: 'Everything, all year, and cheap for a capital.',
     net: 'Full fibre.',
     town: 'The best hospitals in Poland, a hub airport with several daily Tel Aviv flights, and the place your Polish paperwork gets done fastest.',
-    catch: 'It is a landlocked capital at 52° north. If the passport is the reason and the climate is not, this is where the passport is most useful.',
+    catch:
+      'A landlocked capital at 52° north. December is 2°C and dark by 15:30, and the nearest sea is a four-hour drive to a closed Baltic coast.',
   },
 
-  // ── Turkey ────────────────────────────────────────────────────────────────
-  {
-    id: 'konyaalti',
-    country: 'turkey',
-    name: 'Antalya (Konyaaltı)',
-    where: 'Turkish Mediterranean',
-    fit: 4,
-    rent: '€400–800 for a modern 2-bed near the beach; villas in Liman or Hurma, €800–1,400.',
-    house: 'normal',
-    beach: 'A 7 km pebble beach with the Taurus mountains directly behind it, and a sea that stays swimmable to November.',
-    train: 'Corvos Combat BJJ & MMA is the local room; Turkish MMA is growing fast and the commercial gym standard is high and cheap.',
-    mma: true,
-    food: 'The Antalya region grows most of Turkey’s vegetables. Markets are exceptional and cost almost nothing.',
-    net: 'Fibre through the city.',
-    town: 'University hospital plus a large medical-tourism private sector, an international airport, a city of 2.5 million that lives all year.',
-    catch: 'Turkish inflation makes every euro figure here a moving target, the lira is unstable, and residence permits for Europeans have got harder, not easier.',
-  },
-  {
-    id: 'cesme',
-    country: 'turkey',
-    name: 'Çeşme / Alaçatı',
-    where: 'Aegean, near İzmir',
-    fit: 3,
-    rent: '€500–1,000 out of season; the summer market is Istanbul money.',
-    house: 'normal',
-    beach: 'Ilıca and Alaçatı — the best water and the best wind in Turkey.',
-    train: 'İzmir, an hour away, has NEST Combatfitness (the city’s first BJJ and MMA team) and Hunter Fight Academy.',
-    mma: false,
-    food: 'Aegean: olive oil, herbs, fish, and the best produce in Turkey.',
-    net: 'Fibre in the towns.',
-    town: 'State hospital in Çeşme, İzmir for anything serious, and İzmir airport 75 minutes.',
-    catch: 'It is Turkey’s Hamptons. Empty in winter, unaffordable in August, and the training is an hour away.',
-  },
-  {
-    id: 'fethiye',
-    country: 'turkey',
-    name: 'Fethiye / Kaş',
-    where: 'Turquoise coast',
-    fit: 3,
-    rent: '€300–700 for a house with a garden — cheap, and normal.',
-    house: 'normal',
-    beach: 'Ölüdeniz and the Kaş coves. The clearest water in the Mediterranean and the best paragliding in Europe.',
-    train: 'Nothing serious. Gyms yes, mats no.',
-    mma: false,
-    food: 'Market towns with real agriculture; excellent and cheap.',
-    net: 'Fibre in the towns.',
-    town: 'State hospitals in both, Dalaman airport 45 minutes from Fethiye.',
-    catch: 'Very seasonal, and the training answer is a flat no.',
-  },
-  {
-    id: 'bodrum',
-    country: 'turkey',
-    name: 'Bodrum',
-    where: 'Aegean peninsula',
-    fit: 3,
-    rent: '€500–1,000 off-season, and the peninsula villages are cheaper than the town.',
-    house: 'normal',
-    beach: 'Dozens of bays; Bitez and Gümbet for calm, Yalıkavak for the marina end.',
-    train: 'Commercial gyms and boxing; no real mat.',
-    mma: false,
-    food: 'Aegean supply, good fish, and prices that spike in July.',
-    net: 'Fibre.',
-    town: 'State and private hospitals, an international airport 35 minutes.',
-    catch: 'The whole peninsula is priced for the summer, and it hollows out in November.',
-  },
-  {
-    id: 'alanya',
-    country: 'turkey',
-    name: 'Alanya',
-    where: 'Mediterranean, east of Antalya',
-    fit: 2,
-    rent: '€250–550 for a flat in a complex with a pool — the cheapest sea-view living on this list.',
-    house: 'possible',
-    beach: 'Kleopatra beach, warm sea, 300 days of sun.',
-    train: 'Commercial gyms and a boxing club. The nearest real mat is Corvos Combat in Antalya, two hours west.',
-    mma: false,
-    food: 'Cheap markets, banana and citrus country.',
-    net: 'Fibre in the resort strip.',
-    town: 'State hospital, Gazipaşa airport 40 minutes, and a very large permanent Russian and Scandinavian population.',
-    catch: 'A wall of holiday apartments. It solves cost and nothing else.',
-  },
 
   // ── Georgia ───────────────────────────────────────────────────────────────
   {
@@ -1100,7 +1074,8 @@ export const PLACES: Place[] = [
     food: 'Georgian food is one of the genuine reasons to go. Real markets, real meat, real vegetables, almost free by Israeli standards.',
     net: 'Fibre in the city, and a large crypto and remote-work population that stress-tests it.',
     town: 'Republican hospital, an international airport, and Turkey 20 minutes down the road.',
-    catch: 'Batumi is the rainiest city on the Black Sea — over 2,000 mm a year, more than double Chania. The 1% tax is real; so is the weather.',
+    catch:
+      'Over 2,000 mm of rain a year, more than double Chania, and 13 rain days in each of November and December. In winter it is a half-empty city of empty towers.',
   },
   {
     id: 'tbilisi',
@@ -1116,7 +1091,8 @@ export const PLACES: Place[] = [
     food: 'Dezerter Bazaar. The best food-per-euro on this list, without exception.',
     net: 'Fibre, cheap and reliable.',
     town: 'Good private hospitals, a hub airport with direct Tel Aviv flights, and the 1% small-business regime registered in an afternoon.',
-    catch: 'No sea, a cold grey January, and a border with Russia that makes long-term planning a political question.',
+    catch:
+      'No sea, a 7°C grey December, and a land border with Russia that makes any long-term plan a political question.',
   },
   {
     id: 'kobuleti',
@@ -1132,7 +1108,8 @@ export const PLACES: Place[] = [
     food: 'Village markets, subtropical fruit, tea plantations.',
     net: 'Fibre in the town, patchy outside.',
     town: 'Health centre; Batumi 30 minutes for everything.',
-    catch: 'Very cheap, very quiet, very wet. It is here to mark the bottom of the cost range.',
+    catch:
+      'A quiet strip town with no mat, no scene and a hospital 30 minutes away in Batumi, in the rainiest part of the Black Sea.',
   },
 
   // ── UAE ───────────────────────────────────────────────────────────────────
@@ -1150,7 +1127,8 @@ export const PLACES: Place[] = [
     food: 'Everything on earth is imported and available. It is excellent and it costs Zurich prices.',
     net: 'Gigabit fibre everywhere, and the most reliable infrastructure on this list.',
     town: 'World-class private hospitals, a hub airport, a 3-hour flight home, and no tax on personal income.',
-    catch: 'May to September is 45°C and you live indoors — the outdoor life you described is off for five months. And the cost erases most of the tax saving.',
+    catch:
+      'A furnished 1-bed is €2,100–3,300 a month and often demands one or two cheques up front. May to September is 40–45°C and you live indoors — and your window starts in exactly the hottest month.',
   },
   {
     id: 'dubai-hills',
@@ -1166,7 +1144,8 @@ export const PLACES: Place[] = [
     food: 'Same imported abundance.',
     net: 'Gigabit fibre.',
     town: 'New hospitals, parks, and villa communities where a whole house is realistic.',
-    catch: 'A suburb in a desert. You would be paying Tel Aviv rent to drive everywhere.',
+    catch:
+      'A suburb in a desert with no beach within 25 minutes of traffic, at a rent higher than Tel Aviv, where you would drive everywhere.',
   },
   {
     id: 'saadiyat',
@@ -1182,7 +1161,8 @@ export const PLACES: Place[] = [
     food: 'Same as Dubai, marginally cheaper.',
     net: 'Gigabit fibre.',
     town: 'Cleveland Clinic Abu Dhabi, an international airport, and a calmer city than Dubai.',
-    catch: 'Same five months of heat, and quieter to the point of dull if you are 21.',
+    catch:
+      'Quiet to the point of dull if you are 21, with the same five months of unliveable heat and Dubai an hour away for anything that happens at night.',
   },
 
   // ── Thailand ──────────────────────────────────────────────────────────────
@@ -1200,7 +1180,8 @@ export const PLACES: Place[] = [
     food: 'Fresh markets daily, exceptional seafood, and a large health-food economy built around the gyms. Eating clean here is easier than in Tel Aviv.',
     net: 'Fibre is universal and cheap — ฿600/month for 500 Mbps. Power cuts are the real risk, so a UPS is not optional.',
     town: 'Bangkok Hospital Phuket is genuinely international-standard, and the airport has direct flights across Asia.',
-    catch: 'The trading day. New York opens at 20:30 local and the close is 03:00 — you would be trading at night, every night. That is the whole argument against Thailand.',
+    catch:
+      'The New York open is 20:30 local and the close is 03:00, so you would trade every night for four months. September and October are the monsoon — 21 and 19 rain days.',
   },
   {
     id: 'bangtao',
@@ -1216,7 +1197,8 @@ export const PLACES: Place[] = [
     food: 'The most developed organic and health-food scene in Thailand outside Bangkok.',
     net: 'Fibre.',
     town: 'International schools, private hospitals, and the largest Western population on the island.',
-    catch: 'The expensive end of Phuket, and the same 20:30 New York open.',
+    catch:
+      'Same night-trading problem, same monsoon start, and it is the expensive end of Phuket at €1,000–1,800 for a villa.',
   },
   {
     id: 'koh-samui',
@@ -1232,7 +1214,8 @@ export const PLACES: Place[] = [
     food: 'Good markets, excellent seafood, a smaller organic scene than Phuket.',
     net: 'Fibre in the main towns; the island depends on a submarine link that occasionally fails.',
     town: 'Bangkok Hospital Samui, and a small airport where flights cost several times the Phuket equivalent.',
-    catch: 'Island logistics on top of the timezone problem, and Q4 is exactly its rainy season.',
+    catch:
+      'The worst-timed place on this list: Samui takes its monsoon in October, November and December, with November the wettest month of its year at 21 rain days.',
   },
   {
     id: 'chiang-mai',
@@ -1248,7 +1231,8 @@ export const PLACES: Place[] = [
     food: 'Northern Thai markets, cheap and excellent, plus the largest vegan and organic scene in Asia.',
     net: 'The best and cheapest fibre on this list. Gigabit for €20.',
     town: 'Excellent private hospitals, an international airport, and a huge established foreign community.',
-    catch: 'Burning season. February to April the air quality is among the worst in the world, regularly above 200 AQI. No sea, and the same night-trading problem.',
+    catch:
+      'No sea at all, and the same 20:30 New York open. Burning season starts in February with air quality regularly above 200 AQI — you would be leaving just as it begins.',
   },
   {
     id: 'ao-nang',
@@ -1264,7 +1248,8 @@ export const PLACES: Place[] = [
     food: 'Market towns, southern Thai food, very cheap.',
     net: 'Fibre in Ao Nang.',
     town: 'Krabi hospital, an international airport, and a town that is quieter than Phuket in every way.',
-    catch: 'Beautiful and thin. The training is not there and neither is the year-round life.',
+    catch:
+      'No serious MMA, and Phuket is three hours by road. September and October are 19–21 rain days of monsoon.',
   },
 
   // ── Costa Rica ────────────────────────────────────────────────────────────
@@ -1282,7 +1267,8 @@ export const PLACES: Place[] = [
     food: 'Farmers markets, tropical fruit, grass-fed beef, and a large health-conscious expat economy. Imported goods are heavily taxed.',
     net: 'Fibre in the town, and Starlink is the standard fallback for anywhere outside it.',
     town: 'Private clinics locally, Liberia international airport 75 minutes with direct US flights.',
-    catch: 'The timezone is upside down: New York opens at 07:30 local, which is fine, but Israel is 8 hours ahead and family calls stop working. And Guanacaste in September–October is a wall of rain.',
+    catch:
+      'Israel is eight hours ahead, so your family is asleep while you work and awake while you sleep, and a flight home is 20 hours with two connections. September and October are 20–21 rain days.',
   },
   {
     id: 'santa-teresa',
@@ -1298,7 +1284,8 @@ export const PLACES: Place[] = [
     food: 'Small organic supply, excellent fish, and everything else is trucked in expensively.',
     net: 'Fibre reached the town recently; Starlink is still what most people run.',
     town: 'A clinic, not a hospital. The nearest real one is 90 minutes.',
-    catch: 'The road. It is dirt, it is dust in summer and mud in October, and getting here is a ferry plus two hours.',
+    catch:
+      'The access road is dirt — dust in the dry season, mud in October — and getting here is a ferry plus two hours. The nearest hospital is 90 minutes away.',
   },
   {
     id: 'jaco',
@@ -1314,7 +1301,8 @@ export const PLACES: Place[] = [
     food: 'Supermarkets and a Friday feria; better supply than the remote towns because San José is 90 minutes.',
     net: 'Fibre.',
     town: 'Clinic in town, hospital in Puntarenas, and San José’s international airport 90 minutes.',
-    catch: 'Jacó has a reputation — it is the party and nightlife town of the Pacific coast, with everything that implies.',
+    catch:
+      'It is the nightlife and party town of the Pacific coast, with the prostitution and drug trade that comes with that. September and October are the wettest months of the year.',
   },
   {
     id: 'playas-del-coco',
@@ -1330,7 +1318,8 @@ export const PLACES: Place[] = [
     food: 'Decent supermarkets, a real town economy, cheaper than Tamarindo.',
     net: 'Fibre.',
     town: 'Clinics locally, Liberia airport 25 minutes — the shortest airport run in the country.',
-    catch: 'The driest part of Costa Rica, which means brown and dusty from January to April.',
+    catch:
+      'The driest part of Costa Rica, which means brown and dusty from January, and everything imported is heavily taxed — a supermarket shop costs close to European prices.',
   },
   {
     id: 'uvita',
@@ -1346,7 +1335,8 @@ export const PLACES: Place[] = [
     food: 'The best organic farmers market in Costa Rica, on Saturdays in Uvita.',
     net: 'Fibre in the town, Starlink in the hills.',
     town: 'Clinic; the hospital is in San Isidro, an hour inland.',
-    catch: 'The wettest region in the country — over 4,000 mm a year. Green for a reason.',
+    catch:
+      'Over 4,000 mm of rain a year, and 24–25 rain days in each of September and October. The hospital is an hour inland at San Isidro.',
   },
 
   // ── Mexico ────────────────────────────────────────────────────────────────
@@ -1364,7 +1354,8 @@ export const PLACES: Place[] = [
     food: 'Mercado 28 and Chedraui Selecto; excellent produce, cheap meat, and a large health-food sector serving the expat population.',
     net: 'Fibre through the city, and Starlink as a cheap backup.',
     town: 'Private hospitals to international standard, Cancún airport 50 minutes, and direct flights across the Americas and Europe.',
-    catch: 'Sargassum seaweed from April to August can make the beach unusable for weeks, and the Quintana Roo security picture is worse than it was five years ago.',
+    catch:
+      'September and October are peak hurricane season and very humid. Sargassum seaweed can make the beach unusable for weeks between April and August, and the Quintana Roo security picture has worsened since 2020.',
   },
   {
     id: 'tulum',
@@ -1380,7 +1371,8 @@ export const PLACES: Place[] = [
     food: 'Organic everything, priced for people on holiday.',
     net: 'Fibre in the town centre; the beach road is unreliable and expensive.',
     town: 'Clinics only; Playa del Carmen 45 minutes for a hospital. New Tulum airport opened 2023.',
-    catch: 'Power and water infrastructure has not kept up with the building, and the beach zone runs on generators more often than anyone admits.',
+    catch:
+      'The power and water infrastructure has not kept up with the building — the beach zone runs on generators more often than anyone admits, and the internet on the beach road is unreliable and expensive.',
   },
   {
     id: 'puerto-escondido',
@@ -1396,7 +1388,8 @@ export const PLACES: Place[] = [
     food: 'Oaxaca is the best food region in Mexico and the market prices are local, not expat.',
     net: 'Fibre in town, and it is the weak point — most remote workers run a backup.',
     town: 'Small hospital, a domestic airport with Mexico City flights, and a growing year-round foreign population.',
-    catch: 'Isolated. Getting anywhere means Mexico City first, and the summer is very hot and very humid.',
+    catch:
+      'Getting anywhere means Mexico City first. September is 16 rain days and the summer is 31°C at high humidity.',
   },
   {
     id: 'puerto-vallarta',
@@ -1412,7 +1405,8 @@ export const PLACES: Place[] = [
     food: 'A real Mexican city market economy plus everything an expat wants.',
     net: 'Fibre.',
     town: 'Good private hospitals, an international airport with direct US and Canadian flights, a city that works all year.',
-    catch: 'August and September are 33°C at 80% humidity with hurricane risk.',
+    catch:
+      'September is the wettest month and peak hurricane risk, at 32°C and around 80% humidity.',
   },
   {
     id: 'merida',
@@ -1428,7 +1422,8 @@ export const PLACES: Place[] = [
     food: 'Yucatecan food, huge markets, and the lowest prices of any Mexican city this size.',
     net: 'Fibre.',
     town: 'The safest city in Mexico by a distance, with excellent private hospitals and an international airport.',
-    catch: 'It is inland and it is 38°C in May with no sea to escape to. Safety and cost, not lifestyle.',
+    catch:
+      'It is inland and reaches 38°C in May with no sea to escape to — Progreso is 35 minutes and is a flat, shallow, unremarkable Gulf beach.',
   },
 
   // ── Panama ────────────────────────────────────────────────────────────────
@@ -1446,7 +1441,8 @@ export const PLACES: Place[] = [
     food: 'Everything imported and available, priced in US dollars.',
     net: 'The best connectivity in Central America — the region’s internet lands here.',
     town: 'Punta Pacífica hospital is Johns Hopkins-affiliated, and Tocumen is the hub airport of the Americas.',
-    catch: 'A humid banking capital with no beach. Territorial tax and a real city, and nothing else in the brief.',
+    catch:
+      'The Pacific here is muddy and not swimmable, the beach towns are 60–90 minutes west, and September to November are the three wettest months of the year at 19–21 rain days each.',
   },
   {
     id: 'coronado',
@@ -1462,7 +1458,8 @@ export const PLACES: Place[] = [
     food: 'Supermarkets serving a large expat community, and a produce market at the highway.',
     net: 'Fibre along the coastal highway.',
     town: 'Clinics locally, Panama City 75 minutes for hospitals and the airport.',
-    catch: 'It is a retirement coast. Quiet, hot, and the median age is not yours.',
+    catch:
+      'A retirement coast where the median age is not yours, hot and humid year-round, and Panama City is 75 minutes away for a hospital or an airport.',
   },
   {
     id: 'bocas',
@@ -1478,7 +1475,8 @@ export const PLACES: Place[] = [
     food: 'Island supply: expensive, limited, and the fish is the good part.',
     net: 'Fibre reached the main island, and it still goes down.',
     town: 'A small hospital, a domestic airstrip, and a boat for everything else.',
-    catch: 'It rains most of the year, the infrastructure is thin, and the isolation is not romantic after month three.',
+    catch:
+      'November and December are the wettest months of the year at 20–21 rain days, the boats stop when it is rough, and the nearest real hospital is a flight away.',
   },
   {
     id: 'pedasi',
@@ -1494,7 +1492,8 @@ export const PLACES: Place[] = [
     food: 'Village markets and cattle country.',
     net: 'Fibre in the village.',
     town: 'A clinic; Chitré is an hour for a hospital, Panama City four hours.',
-    catch: 'Genuinely remote, and the training and food answers are both no.',
+    catch:
+      'A village four hours from Panama City with no mat, no scene, and a clinic rather than a hospital — Chitré is an hour away.',
   },
 
   // ── United States ─────────────────────────────────────────────────────────
@@ -1512,7 +1511,8 @@ export const PLACES: Place[] = [
     food: 'Everything, including a large kosher and Israeli food economy in Aventura and Surfside.',
     net: 'Gigabit fibre and cable, and the market’s data centres are in the same time zone.',
     town: 'Every hospital and every flight, a large Israeli community, and the trading day starts at 09:30 where you live.',
-    catch: 'No right to be there. An Israeli or Polish passport gets you 90 days as a visitor and no work rights — the E-2 and O-1 routes are years and lawyers. Everything else here is the best on the list; the immigration answer is a wall.',
+    catch:
+      'You have no right to be there. Both your passports give 90 visa-free days as a visitor with no work rights, and E-2 or O-1 are years and lawyers. September is peak hurricane season.',
   },
   {
     id: 'st-petersburg',
@@ -1528,7 +1528,8 @@ export const PLACES: Place[] = [
     food: 'Excellent and cheaper than South Florida.',
     net: 'Gigabit.',
     town: 'Good hospitals, an international airport, no state income tax.',
-    catch: 'The same immigration wall, plus hurricane season is a real annual event on this coast.',
+    catch:
+      'The same 90-day visitor limit, and this coast takes a direct hurricane threat most years — September is the peak of it.',
   },
   {
     id: 'san-diego',
@@ -1544,7 +1545,8 @@ export const PLACES: Place[] = [
     food: 'Year-round Californian produce, the best farmers markets in the US.',
     net: 'Gigabit.',
     town: 'Excellent hospitals, an international airport, and a running and outdoor culture that matches the brief exactly.',
-    catch: 'California taxes worldwide income at up to 13.3% on top of federal — so it is the most expensive answer here, and the immigration wall still stands.',
+    catch:
+      'California taxes worldwide income at up to 13.3% on top of federal, a 1-bed in Pacific Beach is $2,400–3,800, and you still have only 90 visa-free days.',
   },
   {
     id: 'austin',
@@ -1560,7 +1562,8 @@ export const PLACES: Place[] = [
     food: 'Very good, and Texas has no state income tax.',
     net: 'Gigabit.',
     town: 'Good hospitals, a major airport, and a large trading and tech population.',
-    catch: 'Landlocked, 38°C for four months, and the same visa problem. It is on the list for the tax and the training only.',
+    catch:
+      'Landlocked, 38°C for four months, and the same 90-day visitor limit. It is here for the tax and the training only.',
   },
 ]
 

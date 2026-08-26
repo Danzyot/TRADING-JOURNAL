@@ -3,7 +3,6 @@ import { CANDIDATES } from './countries'
 import {
   CATEGORIES,
   EVERYDAY,
-  HOME_TOTAL,
   RENT,
   costsFor,
   countryCosts,
@@ -39,10 +38,10 @@ describe('the cost model', () => {
     }
   })
 
-  it('puts Tel Aviv above most of the list and below the dearest', () => {
+  it('spans a range wide enough to be worth ordering', () => {
     const totals = PLACES.map(monthlyOf)
-    expect(Math.min(...totals)).toBeLessThan(HOME_TOTAL)
-    expect(Math.max(...totals)).toBeGreaterThan(HOME_TOTAL)
+    expect(Math.min(...totals)).toBeLessThan(1200)
+    expect(Math.max(...totals)).toBeGreaterThan(4000)
   })
 
   it('costs a country from its own towns', () => {

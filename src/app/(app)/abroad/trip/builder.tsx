@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CANDIDATES } from '@/lib/abroad/countries'
-import { CATEGORIES, HOME, HOME_TOTAL } from '@/lib/abroad/costs'
+import { CATEGORIES } from '@/lib/abroad/costs'
 import { PLACES, type Place } from '@/lib/abroad/places'
 import { sceneryFor } from '@/lib/abroad/scenery'
 import {
@@ -15,7 +15,7 @@ import {
   monthlyForStay,
 } from '@/lib/abroad/stay'
 import { TRAINING_CLIMATE } from '@/lib/abroad/training'
-import { PlaceScene } from '@/components/abroad/scene'
+import { PlacePhoto } from '@/components/abroad/photo'
 import { clsx } from '@/components/ui'
 
 const COUNTRY = new Map(CANDIDATES.map((candidate) => [candidate.slug, candidate]))
@@ -41,7 +41,7 @@ function defaultTrip(placeId: string): Trip {
   const place = PLACES.find((candidate) => candidate.id === placeId) ?? PLACES[0]
   return {
     placeId: place.id,
-    weeks: 12,
+    weeks: 14,
     extras: {
       flights: FLIGHT_HOME[place.country] ?? 0,
       deposit: costsForStay(place, 'test').rent,
@@ -112,7 +112,6 @@ export function TripBuilder({ initialPlace }: { initialPlace?: string }) {
       oneOff,
       living,
       grand: living + oneOff,
-      atHome: Math.round(HOME_TOTAL * months),
     }
   }, [place, stay, months, trip.extras])
 
@@ -152,6 +151,9 @@ export function TripBuilder({ initialPlace }: { initialPlace?: string }) {
             <label className="label mt-3" htmlFor="trip-weeks">
               How long — {trip.weeks} weeks
             </label>
+            <p className="mb-1 text-[0.625rem] text-[var(--ink-muted)]">
+              Late September to the end of December is 14 weeks.
+            </p>
             <input
               id="trip-weeks"
               type="range"
@@ -202,9 +204,8 @@ export function TripBuilder({ initialPlace }: { initialPlace?: string }) {
 
         <div className="space-y-3">
           <div className="card overflow-hidden">
-            <PlaceScene
-              scenery={sceneryFor(place)}
-              alt={`${place.name}, ${place.where}`}
+            <PlacePhoto
+              place={place}
               className="h-28 w-full object-cover"
             />
             <div className="p-3">
@@ -219,32 +220,8 @@ export function TripBuilder({ initialPlace }: { initialPlace?: string }) {
                 <Figure label={`${trip.weeks} weeks, all in`} value={totals.grand} strong />
                 <Figure label="Living costs" value={totals.living} />
                 <Figure label="One-off costs" value={totals.oneOff} />
-                <Figure
-                  label={`The same weeks in ${HOME.label}`}
-                  value={totals.atHome}
-                  tone={totals.atHome > totals.grand ? 'dearer' : 'cheaper'}
-                />
               </div>
 
-              <p className="mt-2 text-xs text-[var(--ink-secondary)]">
-                {totals.grand < totals.atHome ? (
-                  <>
-                    Going costs{' '}
-                    <strong className="text-emerald-600 dark:text-emerald-400">
-                      €{(totals.atHome - totals.grand).toLocaleString()} less
-                    </strong>{' '}
-                    than staying for the same {trip.weeks} weeks, flights and deposit included.
-                  </>
-                ) : (
-                  <>
-                    Going costs{' '}
-                    <strong className="text-rose-600 dark:text-rose-400">
-                      €{(totals.grand - totals.atHome).toLocaleString()} more
-                    </strong>{' '}
-                    than staying for the same {trip.weeks} weeks.
-                  </>
-                )}
-              </p>
             </div>
           </div>
 

@@ -32,7 +32,7 @@ export default function GreecePage() {
 
       <StatGrid columns={4}>
         <Card bodyClassName="p-4">
-          <Stat label="December in Chania" value={`${CHANIA_YEAR[2].high}°C`} hint="daytime average — a Tel Aviv January" />
+          <Stat label="December in Chania" value={`${CHANIA_YEAR[2].high}°C`} hint="daytime average, with a 19°C sea" />
         </Card>
         <Card bodyClassName="p-4">
           <Stat label="Coldest month" value={`${coldest.high}°C`} hint={`${coldest.month} — and ~6 hours of sun`} />

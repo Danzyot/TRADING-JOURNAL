@@ -73,14 +73,13 @@ export function weightsForStay(weights: Weights, stay: StayKey): Weights {
  */
 export const SHORT_LET: Record<string, number> = {
   greece: 1.5, cyprus: 1.4, spain: 1.5, portugal: 1.6, italy: 1.45, malta: 1.35,
-  croatia: 1.7, montenegro: 1.6, albania: 1.5, bulgaria: 1.5, poland: 1.35,
-  turkey: 1.6, georgia: 1.3, uae: 1.5, thailand: 1.3, 'costa-rica': 1.5,
+  croatia: 1.7, montenegro: 1.6, albania: 1.5, bulgaria: 1.5, poland: 1.35, georgia: 1.3, uae: 1.5, thailand: 1.3, 'costa-rica': 1.5,
   mexico: 1.45, panama: 1.4, usa: 1.5,
 }
 
 /** Towns that live off a summer and price a short let accordingly. */
 export const SEASONAL_PREMIUM: Record<string, number> = {
-  protaras: 2.2, dubrovnik: 2.2, 'lagos-pt': 2, cesme: 2.1, bodrum: 2, sozopol: 2,
+  protaras: 2.2, dubrovnik: 2.2, 'lagos-pt': 2, sozopol: 2,
   mondello: 1.9, rhodes: 1.8, budva: 1.9, himare: 1.9, sarande: 1.8, mellieha: 1.7,
   tulum: 1.8, tamarindo: 1.7, 'santa-teresa': 1.7, ericeira: 1.7, marbella: 1.7,
   palma: 1.8, 'costa-adeje': 1.6, bangtao: 1.5, 'ao-nang': 1.6,
@@ -115,8 +114,7 @@ export function monthlyForStay(place: Place, stay: StayKey): number {
 /** Return flights from Tel Aviv, roughly, for the trip total. */
 export const FLIGHT_HOME: Record<string, number> = {
   greece: 220, cyprus: 150, spain: 320, portugal: 380, italy: 260, malta: 300,
-  croatia: 320, montenegro: 340, albania: 300, bulgaria: 220, poland: 260,
-  turkey: 250, georgia: 200, uae: 350, thailand: 750, 'costa-rica': 1250,
+  croatia: 320, montenegro: 340, albania: 300, bulgaria: 220, poland: 260, georgia: 200, uae: 350, thailand: 750, 'costa-rica': 1250,
   mexico: 1150, panama: 1300, usa: 900,
 }
 
@@ -141,7 +139,6 @@ export const ENTRY: Record<string, Entry> = {
   albania: { polish: '90 days visa-free.', israeli: 'One year visa-free — among the most generous in the world for an Israeli passport.', limit: 'The Israeli passport is the better one to enter on here.' },
   bulgaria: { polish: 'Free movement, no limit.', israeli: '90 days in any 180.', limit: 'Registration after 90 days.' },
   poland: { polish: 'Citizen. Nothing at all, ever.', israeli: 'Not needed — use the Polish passport.', limit: 'None. This is the one country that cannot ask you to leave.' },
-  turkey: { polish: '90 days in any 180.', israeli: '90 days in any 180 — but Israel currently advises against travel entirely.', limit: 'The advisory, not the visa, is the binding constraint.' },
   georgia: { polish: '365 days visa-free.', israeli: '365 days visa-free.', limit: 'A full year without paperwork of any kind. The easiest long test run on this list.' },
   uae: { polish: '90 days in any 180, visa-free.', israeli: '90 days visa-free.', limit: 'Longer means a residence visa, usually through a free-zone company.' },
   thailand: { polish: '60 days visa-exempt, extendable by 30 at an immigration office.', israeli: '60 days visa-exempt, same extension.', limit: 'For longer, the DTV gives 180 days a visit over five years.' },

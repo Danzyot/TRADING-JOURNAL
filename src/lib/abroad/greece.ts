@@ -15,7 +15,7 @@ export const GREECE_VERIFIED = 'August 2026'
  * The Q4 answer, in numbers.
  *
  * The worry was cold. The honest reading is that Q4 in Crete is not cold —
- * October still swims, November is a mild spring day, December is Tel Aviv in
+ * October still swims, November is a mild spring day, December is 17°C and
  * January — but it is *wet*, and the wet arrives exactly when the light goes.
  */
 export type MonthClimate = {
@@ -34,14 +34,14 @@ export type MonthClimate = {
 export const CHANIA_YEAR: MonthClimate[] = [
   { month: 'October', high: 24, low: 17, rainDays: 6, rainMm: 60, note: 'Sea still ~23°C. Swimming, running, everything.' },
   { month: 'November', high: 20, low: 14, rainDays: 9, rainMm: 95, note: 'The last easy month. Sea ~21°C, locals stop swimming, you would not.' },
-  { month: 'December', high: 17, low: 11, rainDays: 13, rainMm: 168, note: 'Warmer than a Tel Aviv January by day — and the wettest month of the year.' },
+  { month: 'December', high: 17, low: 11, rainDays: 13, rainMm: 168, note: '17°C by day, and the wettest month of the Cretan year at 168 mm.' },
   { month: 'January', high: 14, low: 8, rainDays: 18, rainMm: 91, note: 'The coldest month. ~6 hours of sun a day; rain on more days than not.' },
   { month: 'February', high: 15, low: 8, rainDays: 12, rainMm: 80, note: 'Turning. Almond blossom, cold sea.' },
   { month: 'March', high: 17, low: 9, rainDays: 9, rainMm: 55, note: 'Outdoors again.' },
 ]
 
 export const CLIMATE_VERDICT =
-  'Q4 is not the problem you think it is. October in Crete is a Tel Aviv September; November is mild; December days sit around 17°C, which is warmer than a Tel Aviv January. What Q4 brings is rain and darkness rather than cold — December is the wettest month of the Cretan year at ~168mm across ~13 days, and January is wetter still by day count at ~18 rain days. January, not Q4, is the month to plan around: if you are somewhere with a gym, an MMA room and fibre, it is six weeks of good indoor life; if you are in a village 20 minutes from anything, it is six weeks of staring at rain.'
+  'Q4 is not the problem you think it is. October in Crete is 24°C with a 24°C sea; November is mild at 20°C; December days sit around 17°C. What Q4 brings is rain and darkness rather than cold — December is the wettest month of the Cretan year at ~168mm across ~13 days, and January is wetter still by day count at ~18 rain days. January, not Q4, is the month to plan around: if you are somewhere with a gym, an MMA room and fibre, it is six weeks of good indoor life; if you are in a village 20 minutes from anything, it is six weeks of staring at rain.'
 
 export const CLIMATE_SOURCES: Source[] = [
   { label: 'Chania climate averages — Weather Atlas', url: 'https://www.weather-atlas.com/en/greece/chania-climate' },

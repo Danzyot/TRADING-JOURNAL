@@ -21,7 +21,7 @@ describe('the safety data', () => {
       const safety = SAFETY[candidate.slug]
       expect(safety.score, candidate.slug).toBeGreaterThanOrEqual(1)
       expect(safety.score, candidate.slug).toBeLessThanOrEqual(5)
-      for (const field of [safety.community, safety.chabad, safety.incidents, safety.israelis, safety.faith, safety.verdict]) {
+      for (const field of [safety.street, safety.incidents, safety.official, safety.verdict]) {
         expect(field.length, candidate.slug).toBeGreaterThan(30)
       }
     }
@@ -37,7 +37,7 @@ describe('the safety data', () => {
 describe('hard stops', () => {
   it('name a constraint no weighting can outvote', () => {
     const stopped = CANDIDATES.filter((candidate) => candidate.hardStop)
-    expect(stopped.map((candidate) => candidate.slug).sort()).toEqual(['turkey', 'usa'])
+    expect(stopped.map((candidate) => candidate.slug).sort()).toEqual(['usa'])
     for (const candidate of stopped) {
       expect(candidate.hardStop!.length, candidate.slug).toBeGreaterThan(60)
     }

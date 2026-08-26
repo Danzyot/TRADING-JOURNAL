@@ -8,7 +8,7 @@
  * Scores are 0–5 and always relative to the same question: how well does this
  * place serve *this* person — a 21-year-old EU-passport prop trader who wants
  * sun, sea, a gym and an MMA room, unprocessed food, fibre he can trade on, and
- * a rent that is not Tel Aviv's.
+ * a rent he can cover from a payout.
  *
  * The tax scores are deliberately shallow. The tax page carries the real
  * comparison, and repeating it here is how the two drift apart.
@@ -16,6 +16,20 @@
 import type { CriterionKey } from './criteria'
 
 export const ABROAD_VERIFIED = 'August 2026'
+
+/**
+ * The five you said you liked, in the order you said them.
+ *
+ * Kept separately from the scores rather than folded into them: a ranking that
+ * quietly agrees with you is not worth having. This marks a preference; the
+ * ranking still says what it says.
+ */
+export const SHORTLIST = ['malta', 'italy', 'spain', 'greece', 'cyprus']
+
+export function shortlistRank(slug: string): number | null {
+  const index = SHORTLIST.indexOf(slug)
+  return index < 0 ? null : index + 1
+}
 
 export type Source = { label: string; url: string }
 
@@ -43,26 +57,6 @@ export type Candidate = {
   theCatch: string
   notes: string[]
   sources: Source[]
-}
-
-/**
- * Israel is the benchmark, not a candidate: everything below is "compared to
- * staying". Numbeo and Expatistan disagree by a few points, which is why the
- * range is quoted rather than a single figure.
- */
-export const BENCHMARK = {
-  label: 'Tel Aviv today',
-  cost: 'Israel runs ~52% above Greece country-to-country; Tel Aviv specifically is ~82–87% above Athens.',
-  sources: [
-    {
-      label: 'Numbeo — Greece vs Israel',
-      url: 'https://www.numbeo.com/cost-of-living/compare_countries_result.jsp?country1=Greece&country2=Israel',
-    },
-    {
-      label: 'Expatistan — Athens vs Tel Aviv',
-      url: 'https://www.expatistan.com/cost-of-living/comparison/athens-greece/tel-aviv',
-    },
-  ] satisfies Source[],
 }
 
 export const CANDIDATES: Candidate[] = [
@@ -253,7 +247,7 @@ export const CANDIDATES: Candidate[] = [
       'May to September is 40°C and 60% humidity — no beach, no running, no outdoor anything. You would be trading the exact lifestyle you are moving for, six months a year.',
     notes: [
       'World-class MMA — UFC gyms, world champions in residence — and every fitness facility you could ask for.',
-      'The tax saving is real and the cost of living eats a large part of it; rents are Tel Aviv-shaped.',
+      'The tax saving is real and the cost of living eats a large part of it — a furnished 2-bed near the sea in Limassol is €1,100–1,600 even off-season.',
       'Organic and unprocessed food is available and expensive: almost everything is imported.',
     ],
     sources: [
@@ -540,44 +534,6 @@ export const CANDIDATES: Candidate[] = [
     sources: [
       { label: 'Ryczałt rates by activity, 2026', url: 'https://www.podnik.io/en/blog/poland/faq-ryczalt-rates-2026' },
       { label: 'Self-employment in Poland — ZUS and registration', url: 'https://cgolegal.com/taxes-in-poland/self-employment-in-poland/' },
-    ],
-  },
-  {
-    slug: 'turkey',
-    flag: '🇹🇷',
-    country: 'Turkey',
-    spots: ['Antalya (Konyaaltı)', 'Çeşme / Alaçatı', 'Fethiye / Kaş', 'Bodrum'],
-    headline: 'Warm, cheap, an hour and a half away — and financially unpredictable.',
-    scores: {
-      cost: 5,
-      tax: 2,
-      climate: 5,
-      beach: 5,
-      training: 2,
-      food: 5,
-      connectivity: 4,
-      admin: 2,
-      home: 5,
-      proximity: 5,
-      safety: 1,
-    },
-    monthlyCost: '€1,050–1,600',
-    taxLine:
-      'Progressive 15–40% on income, with none of the expat regimes the EU countries offer. There is no tax argument for Turkey.',
-    hardStop:
-      'Israel has a standing “do not travel” advisory for Turkey at its most severe level, after an armed incident near the Israeli consulate in Istanbul in April 2026. Ruled out on safety until that changes, whatever it costs.',
-    winter:
-      'Antalya is 15–16°C in January with 300 days of sun a year — the best winter climate per euro on this list.',
-    theCatch:
-      'Inflation. Every euro figure here is a snapshot, rents reset annually against a lira that moves, and residence permits for Europeans have been tightened rather than eased.',
-    notes: [
-      'Antalya is a real year-round city of 2.5 million with a 7 km beach and the Taurus mountains behind it — the best climate-per-euro on this list.',
-      'Corvos Combat in Antalya and NEST Combatfitness in İzmir are the rooms; the scene is growing but shallow compared to Spain or Poland.',
-      'Direct flights Tel Aviv–Antalya are short and cheap when the political relationship allows them, which is not always.',
-      'The produce is exceptional — Antalya province grows most of Turkey’s vegetables.',
-    ],
-    sources: [
-      { label: 'Corvos Combat BJJ & MMA, Antalya', url: 'https://www.facebook.com/p/Corvos-Combat-BJJ-MMA-Antalya-100064118200475/' },
     ],
   },
   {

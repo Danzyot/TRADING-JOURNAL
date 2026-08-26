@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Card, PageHeader } from '@/components/ui'
 import { ABROAD_VERIFIED, CANDIDATES } from '@/lib/abroad/countries'
 import { PLACES } from '@/lib/abroad/places'
-import { HOME, HOME_TOTAL, monthlyOf } from '@/lib/abroad/costs'
+import { monthlyOf } from '@/lib/abroad/costs'
+import { autumnFor } from '@/lib/abroad/autumn'
 import { PlacesBrowser } from './browser'
 
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,7 @@ export const metadata = { title: 'Every place — Trading Journal' }
 
 const withMat = PLACES.filter((place) => place.mma).length
 const withHouse = PLACES.filter((place) => place.house === 'normal').length
-const underHome = PLACES.filter((place) => monthlyOf(place) < HOME_TOTAL).length
+const underTwoK = PLACES.filter((place) => monthlyOf(place) < 2000).length
 
 export default async function PlacesPage({
   searchParams,
@@ -22,7 +23,7 @@ export default async function PlacesPage({
     <>
       <PageHeader
         title="Every place"
-        subtitle={`${PLACES.length} towns across ${CANDIDATES.length} countries, each answering the same questions in the same order. Filter to the ones you could actually sign a lease in.`}
+        subtitle={`${PLACES.length} towns across ${CANDIDATES.length} countries, each answering the same questions, scored for late September to December. Filter to the ones you could actually sign a lease in.`}
         actions={
           <div className="flex gap-2">
             <Link href="/abroad" className="btn">
@@ -50,9 +51,10 @@ export default async function PlacesPage({
             changes that.
           </p>
           <p>
-            <strong className="text-[var(--ink)]">{underHome} cost less than staying.</strong>{' '}
-            The monthly figures are euros for one person living comfortably with rent included, and {HOME.label} sits at €{HOME_TOTAL.toLocaleString()} on the same basis, built from the same
-            nine lines. They are for ordering towns, not for budgeting.
+            <strong className="text-[var(--ink)]">{underTwoK} of {PLACES.length} come in under
+            €2,000 a month.</strong> Every figure is euros for one person living comfortably with
+            rent included, built from nine lines you can see. They are for ordering towns, not for
+            budgeting.
           </p>
         </div>
       </Card>
@@ -67,7 +69,7 @@ export default async function PlacesPage({
             <p>
               <strong className="text-[var(--ink)]">Fit</strong> is a judgement, 1–5, against one
               brief: sea you can swim in, sun through the winter, a mat, a gym, somewhere to run,
-              unprocessed food, fibre you can hold a position on, and a rent that is not Tel Aviv&apos;s.
+              unprocessed food, fibre you can hold a position on, and a rent a payout covers.
               A town can be beautiful and score 2 because it fails four of those.
             </p>
             <p>

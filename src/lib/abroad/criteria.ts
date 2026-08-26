@@ -45,8 +45,9 @@ export const CRITERIA: Criterion[] = [
   },
   {
     key: 'climate',
-    label: 'Winter warmth',
-    meaning: 'October to March outdoors without a coat, and how much rain comes with it.',
+    label: 'Late Sep to December',
+    meaning:
+      'The four months you would actually be there: warm enough to be outside, dry enough to want to be, and a town that has not shut for the season.',
     weight: 5,
   },
   {
@@ -82,8 +83,8 @@ export const CRITERIA: Criterion[] = [
   },
   {
     key: 'home',
-    label: 'Renting a house',
-    meaning: 'A whole house near the sea, long-term, at a rent that is not a joke.',
+    label: 'Where exactly to stay',
+    meaning: 'Named neighbourhoods you could sign for, and whether a whole house is realistic in them.',
     weight: 4,
   },
   {
@@ -94,9 +95,9 @@ export const CRITERIA: Criterion[] = [
   },
   {
     key: 'safety',
-    label: 'Being Israeli there',
+    label: 'Safe as an Israeli',
     meaning:
-      'A community and a Chabad within reach, kosher food if you want it, and a street where an Israeli passport is unremarkable.',
+      'Whether an Israeli passport is unremarkable on the street, what the incident monitors recorded, and whether any government has said anything that changes your plans.',
     weight: 4,
   },
 ]

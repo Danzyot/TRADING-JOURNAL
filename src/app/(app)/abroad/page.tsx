@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Card, CollapsibleCard, KeyValue, PageHeader } from '@/components/ui'
 import { WeightedRanking } from './weights'
-import { ABROAD_VERIFIED, BENCHMARK, CANDIDATES } from '@/lib/abroad/countries'
+import { ABROAD_VERIFIED, CANDIDATES } from '@/lib/abroad/countries'
 import { PLACES, costRange, placesOf } from '@/lib/abroad/places'
 
 export const dynamic = 'force-dynamic'
@@ -52,9 +52,9 @@ export default function AbroadPage() {
           </p>
           <p>
             <strong className="text-[var(--ink)]">Your Q4 worry is misplaced, but not baseless.</strong>{' '}
-            December in Chania averages a 17°C day — warmer than a Tel Aviv January. What Q4 brings is
-            rain, not cold, and January is the month that decides whether you like it: about 18 rainy
-            days and six hours of sun. Survivable in a town with a gym and fibre; grim in a village
+            December in Chania averages a 17°C day with a 19°C sea. What Q4 brings is rain, not cold —
+            13 rain days in December — and January is the month that decides whether you like it:
+            about 18 rainy days and six hours of sun. Survivable in a town with a gym and fibre; grim in a village
             without them.
           </p>
           <p>
@@ -147,10 +147,10 @@ export default function AbroadPage() {
         <Card title="How to read any of this">
           <div className="space-y-3 text-xs leading-relaxed text-[var(--ink-secondary)]">
             <p>
-              <strong className="text-[var(--ink)]">The benchmark is staying put.</strong>{' '}
-              {BENCHMARK.cost} Every cost figure here is what a comfortable month costs a single
-              person, rent included, from published 2026 cost-of-living data — not a holiday budget
-              and not a survival budget.
+              <strong className="text-[var(--ink)]">Every cost figure is built, not asserted.</strong>{' '}
+              Rent is per town; utilities, internet, groceries, eating out, transport, gym and mats,
+              health cover and everyday are per country. The total is always the sum of those nine
+              lines, and each is euros for one person living comfortably.
             </p>
             <p>
               <strong className="text-[var(--ink)]">None of the tax rates exist until Israel lets
