@@ -11,6 +11,7 @@ import {
   type ThumbnailResponse,
 } from '@/lib/abroad/photos'
 import { sceneryFor } from '@/lib/abroad/scenery'
+import { clsx } from '@/components/ui'
 import { PlaceScene } from './scene'
 
 /**
@@ -102,6 +103,60 @@ function usePhoto(id: PlaceId): { url: string | null; settled: boolean } {
   }, [id])
 
   return state
+}
+
+/**
+ * A photograph of an arbitrary Wikipedia title — a neighbourhood rather than a
+ * town. Looked up on its own because these are not in the batch, and quietly
+ * absent when there is no article, which is the common case for a suburb.
+ */
+export function WikiPhoto({
+  title,
+  alt,
+  className,
+}: {
+  title?: string
+  alt: string
+  className?: string
+}) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (!title) return
+    let alive = true
+    ;(async () => {
+      try {
+        const response = await fetch(thumbnailsEndpoint([title], 400), {
+          headers: { accept: 'application/json' },
+        })
+        if (!response.ok) return
+        const found = thumbnailsById((await response.json()) as ThumbnailResponse, { [title]: 'one' })
+        if (alive && found.one) setUrl(found.one)
+      } catch {
+        // No photograph is a fine outcome for a suburb.
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [title])
+
+  if (!url || failed) {
+    return (
+      <div
+        className={clsx(className, 'flex items-center justify-center bg-[var(--surface-sunken)]')}
+        aria-hidden
+      >
+        <span className="text-[0.625rem] text-[var(--ink-muted)]">no photo</span>
+      </div>
+    )
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- remote by design
+    <img src={url} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} className={className} />
+  )
 }
 
 export function PlacePhoto({

@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { CANDIDATES, SHORTLIST, shortlistRank } from '@/lib/abroad/countries'
 import { CATEGORIES, type CostLines } from '@/lib/abroad/costs'
 import { MONTHS, autumnFor, autumnScore } from '@/lib/abroad/autumn'
-import { staysFor } from '@/lib/abroad/stays'
+import { spotsFor } from '@/lib/abroad/stays'
+import { SpotCard } from '@/components/abroad/spot-card'
 import { CONNECTIVITY } from '@/lib/abroad/connectivity'
 import type { CriterionKey } from '@/lib/abroad/criteria'
 import { PLACES, filterPlaces, tierOf, type Place, type SortKey } from '@/lib/abroad/places'
@@ -357,41 +358,27 @@ function Box({
         </Shell>
       )
     case 'home': {
-      const options = staysFor(place.id)
+      const spots = spotsFor(place.id)
       const autumn = autumnFor(place)
       return (
         <Shell title="Where exactly to stay" wide tile={<HouseTile scenery={scenery} />}>
-          <p>{place.rent}</p>
-          {autumn ? (
-            <Note>
-              A furnished let for late September to December runs about{' '}
-              {Math.round(autumn.offSeasonRent * 100)}% of the annual-lease figure —{' '}
-              {autumn.offSeasonRent < 1
-                ? 'the off season is cheaper here, not dearer.'
-                : 'these are peak months here, so you pay more.'}
-            </Note>
-          ) : null}
-          {options.length > 0 ? (
-            <div className="mt-2 space-y-2">
-              {options.map((option) => (
-                <div key={option.name} className="rounded-md border border-[var(--line)] p-2">
-                  <p className="text-[0.6875rem] font-semibold text-[var(--ink)]">{option.name}</p>
-                  <p className="mt-0.5">{option.what}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <Fact label="Rent, Sep–Dec">{option.rent}</Fact>
-                    <Fact label="To the mat">{option.toGym}</Fact>
-                    <Fact label="To the water">{option.toBeach}</Fact>
-                    <Fact label="To a supermarket">{option.toShops}</Fact>
-                    <Fact label="Fibre here">{option.net}</Fact>
-                    <Fact label="The problem with this street" tone="warn">{option.downside}</Fact>
-                  </div>
-                </div>
+          <div className="flex flex-wrap gap-1">
+            <Fact label="Typical">{place.rent}</Fact>
+            {autumn ? (
+              <Fact label="Your months">
+                about {Math.round(autumn.offSeasonRent * 100)}% of the annual rate
+              </Fact>
+            ) : null}
+          </div>
+          {spots.length > 0 ? (
+            <div className="mt-2 grid gap-2 lg:grid-cols-2">
+              {spots.map((spot) => (
+                <SpotCard key={spot.name} spot={spot} country={place.country} />
               ))}
             </div>
           ) : (
             <Note>
-              Street-level detail for this country is not written yet — Malta, Italy, Spain, Greece
-              and Cyprus have it first.
+              Street-level spots are written for Malta, Italy, Spain, Greece and Cyprus first.
             </Note>
           )}
         </Shell>
@@ -419,20 +406,28 @@ function Box({
       )
     case 'connectivity':
       return (
-        <Shell title="Internet" wide>
+        <Shell title="Internet">
           <p className="font-medium text-[var(--ink)]">{place.net}</p>
           {net ? (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              <Fact label="Carriers">{net.carriers}</Fact>
-              <Fact label="A line">{net.line}</Fact>
-              <Fact label="Mobile">{net.mobile}</Fact>
-              <Fact label="Check">{net.checker}</Fact>
-              <Fact label="Backup" tone={net.fallbackMatters >= 4 ? 'warn' : undefined}>
+            <>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                <Fact label="Line">{net.line}</Fact>
+                <Fact label="Mobile">{net.mobile}</Fact>
+              </div>
+              <p
+                className={clsx(
+                  'mt-1.5 text-[0.625rem]',
+                  net.fallbackMatters >= 4
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : 'text-[var(--ink-muted)]',
+                )}
+              >
                 {net.fallbackMatters >= 4
-                  ? 'Budget for a second line or Starlink — this is not a place to rely on one connection.'
-                  : 'A data SIM is enough of a fallback here.'}
-              </Fact>
-            </div>
+                  ? 'Budget for a second line or Starlink — one connection is not enough here.'
+                  : 'A data SIM is enough of a backup here.'}{' '}
+                Check the exact street number before signing: {net.checker}
+              </p>
+            </>
           ) : null}
         </Shell>
       )
@@ -452,9 +447,9 @@ function Box({
             <thead>
               <tr className="text-[var(--ink-muted)]">
                 <th className="text-left font-normal" />
-                <th className="text-right font-normal">Day</th>
-                <th className="text-right font-normal">Sea</th>
-                <th className="text-right font-normal">Rain days</th>
+                <th className="w-12 pl-2 text-right font-normal">Day</th>
+                <th className="w-12 pl-2 text-right font-normal">Sea</th>
+                <th className="w-10 pl-2 text-right font-normal">Rain</th>
                 <th className="pl-3 text-left font-normal">What it is like</th>
               </tr>
             </thead>
@@ -464,11 +459,11 @@ function Box({
                 return (
                   <tr key={key}>
                     <td className="py-0.5 pr-2 font-medium text-[var(--ink)]">{label}</td>
-                    <td className="tabular py-0.5 text-right">{month.day}°C</td>
-                    <td className="tabular py-0.5 text-right">{month.sea === null ? '—' : `${month.sea}°C`}</td>
+                    <td className="tabular py-0.5 pl-2 text-right">{month.day}°C</td>
+                    <td className="tabular py-0.5 pl-2 text-right">{month.sea === null ? '—' : `${month.sea}°C`}</td>
                     <td
                       className={clsx(
-                        'tabular py-0.5 text-right',
+                        'tabular py-0.5 pl-2 text-right',
                         month.rain >= 14 && 'text-amber-600 dark:text-amber-400',
                       )}
                     >
@@ -489,11 +484,13 @@ function Box({
     }
     case 'safety':
       return safety ? (
-        <Shell title="Safe as an Israeli" wide>
-          <p className="font-medium text-[var(--ink)]">{safety.verdict}</p>
+        <Shell title="Safe as an Israeli">
+          <div className="flex items-center gap-2">
+            <Score value={safety.score} />
+            <p className="min-w-0 flex-1 font-medium text-[var(--ink)]">{safety.verdict}</p>
+          </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            <Fact label="On the street" tone={safety.score <= 2 ? 'warn' : undefined}>{safety.street}</Fact>
-            <Fact label="Recorded incidents">{safety.incidents}</Fact>
+            <Fact label="Street" tone={safety.score <= 2 ? 'warn' : undefined}>{safety.street}</Fact>
             <Fact label="Official">{safety.official}</Fact>
           </div>
         </Shell>
@@ -645,14 +642,37 @@ function Fact({
 }) {
   return (
     <span
+      title={typeof children === 'string' ? children : undefined}
       className={clsx(
-        'rounded border px-1.5 py-1 text-[0.625rem] leading-snug',
+        'line-clamp-2 max-w-full rounded border px-1.5 py-1 text-[0.625rem] leading-snug',
         tone === 'warn'
           ? 'border-amber-500/40 text-amber-700 dark:text-amber-400'
           : 'border-[var(--line)] text-[var(--ink-secondary)]',
       )}
     >
       <span className="font-semibold text-[var(--ink)]">{label}:</span> {children}
+    </span>
+  )
+}
+
+function Score({ value }: { value: number }) {
+  return (
+    <span className="flex shrink-0 gap-px" aria-label={`${value} out of 5`}>
+      {[1, 2, 3, 4, 5].map((step) => (
+        <span
+          key={step}
+          className={clsx(
+            'h-3 w-1.5 rounded-sm',
+            step <= value
+              ? value <= 2
+                ? 'bg-rose-500'
+                : value === 3
+                  ? 'bg-amber-500'
+                  : 'bg-emerald-500'
+              : 'bg-[var(--surface-sunken)]',
+          )}
+        />
+      ))}
     </span>
   )
 }

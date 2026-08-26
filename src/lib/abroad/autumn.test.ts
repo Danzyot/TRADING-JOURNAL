@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MONTHS, ZONES, autumnFor, autumnScore, zoneKeyOf } from './autumn'
 import { PLACES } from './places'
-import { staysFor, DETAILED_COUNTRIES, STAYS } from './stays'
+import { spotsFor, DETAILED_COUNTRIES, SPOTS } from './stays'
 
 const place = (id: string) => {
   const found = PLACES.find((candidate) => candidate.id === id)
@@ -52,28 +52,38 @@ describe('the September to December window', () => {
   })
 })
 
-describe('street-level stays', () => {
+describe('the exact spots', () => {
   it('exist for every town in the shortlisted countries', () => {
     const shortlisted = PLACES.filter((candidate) => DETAILED_COUNTRIES.includes(candidate.country))
-    const missing = shortlisted.filter((candidate) => staysFor(candidate.id).length === 0)
+    const missing = shortlisted.filter((candidate) => spotsFor(candidate.id).length === 0)
     expect(missing.map((candidate) => candidate.id)).toEqual([])
   })
 
-  it('answer every question, concretely', () => {
-    for (const [id, options] of Object.entries(STAYS)) {
-      for (const option of options ?? []) {
-        // A neighbourhood name is legitimately short; an answer is not.
-        expect(option.name.length, `${id}.name`).toBeGreaterThan(4)
-        for (const [field, value] of Object.entries(option)) {
-          if (field === 'name') continue
-          expect(value.length, `${id}.${field}`).toBeGreaterThan(20)
+  it('answer the three distances and price a real range', () => {
+    for (const [id, spots] of Object.entries(SPOTS)) {
+      for (const spot of spots ?? []) {
+        expect(spot.name.length, `${id}.name`).toBeGreaterThan(4)
+        for (const field of ['what', 'mat', 'sea', 'shop', 'net', 'snag', 'area', 'gym'] as const) {
+          expect(spot[field].length, `${id}.${field}`).toBeGreaterThan(5)
         }
+        const [low, high] = spot.rent
+        expect(low, `${id}.rent`).toBeGreaterThan(200)
+        expect(high, `${id}.rent`).toBeGreaterThan(low)
+      }
+    }
+  })
+
+  it('give every spot a geocodable area, so the links resolve', () => {
+    for (const [id, spots] of Object.entries(SPOTS)) {
+      for (const spot of spots ?? []) {
+        // "Neighbourhood, Town, Country" — two commas is the shape that works.
+        expect(spot.area.split(',').length, `${id}.area`).toBeGreaterThanOrEqual(2)
       }
     }
   })
 
   it('name a place that exists', () => {
     const ids = new Set(PLACES.map((candidate) => candidate.id))
-    expect(Object.keys(STAYS).filter((id) => !ids.has(id))).toEqual([])
+    expect(Object.keys(SPOTS).filter((id) => !ids.has(id))).toEqual([])
   })
 })
