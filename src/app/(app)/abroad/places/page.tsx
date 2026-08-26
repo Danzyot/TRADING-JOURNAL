@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { Card, PageHeader } from '@/components/ui'
 import { ABROAD_VERIFIED, CANDIDATES } from '@/lib/abroad/countries'
-import { PLACES, TEL_AVIV_MONTHLY } from '@/lib/abroad/places'
+import { PLACES } from '@/lib/abroad/places'
+import { HOME, HOME_TOTAL, monthlyOf } from '@/lib/abroad/costs'
 import { PlacesBrowser } from './browser'
 
 export const dynamic = 'force-dynamic'
@@ -9,7 +10,7 @@ export const metadata = { title: 'Every place — Trading Journal' }
 
 const withMat = PLACES.filter((place) => place.mma).length
 const withHouse = PLACES.filter((place) => place.house === 'normal').length
-const underTelAviv = PLACES.filter((place) => place.monthly < TEL_AVIV_MONTHLY).length
+const underHome = PLACES.filter((place) => monthlyOf(place) < HOME_TOTAL).length
 
 export default async function PlacesPage({
   searchParams,
@@ -21,14 +22,14 @@ export default async function PlacesPage({
     <>
       <PageHeader
         title="Every place"
-        subtitle={`${PLACES.length} towns across ${CANDIDATES.length} countries, each answering the same eight questions. Filter to the ones you could actually sign a lease in.`}
+        subtitle={`${PLACES.length} towns across ${CANDIDATES.length} countries, each answering the same questions in the same order. Filter to the ones you could actually sign a lease in.`}
         actions={
           <div className="flex gap-2">
             <Link href="/abroad" className="btn">
               ← Countries
             </Link>
-            <Link href="/abroad/greece" className="btn btn-primary">
-              Greece in depth
+            <Link href="/abroad/trip" className="btn btn-primary">
+              Plan a trip
             </Link>
           </div>
         }
@@ -37,9 +38,10 @@ export default async function PlacesPage({
       <Card title="Before you read the list">
         <div className="grid grid-cols-1 gap-3 text-xs leading-relaxed text-[var(--ink-secondary)] sm:grid-cols-3">
           <p>
-            <strong className="text-[var(--ink)]">{withMat} of {PLACES.length} have a real mat.</strong>{' '}
-            A named MMA or BJJ room running an adult schedule, not one class a week in a community
-            hall. Where a town has nothing, the entry says so rather than padding the line.
+            <strong className="text-[var(--ink)]">{withMat} of {PLACES.length} take a beginner.</strong>{' '}
+            A named room you could walk into next week with no
+            experience — a fundamentals class, not one open mat a fortnight. Where a town has
+            nothing, the entry says where the nearest mat is instead of padding the line.
           </p>
           <p>
             <strong className="text-[var(--ink)]">{withHouse} make a whole house normal.</strong>{' '}
@@ -48,10 +50,9 @@ export default async function PlacesPage({
             changes that.
           </p>
           <p>
-            <strong className="text-[var(--ink)]">{underTelAviv} cost less than staying.</strong>{' '}
-            The monthly figures are euros for one person living comfortably with rent included, and
-            Tel Aviv sits at roughly €{TEL_AVIV_MONTHLY.toLocaleString()} on the same basis. They are
-            for ordering towns, not for budgeting.
+            <strong className="text-[var(--ink)]">{underHome} cost less than staying.</strong>{' '}
+            The monthly figures are euros for one person living comfortably with rent included, and {HOME.label} sits at €{HOME_TOTAL.toLocaleString()} on the same basis, built from the same
+            nine lines. They are for ordering towns, not for budgeting.
           </p>
         </div>
       </Card>

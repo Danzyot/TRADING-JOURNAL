@@ -31,6 +31,14 @@ export type Candidate = {
   monthlyCost: string
   /** The rate a prop trader would actually pay once genuinely resident. */
   taxLine: string
+  /**
+   * A constraint no weighting can outvote — a live travel advisory, no right to
+   * be there. A country with one is shown last with the reason, rather than
+   * being averaged into fifth place by its beaches.
+   */
+  hardStop?: string
+  /** October to March in one line, since that is the part being worried about. */
+  winter: string
   /** The thing that would make you leave after a year. */
   theCatch: string
   notes: string[]
@@ -69,16 +77,19 @@ export const CANDIDATES: Candidate[] = [
       tax: 4,
       climate: 4,
       beach: 5,
-      training: 4,
+      training: 3,
       food: 5,
       connectivity: 3,
       admin: 4,
       home: 4,
       proximity: 5,
+      safety: 4,
     },
     monthlyCost: '€1,800–2,600 comfortable in Chania; €2,400–3,400 on the Athens Riviera',
     taxLine:
       '50% of business income exempt for 7 years under Article 5C, and EFKA is a fixed monthly class (~€150 for the first five years, €250–680 after) rather than a percentage — which is what makes it work at a trader’s income.',
+    winter:
+      'Crete: 17°C days in December, 14°C in January, and rain on more days than not. Mild and wet, not cold.',
     theCatch:
       'Winter is mild but wet: December and January are the rainiest months of the Cretan year. And rural fibre is a lottery — a beautiful house 20 minutes outside town can be on 10 Mbps copper.',
     notes: [
@@ -115,16 +126,19 @@ export const CANDIDATES: Candidate[] = [
       tax: 5,
       climate: 5,
       beach: 5,
-      training: 3,
+      training: 5,
       food: 4,
       connectivity: 4,
       admin: 4,
       home: 3,
       proximity: 5,
+      safety: 5,
     },
     monthlyCost: '€2,500–3,500 comfortable in Limassol, of which rent is the problem',
     taxLine:
       'Non-dom status for 17 years: 0% on dividends and interest, which is what makes a Cyprus Ltd paying itself dividends the standard structure. 60-day residency rule if you are not tax-resident anywhere else.',
+    winter:
+      'The warmest and driest winter in the EU. 18–19°C days on the coast, sea still swimmable in November.',
     theCatch:
       'Limassol rents rose 25–40% since 2020 and the city is full of people doing exactly this. It is the least Greek-feeling option — a finance town, not a beach town.',
     notes: [
@@ -149,16 +163,19 @@ export const CANDIDATES: Candidate[] = [
       tax: 1,
       climate: 4,
       beach: 5,
-      training: 5,
+      training: 4,
       food: 5,
       connectivity: 5,
       admin: 3,
       home: 3,
       proximity: 2,
+      safety: 2,
     },
     monthlyCost: '€1,600–2,400 in Valencia, €1,800–2,500 in Málaga',
     taxLine:
       'The Beckham regime does not cover freelancers. As an autónomo you are on the ordinary 19–47% scale on worldwide income plus €350–400/month of social security — the worst effective rate of any candidate here.',
+    winter:
+      'Málaga is 17–18°C in January, the warmest on mainland Europe. Valencia 16°C. The Canaries never drop below 20°C.',
     theCatch:
       'Tax. Everything else about Spain fits: the gyms, the food, the fibre, the sea. The money does not.',
     notes: [
@@ -191,10 +208,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 3,
       home: 3,
       proximity: 1,
+      safety: 4,
     },
     monthlyCost: '€1,800–2,600 outside Lisbon',
     taxLine:
       'IFICI (NHR 2.0) is 20% flat for 10 years, but only on Portuguese-source income from a listed high-value activity. Working for foreign prop firms generally does not qualify, which puts you back on the ordinary scale.',
+    winter:
+      '16°C and wet on the Algarve, cooler and windier on the Lisbon coast. Mild, grey, and the Atlantic stays cold all year.',
     theCatch:
       'The Atlantic is cold and rough — this is a surf coast, not a swim coast — and it is a 5-hour flight plus a connection from Israel.',
     notes: [
@@ -223,9 +243,12 @@ export const CANDIDATES: Candidate[] = [
       admin: 4,
       home: 2,
       proximity: 4,
+      safety: 4,
     },
     monthlyCost: '$3,500–5,000 for the life you would actually want there',
     taxLine: '0% personal income tax; Small Business Relief keeps sole traders at 0% under AED 3M revenue.',
+    winter:
+      'Perfect from November to March — 25°C, dry, the outdoor season. It is May to September that is unliveable.',
     theCatch:
       'May to September is 40°C and 60% humidity — no beach, no running, no outdoor anything. You would be trading the exact lifestyle you are moving for, six months a year.',
     notes: [
@@ -254,10 +277,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 1,
       home: 4,
       proximity: 3,
+      safety: 4,
     },
     monthlyCost: '€1,700–2,500 in the south',
     taxLine:
       'The impatriate regime exempts a share of income for new residents, and the flat-tax-for-newcomers route exists but is priced for wealth, not for a first year of payouts.',
+    winter:
+      'Sicily 16°C, Puglia 14°C, and the Ligurian coast 13°C and grey. The south is mild; the north is a northern winter.',
     theCatch:
       'Italian administration is a full-time job in itself, and southern fibre is patchy outside the cities.',
     notes: [
@@ -283,10 +309,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 3,
       home: 5,
       proximity: 0,
+      safety: 5,
     },
     monthlyCost: '$1,500–2,500 for a very comfortable life',
     taxLine:
       'Remitted-income rules mean foreign income brought in during the year it is earned is taxable; the LTR visa and careful remittance are the usual answers.',
+    winter:
+      '30°C every day. Phuket is dry November to April; Samui takes its rain in exactly Q4.',
     theCatch:
       'The trading day. Thailand is UTC+7 — the New York session opens at 20:30 and the US close is past 04:00. Everything else fits; the clock does not.',
     notes: [
@@ -313,9 +342,12 @@ export const CANDIDATES: Candidate[] = [
       admin: 3,
       home: 4,
       proximity: 3,
+      safety: 4,
     },
     monthlyCost: '€1,200–1,800 on the coast',
     taxLine: '10% flat on everything, 5% on dividends, capped social contributions.',
+    winter:
+      'A proper continental winter: 5°C highs, snow, and a sea at 8°C. The coast closes.',
     theCatch:
       'The Black Sea coast is closed for half the year — January highs around 5°C, the resorts shuttered, the beach a place you walk past in a coat.',
     notes: [
@@ -335,16 +367,19 @@ export const CANDIDATES: Candidate[] = [
       tax: 4,
       climate: 5,
       beach: 3,
-      training: 4,
+      training: 5,
       food: 3,
       connectivity: 5,
       admin: 5,
       home: 2,
       proximity: 5,
+      safety: 3,
     },
     monthlyCost: '€1,900 on Gozo, €2,800 in Sliema',
     taxLine:
       'Resident non-dom: foreign income is taxed only when remitted, and foreign capital gains never — but a €5,000 minimum tax applies once foreign income passes €35,000, remitted or not.',
+    winter:
+      '16°C days, wet from November to February, and wind. Never cold, rarely still.',
     theCatch:
       'A whole house near a beach effectively does not exist outside Gozo, the island is over-built, and the traffic on a rock 27 km long is genuinely bad.',
     notes: [
@@ -378,10 +413,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 4,
       home: 4,
       proximity: 3,
+      safety: 3,
     },
     monthlyCost: '€1,650–2,000 on the coast',
     taxLine:
       'Paušalni obrt — the flat-rate sole trader — assumes 85% costs and taxes the remaining 15%, which works out to roughly 11–13% of gross including fixed contributions, up to €60,000 of revenue.',
+    winter:
+      '10°C in January on the Dalmatian coast with the bura behind it. The coldest Mediterranean winter on this list.',
     theCatch:
       'January on the Dalmatian coast sits around 10°C with the bura wind behind it, and the €60,000 ceiling on the flat-rate regime is low for a trader having a good year.',
     notes: [
@@ -411,10 +449,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 2,
       home: 5,
       proximity: 3,
+      safety: 3,
     },
     monthlyCost: '€1,300–1,900 on the coast',
     taxLine:
       'Personal income at 9–15%, with the first €8,400 of self-employment income untaxed; corporate tax 9%.',
+    winter:
+      'Mild at 12°C and among the wettest in Europe — the Bay of Kotor takes serious rain from November.',
     theCatch:
       'Not in the EU, so the Polish passport buys you nothing — residence is an application, renewed. And the coast has one real MMA club for the whole country.',
     notes: [
@@ -444,10 +485,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 2,
       home: 5,
       proximity: 4,
+      safety: 4,
     },
     monthlyCost: '€1,100–1,250 anywhere on the coast',
     taxLine:
       'Self-employed at 23% on net income in principle — but commercial individuals and the self-employed with gross income up to ALL 14 million (~€135,000) pay 0% personal income tax until 31 December 2029.',
+    winter:
+      '14–15°C on the Ionian coast, wet in December and January, and the towns empty out.',
     theCatch:
       'The training answer is essentially no: one jiu-jitsu club in Sarandë and everything else in Tirana. And the coast is a construction site.',
     notes: [
@@ -477,10 +521,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 5,
       home: 3,
       proximity: 3,
+      safety: 3,
     },
     monthlyCost: '€1,500–1,900',
     taxLine:
       'Ryczałt — lump sum on revenue, not profit — at 8.5% or 12% depending on how the activity classifies, plus fixed ZUS contributions of PLN 2,425–3,422 a month. Effective burden lands around 20–26%.',
+    winter:
+      '2°C in December, dark by 15:30, and the Baltic is decorative from October to May.',
     theCatch:
       'December in Gdańsk is 2°C and dark at 15:30, and the Baltic is swimmable for about six weeks. Everything in the brief except the weather is here.',
     notes: [
@@ -506,16 +553,21 @@ export const CANDIDATES: Candidate[] = [
       tax: 2,
       climate: 5,
       beach: 5,
-      training: 3,
+      training: 2,
       food: 5,
       connectivity: 4,
       admin: 2,
       home: 5,
       proximity: 5,
+      safety: 1,
     },
     monthlyCost: '€1,050–1,600',
     taxLine:
       'Progressive 15–40% on income, with none of the expat regimes the EU countries offer. There is no tax argument for Turkey.',
+    hardStop:
+      'Israel has a standing “do not travel” advisory for Turkey at its most severe level, after an armed incident near the Israeli consulate in Istanbul in April 2026. Ruled out on safety until that changes, whatever it costs.',
+    winter:
+      'Antalya is 15–16°C in January with 300 days of sun a year — the best winter climate per euro on this list.',
     theCatch:
       'Inflation. Every euro figure here is a snapshot, rents reset annually against a lira that moves, and residence permits for Europeans have been tightened rather than eased.',
     notes: [
@@ -545,10 +597,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 4,
       home: 4,
       proximity: 4,
+      safety: 5,
     },
     monthlyCost: '€900–1,250',
     taxLine:
       'Individual Entrepreneur with Small Business Status: 1% of turnover up to GEL 500,000 (~€165,000), 3% above it. Registered in an afternoon, no residency requirement, and services to foreign clients are outside VAT.',
+    winter:
+      'Batumi is 10°C and one of the rainiest places in Europe; Tbilisi is colder and drier.',
     theCatch:
       'Batumi takes over 2,000 mm of rain a year — more than double Chania — and Tbilisi has no sea at all. The tax is the best on the list and the climate is not.',
     notes: [
@@ -572,16 +627,19 @@ export const CANDIDATES: Candidate[] = [
       tax: 5,
       climate: 4,
       beach: 5,
-      training: 3,
+      training: 4,
       food: 4,
       connectivity: 3,
       admin: 2,
       home: 5,
       proximity: 1,
+      safety: 4,
     },
     monthlyCost: '€1,700–2,400 on the Pacific coast',
     taxLine:
       'Territorial: only Costa Rican-source income is taxed, so foreign prop payouts fall outside the system entirely. The Rentista residency needs $2,500/month of certified foreign income and pulls you into CCSS social security.',
+    winter:
+      '28°C year-round. Guanacaste is dry December to April; the south Pacific rains most of the year.',
     theCatch:
       'Israel is 8 hours ahead. Your family is asleep when you are working and awake when you are not, and a weekend home is a 20-hour trip with two connections.',
     notes: [
@@ -612,10 +670,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 3,
       home: 4,
       proximity: 1,
+      safety: 4,
     },
     monthlyCost: '€1,400–2,100',
     taxLine:
       'RESICO taxes small self-employed residents at 1–2.5% of gross up to ~MXN 3.5 million — very low. But Mexican residents are taxed on worldwide income, so this is a regime you enter deliberately with advice, not by accident.',
+    winter:
+      '27°C on the Caribbean, dry and clear from November to April. The best winter on this list.',
     theCatch:
       'Distance and the security picture. Quintana Roo is not what it was five years ago, and sargassum can close the beach for weeks between April and August.',
     notes: [
@@ -645,10 +706,13 @@ export const CANDIDATES: Candidate[] = [
       admin: 3,
       home: 4,
       proximity: 1,
+      safety: 5,
     },
     monthlyCost: '€1,500–2,400',
     taxLine:
       'Territorial: foreign-source income is not taxed at all, and the country runs on US dollars so there is no currency risk on your balance.',
+    winter:
+      '30°C and humid all year, with a dry season December to April on the Pacific side.',
     theCatch:
       'The Pacific beaches near the capital are grey and muddy, the Caribbean side is remote and rains constantly, and there is one serious mat in the country.',
     notes: [
@@ -678,10 +742,15 @@ export const CANDIDATES: Candidate[] = [
       admin: 1,
       home: 2,
       proximity: 2,
+      safety: 4,
     },
     monthlyCost: '€3,200–4,200',
     taxLine:
       'Federal tax on worldwide income at 10–37% plus self-employment tax; Florida and Texas add no state tax, California adds up to 13.3%.',
+    hardStop:
+      'No right to live there. Both your passports give 90 visa-free days as a visitor with no work rights; the E-2 and O-1 routes are years, lawyers and real money. Ruled out as a move, available as a 90-day visit.',
+    winter:
+      'South Florida is 25°C and dry in winter; San Diego is 20°C and sunny. Both are at their best in Q4.',
     theCatch:
       'You have no right to be there. An Israeli or Polish passport is 90 visa-free days as a visitor with no work rights; E-2 and O-1 are years, lawyers and real money. Everything else about South Florida fits the brief better than anywhere else on this list, and none of it is available to you.',
     notes: [

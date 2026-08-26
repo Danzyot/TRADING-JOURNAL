@@ -30,6 +30,9 @@ export default function AbroadPage() {
             <Link href="/abroad/places" className="btn">
               Every place
             </Link>
+            <Link href="/abroad/trip" className="btn">
+              Plan a trip
+            </Link>
             <Link href="/abroad/greece" className="btn btn-primary">
               Greece in depth
             </Link>
@@ -91,7 +94,7 @@ export default function AbroadPage() {
         {CANDIDATES.map((candidate) => (
           <CollapsibleCard
             key={candidate.slug}
-            title={`${candidate.flag} ${candidate.country}`}
+            title={candidate.country}
             description={candidate.headline}
             summary={candidate.spots[0]}
           >

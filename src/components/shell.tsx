@@ -33,6 +33,7 @@ const RESEARCH_NAV: NavItem[] = [
   { href: '/abroad', label: 'Where to live', glyph: '◎' },
   { href: '/abroad/places', label: 'Every place', glyph: '⌖' },
   { href: '/abroad/greece', label: 'Greece in depth', glyph: '⛱' },
+  { href: '/abroad/trip', label: 'Plan a trip', glyph: '✈' },
 ]
 
 export function Shell({

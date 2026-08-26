@@ -52,6 +52,33 @@ describe('rank', () => {
   })
 })
 
+describe('a hard stop', () => {
+  it('goes last however well it scores', () => {
+    const ranked = rank(
+      [
+        { slug: 'good', scores: flat(5), hardStop: 'you cannot go there' },
+        { slug: 'worse', scores: flat(2) },
+      ],
+      DEFAULT_WEIGHTS,
+    )
+    expect(ranked[0].slug).toBe('worse')
+    expect(ranked[1].slug).toBe('good')
+    // The score is still reported honestly — it is the order that changes.
+    expect(ranked[1].total).toBe(5)
+  })
+
+  it('orders two stopped candidates against each other normally', () => {
+    const ranked = rank(
+      [
+        { slug: 'a', scores: flat(2), hardStop: 'no' },
+        { slug: 'b', scores: flat(4), hardStop: 'no' },
+      ],
+      DEFAULT_WEIGHTS,
+    )
+    expect(ranked.map((entry) => entry.slug)).toEqual(['b', 'a'])
+  })
+})
+
 describe('drivers', () => {
   it('names what is carrying a candidate and what is dragging it', () => {
     const candidate = { scores: { ...flat(3), beach: 5, connectivity: 0 } }

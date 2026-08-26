@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CANDIDATES } from './countries'
+import { monthlyOf } from './costs'
 import {
   PLACES,
   costRange,
@@ -53,8 +54,8 @@ describe('the places dataset', () => {
     for (const place of PLACES) {
       expect(place.fit, place.id).toBeGreaterThanOrEqual(1)
       expect(place.fit, place.id).toBeLessThanOrEqual(5)
-      expect(place.monthly, place.id).toBeGreaterThan(500)
-      expect(place.monthly, place.id).toBeLessThan(10000)
+      expect(monthlyOf(place), place.id).toBeGreaterThan(500)
+      expect(monthlyOf(place), place.id).toBeLessThan(10000)
     }
   })
 
@@ -86,7 +87,6 @@ const sample: Place[] = [
     name: 'Alpha',
     where: 'North',
     fit: 5,
-    monthly: 1000,
     rent: 'a house on the hill',
     house: 'normal',
     beach: 'sand, ten minutes',
@@ -103,7 +103,6 @@ const sample: Place[] = [
     name: 'Beta',
     where: 'South',
     fit: 3,
-    monthly: 3000,
     rent: 'flats only, and dear',
     house: 'rare',
     beach: 'rock swimming, all year',
@@ -116,9 +115,15 @@ const sample: Place[] = [
   },
 ]
 
+// The two synthetic towns cost whatever their country's everyday profile costs,
+// since neither is in the rent table — so the ceiling is derived, not guessed.
+const [cheap, dear] = sample.map(monthlyOf).sort((a, b) => a - b)
+
 describe('filterPlaces', () => {
   it('applies the budget ceiling', () => {
-    expect(filterPlaces(sample, { budget: 1500 }).map((p) => p.id)).toEqual(['a'])
+    expect(cheap).toBeLessThan(dear)
+    expect(filterPlaces(sample, { budget: cheap }).map((p) => p.id)).toEqual(['a'])
+    expect(filterPlaces(sample, { budget: dear })).toHaveLength(2)
   })
 
   it('drops towns without a mat when a mat is required', () => {
@@ -140,8 +145,8 @@ describe('filterPlaces', () => {
   })
 
   it('combines filters', () => {
-    expect(filterPlaces(sample, { budget: 1500, mmaOnly: true, query: 'rains' })).toHaveLength(1)
-    expect(filterPlaces(sample, { budget: 1500, countries: ['spain'] })).toHaveLength(0)
+    expect(filterPlaces(sample, { budget: cheap, mmaOnly: true, query: 'rains' })).toHaveLength(1)
+    expect(filterPlaces(sample, { budget: cheap, countries: ['spain'] })).toHaveLength(0)
   })
 })
 
@@ -163,7 +168,7 @@ describe('sortPlaces', () => {
 
 describe('costRange', () => {
   it('spans the towns given', () => {
-    expect(costRange(sample)).toEqual({ low: 1000, high: 3000 })
+    expect(costRange(sample)).toEqual({ low: cheap, high: dear })
   })
 
   it('has nothing to say about nowhere', () => {

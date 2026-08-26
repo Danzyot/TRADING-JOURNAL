@@ -19,6 +19,7 @@ export type CriterionKey =
   | 'admin'
   | 'home'
   | 'proximity'
+  | 'safety'
 
 export type Criterion = {
   key: CriterionKey
@@ -57,7 +58,8 @@ export const CRITERIA: Criterion[] = [
   {
     key: 'training',
     label: 'Gym, MMA, running',
-    meaning: 'Real MMA and BJJ rooms with a schedule, not one class a week.',
+    meaning:
+      'Somewhere a beginner can walk in next week: a fundamentals class, coaching in a language you speak, and a month you can pay for without a contract.',
     weight: 5,
   },
   {
@@ -89,6 +91,13 @@ export const CRITERIA: Criterion[] = [
     label: 'Distance to Israel',
     meaning: 'How easily you get home for a weekend.',
     weight: 3,
+  },
+  {
+    key: 'safety',
+    label: 'Being Israeli there',
+    meaning:
+      'A community and a Chabad within reach, kosher food if you want it, and a street where an Israeli passport is unremarkable.',
+    weight: 4,
   },
 ]
 

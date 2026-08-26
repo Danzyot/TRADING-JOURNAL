@@ -28,13 +28,23 @@ export function scoreOne(
   return total === 0 ? 0 : weighted / total
 }
 
-export function rank<T extends { scores: Record<CriterionKey, number> }>(
+/**
+ * Ranked, with one exception: a candidate carrying a hard stop goes last.
+ *
+ * Turkey scores well on sun, sea and cost, and Israel currently tells its
+ * citizens not to go there at all. Letting beaches average that away would be
+ * the ranking lying to you, so a hard stop is a floor rather than a weight.
+ */
+export function rank<T extends { scores: Record<CriterionKey, number>; hardStop?: string }>(
   candidates: T[],
   weights: Weights,
 ): Scored<T>[] {
   return candidates
     .map((candidate) => ({ ...candidate, total: scoreOne(candidate.scores, weights), rank: 0 }))
-    .sort((a, b) => b.total - a.total)
+    .sort((a, b) => {
+      const stopped = Number(Boolean(a.hardStop)) - Number(Boolean(b.hardStop))
+      return stopped !== 0 ? stopped : b.total - a.total
+    })
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }))
 }
 
